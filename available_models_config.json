@@ -1,0 +1,13 @@
+{
+  "models_directory": "/home/kjifu/AI_FT_3/AI_FT/models",
+  "cache_directory": "/home/kjifu/AI_FT_3/AI_FT/models",
+  "available_models": [
+    "Qwen/Qwen2.5-14B-Instruct",
+    "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese",
+    "cyberagent/calm3-22b-chat",
+    "Qwen/Qwen2.5-32B-Instruct",
+    "tokyotech-llm/Swallow-70b-instruct-hf",
+    "microsoft/Phi-3.5-32B-Instruct",
+    "meta-llama/Meta-Llama-3.1-32B-Instruct"
+  ]
+}

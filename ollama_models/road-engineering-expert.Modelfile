@@ -1,0 +1,9 @@
+FROM /workspace/outputs/フルファインチューニング_20250723_041920
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
+PARAMETER top_k 40
+PARAMETER repeat_penalty 1.1
+PARAMETER stop "質問:"
+PARAMETER stop "回答:"
+
+SYSTEM "あなたは道路工学の専門家です。質問に対って正確で分かりやすい回答を提供してください。"

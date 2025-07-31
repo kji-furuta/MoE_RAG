@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+
+{% block title %}AI Fine-tuning & Text Generation System{% endblock %}
+
+{% block extra_styles %}
+.text-generation {
+    background: #f0f8f0;
+    border-left: 4px solid #4CAF50;
+}
+.fine-tuning {
+    background: #fff8f0;
+    border-left: 4px solid #FF9800;
+}
+{% endblock %}
+
+{% block main_title %}
+            <h1>
+                <img src="/static/logo_teikoku.png" alt="Logo" class="title-logo">
+                🖥️ AI Fine-tuning & Text Generation System
+            </h1>
+            <p>Generate text using fine-tuned models and Ollama models</p>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="content">
+        <!-- テキスト生成セクション -->
+        <div class="section text-generation">
+            <h2>✨ Text Generation</h2>
+            <form id="generateForm">
+                <div class="form-group">
+                    <label for="modelSelect">Model Selection:</label>
+                    <select id="modelSelect" name="modelSelect" required>
+                        <option value="">Select a model...</option>
+                    </select>
+                    <button type="button" class="btn refresh-btn" onclick="loadAvailableModels()">🔄 Refresh Models</button>
+                </div>
+                
+                <div class="form-group">
+                    <label for="prompt">Prompt:</label>
+                    <textarea id="prompt" name="prompt" placeholder="Enter your question or instruction..." required></textarea>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="max_length">Max Length:</label>
+                        <input type="number" id="max_length" name="max_length" value="2048" min="100" max="4096">
+                    </div>
+                    <div class="form-group">
+                        <label for="temperature">Temperature:</label>
+                        <input type="number" id="temperature" name="temperature" value="0.7" min="0.1" max="2.0" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="top_p">Top-p:</label>
+                        <input type="number" id="top_p" name="top_p" value="0.9" min="0.1" max="1.0" step="0.1">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="useStreaming" style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="useStreaming" name="useStreaming" style="margin: 0;">
+                            <span>Enable Streaming (Real-time text generation)</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn" id="generateBtn">🚀 Generate Text</button>
+            </form>
+            
+            <div class="loading" id="generateLoading">
+                Generating text... ⏳
+            </div>
+            
+            <div id="generateResult"></div>
+        </div>
+        
+        <!-- ファインチューニングセクション -->
+        <div class="section fine-tuning">
+            <h2>🎯 Fine-tuning</h2>
+            <p>To fine-tune a new model, use the main fine-tuning interface.</p>
+            <a href="/finetune" class="btn">📚 Go to Fine-tuning Interface</a>
+            <a href="/rag" class="btn" style="margin-left: 10px;">🏗️ Go to RAG System</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+let selectedModel = null;
+let selectedModelType = null;
+
+// ページ読み込み時にモデル一覧を取得
+document.addEventListener('DOMContentLoaded', function() {
+    loadAvailableModels();
+});
+
+// 利用可能なモデル一覧を取得
+async function loadAvailableModels() {
+    const modelSelect = document.getElementById('modelSelect');
+    modelSelect.innerHTML = '<option value="">Loading models...</option>';
+    
+    try {
+        const response = await fetch('/api/available-models');
+        const data = await response.json();
+        
+        if (data.error) {
+            modelSelect.innerHTML = '<option value="">Error loading models</option>';
+            return;
+        }
+        
+        let options = '<option value="">Select a model...</option>';
+        
+        // ファインチューニング済みモデル
+        if (data.finetuned_models && data.finetuned_models.length > 0) {
+            options += '<optgroup label="Fine-tuned Models">';
+            data.finetuned_models.forEach(model => {
+                options += `<option value="finetuned:${model.name}">${model.name} (${model.base_model || 'Unknown'})</option>`;
+            });
+            options += '</optgroup>';
+        }
+        
+        // Ollamaモデル
+        if (data.ollama_models && data.ollama_models.length > 0) {
+            options += '<optgroup label="Ollama Models">';
+            data.ollama_models.forEach(model => {
+                options += `<option value="ollama:${model.name}">${model.name} (${model.size || 'Unknown'})</option>`;
+            });
+            options += '</optgroup>';
+        }
+        
+        modelSelect.innerHTML = options;
+        
+    } catch (error) {
+        console.error('Error loading models:', error);
+        modelSelect.innerHTML = '<option value="">Error loading models</option>';
+    }
+}
+
+// モデル選択
+function selectModel(modelName, modelType) {
+    selectedModel = modelName;
+    selectedModelType = modelType;
+    
+    // 選択されたモデルをフォームに設定
+    document.getElementById('modelSelect').value = `${modelType}:${modelName}`;
+}
+
+// テキスト生成（ストリーミング対応）
+document.getElementById('generateForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const modelSelect = document.getElementById('modelSelect');
+    const prompt = document.getElementById('prompt').value;
+    const maxLength = parseInt(document.getElementById('max_length').value);
+    const temperature = parseFloat(document.getElementById('temperature').value);
+    const topP = parseFloat(document.getElementById('top_p').value);
+    const useStreaming = document.getElementById('useStreaming').checked;
+    
+    if (!modelSelect.value) {
+        showAlert('generateResult', 'Please select a model', 'warning');
+        return;
+    }
+    
+    if (!prompt.trim()) {
+        showAlert('generateResult', 'Please enter a prompt', 'warning');
+        return;
+    }
+    
+    const [modelType, modelName] = modelSelect.value.split(':');
+    
+    showAlert('generateResult', 'Generating text...', 'info');
+    document.getElementById('generateLoading').style.display = 'block';
+    document.getElementById('generateBtn').disabled = true;
+    
+    try {
+        if (useStreaming) {
+            // ストリーミング生成
+            await generateTextStream(modelType, modelName, prompt, maxLength, temperature, topP);
+        } else {
+            // 通常の生成
+            const response = await fetch('/api/generate-with-model-selection', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model_type: modelType,
+                    model_name: modelName,
+                    prompt: prompt,
+                    max_length: maxLength,
+                    temperature: temperature,
+                    top_p: topP
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                displayGenerationResult(result);
+            } else {
+                showAlert('generateResult', `Error: ${result.detail}`, 'danger');
+            }
+        }
+    } catch (error) {
+        console.error('Generation error:', error);
+        showAlert('generateResult', 'Text generation failed', 'danger');
+    } finally {
+        document.getElementById('generateLoading').style.display = 'none';
+        document.getElementById('generateBtn').disabled = false;
+    }
+});
+
+// ストリーミング生成
+async function generateTextStream(modelType, modelName, prompt, maxLength, temperature, topP) {
+    const resultDiv = document.getElementById('generateResult');
+    
+    // ストリーミング結果表示エリアを初期化
+    let html = '<div class="result">';
+    html += '<h3>Generated Text (Streaming):</h3>';
+    html += `<p><strong>Prompt:</strong> ${prompt}</p>`;
+    html += `<p><strong>Generated:</strong></p>`;
+    html += `<div id="streamingOutput" style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 10px 0; min-height: 100px; font-family: monospace; white-space: pre-wrap;">`;
+    html += '<span style="color: #666;">Generating...</span>';
+    html += '</div>';
+    html += '</div>';
+    resultDiv.innerHTML = html;
+    
+    const streamingOutput = document.getElementById('streamingOutput');
+    let generatedText = '';
+    
+    try {
+        const response = await fetch('/api/generate-stream', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                model_type: modelType,
+                model_name: modelName,
+                prompt: prompt,
+                max_length: maxLength,
+                temperature: temperature,
+                top_p: topP
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        
+        while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) break;
+            
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        
+                        if (data.error) {
+                            streamingOutput.innerHTML = `<span style="color: #d32f2f;">Error: ${data.error}</span>`;
+                            return;
+                        }
+                        
+                        if (data.text !== undefined) {
+                            generatedText += data.text;
+                            streamingOutput.textContent = generatedText;
+                            
+                            // 自動スクロール
+                            streamingOutput.scrollTop = streamingOutput.scrollHeight;
+                        }
+                        
+                        if (data.done) {
+                            streamingOutput.innerHTML += '<br><span style="color: #4caf50;">✓ Generation completed</span>';
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('JSON parse error:', e);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Streaming error:', error);
+        streamingOutput.innerHTML = `<span style="color: #d32f2f;">Error: ${error.message}</span>`;
+    }
+}
+
+// 結果表示
+function displayGenerationResult(result) {
+    const resultDiv = document.getElementById('generateResult');
+    
+    let html = '<div class="result">';
+    html += '<h3>Generated Text:</h3>';
+    html += `<p><strong>Prompt:</strong> ${result.prompt}</p>`;
+    html += `<p><strong>Generated:</strong></p>`;
+    html += `<div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 10px 0;">`;
+    html += `<pre style="white-space: pre-wrap; margin: 0;">${result.generated_text}</pre>`;
+    html += '</div>';
+    
+    if (result.model_path) {
+        html += `<p><strong>Model:</strong> ${result.model_path}</p>`;
+    }
+    
+    if (result.fallback) {
+        html += `<p><strong>Note:</strong> Used ${result.fallback} fallback</p>`;
+    }
+    
+    html += '</div>';
+    resultDiv.innerHTML = html;
+}
+
+// アラート表示
+function showAlert(elementId, message, type) {
+    const element = document.getElementById(elementId);
+    const alertClass = type === 'danger' ? 'error' : type === 'warning' ? 'warning' : 'info';
+    element.innerHTML = `<div class="${alertClass}">${message}</div>`;
+}
+{% endblock %} 

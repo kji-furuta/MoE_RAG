@@ -1,0 +1,118 @@
+document_processing:
+  chunking:
+    chunk_size: 512
+    min_chunk_size: 100
+    overlap: 128
+    semantic:
+      model: ja_core_news_lg
+      threshold: 0.7
+    strategy: semantic
+  ocr:
+    gpu: true
+    languages:
+    - ja
+    - en
+  pdf_parser:
+    dpi: 300
+    extract_images: true
+    extract_tables: true
+embedding:
+  batch_size: 32
+  device: cuda
+  max_length: 512
+  model_name: intfloat/multilingual-e5-large
+  normalize_embeddings: true
+evaluation:
+  metrics:
+  - accuracy
+  - citation_accuracy
+  - response_time
+  - relevance_score
+  test_dataset_path: ./data/rag_documents/test_queries.json
+llm:
+  base_model: cyberagent/calm3-22b-chat
+  device_map: auto
+  finetuned_model_path: ./outputs/latest
+  load_in_8bit: true
+  max_memory:
+    0: 36GB
+    1: 36GB
+  max_new_tokens: 2048
+  model_name: outputs/フルファインチューニング_20250726_124935
+  model_path: outputs/フルファインチューニング_20250726_124935
+  repetition_penalty: 1.1
+  temperature: 0.3
+  top_p: 0.95
+  torch_dtype: float16
+  use_finetuned: true
+performance:
+  batch_processing:
+    batch_size: 50
+    enabled: true
+  cache:
+    enabled: true
+    max_size: 1000
+    ttl: 3600
+  parallel_processing:
+    max_workers: 4
+retrieval:
+  hybrid_search:
+    enabled: true
+    keyword_weight: 0.3
+    vector_weight: 0.7
+  metadata_filters:
+  - document_type
+  - version
+  - chapter
+  - section
+  rerank_top_k: 5
+  reranking:
+    enabled: true
+    model: cross-encoder/ms-marco-MiniLM-L-12-v2
+  top_k: 10
+security:
+  auth:
+    enabled: false
+  document_access:
+    check_permissions: false
+  logging:
+    anonymize_pii: false
+    log_queries: true
+    log_responses: true
+specialized:
+  citation:
+    include_page_numbers: true
+    include_section_numbers: true
+    max_citation_length: 256
+  numerical_processing:
+    extract_units: true
+    normalize_units: true
+    unit_mapping:
+      キロメートル: km
+      パーセント: '%'
+      メートル: m
+  version_control:
+    enabled: true
+    track_changes: true
+system:
+  language: ja
+  log_level: INFO
+  name: 土木道路設計特化型RAGシステム
+  version: 1.0.0
+ui:
+  features:
+    batch_query: true
+    export_results: true
+    file_upload: true
+    version_selection: true
+  streamlit:
+    max_upload_size: 200
+    port: 8051
+    theme: dark
+vector_store:
+  qdrant:
+    collection_name: road_design_docs
+    url: http://qdrant:6333
+    prefer_grpc: false
+    timeout: 60
+  type: qdrant

@@ -1,0 +1,583 @@
+{% extends "base.html" %}
+
+{% block title %}RAG System - AI Fine-tuning Toolkit{% endblock %}
+
+{% block content %}
+<style>
+    /* RAGページ専用のスタイル調整 */
+    .rag-container {
+        padding-left: 40px;
+        padding-right: 40px;
+        padding-top: 20px;
+    }
+    
+    .rag-container h1 {
+        margin-bottom: 30px;
+        padding-left: 10px;
+    }
+    
+    .nav-tabs {
+        margin-left: 0;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .nav-tabs .nav-link {
+        padding: 10px 20px;
+        border-radius: 5px 5px 0 0;
+    }
+    
+    .tab-content {
+        padding-top: 20px;
+    }
+    
+    .card {
+        margin-bottom: 20px;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .card-body {
+        padding: 25px;
+    }
+    
+    .form-control, .btn {
+        margin-left: 0;
+    }
+    
+    .form-label {
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+    
+    /* テーブルのスタイル */
+    .table {
+        margin-left: 0;
+        width: 100%;
+    }
+    
+    /* アラートのスタイル */
+    .alert {
+        margin-left: 0;
+        margin-right: 0;
+        padding: 15px 20px;
+    }
+    
+    /* フォームグループの間隔 */
+    .mb-3 {
+        margin-bottom: 1.5rem !important;
+    }
+    
+    /* Bootstrap互換性のための調整 */
+    .row {
+        margin-left: -15px;
+        margin-right: -15px;
+    }
+    
+    .col-md-4 {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+</style>
+
+<div class="container rag-container">
+    <h1>🏗️ 土木道路設計特化型RAGシステム</h1>
+    
+    {% if not rag_available %}
+    <div class="alert alert-warning">
+        <h3>⚠️ RAGシステムは現在利用できません</h3>
+        <p>RAGシステムの初期化中にエラーが発生しました。</p>
+        <p>以下をお試しください：</p>
+        <ul>
+            <li>Dockerコンテナを再起動してください</li>
+            <li>既存のQdrantプロセスを停止してください</li>
+            <li>ログを確認してください: <code>docker logs ai-ft-container</code></li>
+        </ul>
+        <p>詳細: Qdrantデータベースが他のプロセスで使用されています</p>
+    </div>
+    {% else %}
+    
+    <!-- タブナビゲーション -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#settings">⚙️ モデル設定</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#upload">📤 文書アップロード</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#search">🔍 検索・質問応答</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#documents">📚 文書管理</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#statistics">📊 統計情報</a>
+        </li>
+    </ul>
+
+    <!-- タブコンテンツ -->
+    <div class="tab-content">
+        <!-- モデル設定タブ -->
+        <div class="tab-pane fade show active" id="settings">
+            <div class="card">
+                <div class="card-body">
+                    <h3>⚙️ RAGシステム設定</h3>
+                    
+                    <div class="mb-4">
+                        <h4>🤖 使用するAIモデル</h4>
+                        <form id="modelSettingsForm">
+                            <div class="mb-3">
+                                <label for="ragModel" class="form-label">LLM（大規模言語モデル）選択</label>
+                                <select class="form-control" id="ragModel" name="model">
+                                    <option value="">モデルを選択してください...</option>
+                                    <optgroup label="ファインチューニング済みモデル">
+                                        <!-- 動的に読み込まれます -->
+                                    </optgroup>
+                                    <optgroup label="ベースモデル">
+                                        <option value="cyberagent/calm3-22b-chat">CALM3-22B-Chat (日本語特化)</option>
+                                        <option value="microsoft/Phi-3.5-mini-instruct">Phi-3.5-mini (軽量)</option>
+                                        <option value="meta-llama/Llama-2-7b-chat-hf">Llama-2-7B-Chat</option>
+                                    </optgroup>
+                                </select>
+                                <small class="form-text text-muted">
+                                    ファインチューニング済みモデルを使用すると、土木道路設計に特化した回答が得られます
+                                </small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="embeddingModel" class="form-label">埋め込みモデル</label>
+                                <select class="form-control" id="embeddingModel" name="embedding_model">
+                                    <option value="intfloat/multilingual-e5-large" selected>Multilingual-E5-Large (推奨)</option>
+                                    <option value="sentence-transformers/all-MiniLM-L6-v2">All-MiniLM-L6-v2 (高速)</option>
+                                    <option value="BAAI/bge-base-ja-v1.5">BGE-Base-JA (日本語特化)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="temperature" class="form-label">Temperature (創造性)</label>
+                                <input type="range" class="form-control-range" id="temperature" 
+                                       name="temperature" min="0" max="1" step="0.1" value="0.3">
+                                <span id="tempValue">0.3</span>
+                                <small class="form-text text-muted">
+                                    低い値: より正確で一貫性のある回答 / 高い値: より創造的な回答
+                                </small>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">設定を保存</button>
+                            <div id="modelSettingsResult" class="mt-3"></div>
+                        </form>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h4>📊 現在の設定</h4>
+                        <div id="currentSettings" class="alert alert-info">
+                            読み込み中...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- アップロードタブ -->
+        <div class="tab-pane fade" id="upload">
+            <div class="card">
+                <div class="card-body">
+                    <h3>📤 PDF文書アップロード</h3>
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="file" class="form-label">PDFファイル選択</label>
+                            <input type="file" class="form-control" id="file" name="file" accept=".pdf" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="title" class="form-label">文書タイトル</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="category" class="form-label">カテゴリ</label>
+                            <select class="form-control" id="category" name="category" required>
+                                <option value="道路構造令">道路構造令</option>
+                                <option value="設計基準">設計基準</option>
+                                <option value="技術マニュアル">技術マニュアル</option>
+                                <option value="仕様書">仕様書</option>
+                                <option value="その他">その他</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">アップロード</button>
+                    </form>
+                    <div id="uploadResult" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 検索タブ -->
+        <div class="tab-pane fade" id="search">
+            <div class="card">
+                <div class="card-body">
+                    <h3>🔍 ハイブリッド検索・質問応答</h3>
+                    <form id="searchForm">
+                        <div class="mb-3">
+                            <label for="query" class="form-label">検索クエリ・質問</label>
+                            <textarea class="form-control" id="query" rows="3" required
+                                placeholder="例: 設計速度60km/hの道路の最小曲線半径は？"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="searchType" class="form-label">検索タイプ</label>
+                            <select class="form-control" id="searchType">
+                                <option value="hybrid">ハイブリッド検索（推奨）</option>
+                                <option value="vector">ベクトル検索</option>
+                                <option value="keyword">キーワード検索</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="topK" class="form-label">検索結果数</label>
+                            <input type="number" class="form-control" id="topK" value="5" min="1" max="20">
+                        </div>
+                        <button type="submit" class="btn btn-primary">検索</button>
+                    </form>
+                    <div id="searchResult" class="mt-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 文書管理タブ -->
+        <div class="tab-pane fade" id="documents">
+            <div class="card">
+                <div class="card-body">
+                    <h3>📚 文書一覧</h3>
+                    <button class="btn btn-secondary mb-3" onclick="loadDocuments()">更新</button>
+                    <div id="documentsList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 統計タブ -->
+        <div class="tab-pane fade" id="statistics">
+            <div class="card">
+                <div class="card-body">
+                    <h3>📊 システム統計</h3>
+                    <button class="btn btn-secondary mb-3" onclick="loadStatistics()">更新</button>
+                    <div id="statisticsData"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// アップロードフォーム
+document.getElementById('uploadForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const resultDiv = document.getElementById('uploadResult');
+    
+    resultDiv.innerHTML = '<div class="alert alert-info">アップロード中...</div>';
+    
+    try {
+        const response = await fetch('/rag/upload-document', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <h4>アップロード成功</h4>
+                    <p>文書ID: ${data.document_id}</p>
+                    <p>処理されたページ数: ${data.metadata.page_count}</p>
+                </div>
+            `;
+        } else {
+            throw new Error(data.detail || 'アップロードエラー');
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                エラー: ${error.message}
+            </div>
+        `;
+    }
+});
+
+// 検索フォーム
+document.getElementById('searchForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const query = document.getElementById('query').value;
+    const searchType = document.getElementById('searchType').value;
+    const topK = document.getElementById('topK').value;
+    const resultDiv = document.getElementById('searchResult');
+    
+    resultDiv.innerHTML = '<div class="alert alert-info">検索中...</div>';
+    
+    try {
+        const response = await fetch('/rag/query', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                query: query,
+                search_type: searchType,
+                top_k: parseInt(topK)
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            let html = '<div class="card mt-3">';
+            html += '<div class="card-body">';
+            html += `<h4>回答</h4><p>${data.answer}</p>`;
+            
+            if (data.sources && data.sources.length > 0) {
+                html += '<h5 class="mt-3">参照元</h5>';
+                html += '<ul>';
+                data.sources.forEach(source => {
+                    const score = source.score !== undefined ? source.score.toFixed(3) : 'N/A';
+                    html += `<li>${source.title} (スコア: ${score})</li>`;
+                });
+                html += '</ul>';
+            }
+            
+            html += '</div></div>';
+            resultDiv.innerHTML = html;
+        } else {
+            throw new Error(data.detail || '検索エラー');
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                エラー: ${error.message}
+            </div>
+        `;
+    }
+});
+
+// 文書一覧取得
+async function loadDocuments() {
+    const listDiv = document.getElementById('documentsList');
+    listDiv.innerHTML = '<div class="alert alert-info">読み込み中...</div>';
+    
+    try {
+        const response = await fetch('/rag/documents');
+        const data = await response.json();
+        
+        if (response.ok && data.documents) {
+            let html = '<table class="table">';
+            html += '<thead><tr><th>タイトル</th><th>カテゴリ</th><th>ページ数</th><th>アップロード日時</th><th>操作</th></tr></thead>';
+            html += '<tbody>';
+            
+            data.documents.forEach(doc => {
+                html += `<tr id="doc-row-${doc.id}">
+                    <td>${doc.title}</td>
+                    <td>${doc.category}</td>
+                    <td>${doc.page_count || '-'}</td>
+                    <td>${new Date(doc.created_at).toLocaleString('ja-JP')}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteDocument('${doc.id}', '${doc.title}')">
+                            削除
+                        </button>
+                    </td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table>';
+            listDiv.innerHTML = html;
+        } else {
+            throw new Error('文書一覧の取得に失敗しました');
+        }
+    } catch (error) {
+        listDiv.innerHTML = `<div class="alert alert-danger">エラー: ${error.message}</div>`;
+    }
+}
+
+// 文書削除
+async function deleteDocument(docId, docTitle) {
+    if (!confirm(`文書「${docTitle}」を削除してもよろしいですか？\n\nこの操作は取り消せません。`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/rag/documents/${docId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // 成功メッセージを表示
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                <strong>削除成功:</strong> ${data.document_title} を削除しました。
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.getElementById('documentsList').insertBefore(alertDiv, document.getElementById('documentsList').firstChild);
+            
+            // 行を削除
+            const row = document.getElementById(`doc-row-${docId}`);
+            if (row) {
+                row.style.transition = 'opacity 0.5s';
+                row.style.opacity = '0';
+                setTimeout(() => row.remove(), 500);
+            }
+        } else {
+            throw new Error(data.detail || '削除に失敗しました');
+        }
+    } catch (error) {
+        alert(`削除エラー: ${error.message}`);
+    }
+}
+
+// 統計情報取得
+async function loadStatistics() {
+    const statsDiv = document.getElementById('statisticsData');
+    statsDiv.innerHTML = '<div class="alert alert-info">読み込み中...</div>';
+    
+    try {
+        const response = await fetch('/rag/statistics');
+        const data = await response.json();
+        
+        if (response.ok) {
+            let html = '<div class="row">';
+            html += `
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5>総文書数</h5>
+                            <h2>${data.total_documents || 0}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5>総チャンク数</h5>
+                            <h2>${data.total_chunks || 0}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5>インデックスサイズ</h5>
+                            <h2>${data.index_size || 'N/A'}</h2>
+                        </div>
+                    </div>
+                </div>
+            `;
+            html += '</div>';
+            statsDiv.innerHTML = html;
+        } else {
+            throw new Error('統計情報の取得に失敗しました');
+        }
+    } catch (error) {
+        statsDiv.innerHTML = `<div class="alert alert-danger">エラー: ${error.message}</div>`;
+    }
+}
+
+// Temperature スライダーの値を表示
+document.getElementById('temperature')?.addEventListener('input', (e) => {
+    document.getElementById('tempValue').textContent = e.target.value;
+});
+
+// ファインチューニング済みモデルを読み込む
+async function loadFinetunedModels() {
+    try {
+        const response = await fetch('/api/available-models');
+        const data = await response.json();
+        
+        const select = document.getElementById('ragModel');
+        const optgroup = select.querySelector('optgroup[label="ファインチューニング済みモデル"]');
+        
+        // 既存のオプションをクリア
+        optgroup.innerHTML = '';
+        
+        if (data.finetuned_models && data.finetuned_models.length > 0) {
+            data.finetuned_models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = `finetuned:${model.path}`;
+                option.textContent = `${model.name} (${model.base_model || 'Unknown'}) - ${model.created_at}`;
+                optgroup.appendChild(option);
+            });
+        } else {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'ファインチューニング済みモデルがありません';
+            option.disabled = true;
+            optgroup.appendChild(option);
+        }
+    } catch (error) {
+        console.error('Failed to load models:', error);
+    }
+}
+
+// 現在の設定を読み込む
+async function loadCurrentSettings() {
+    try {
+        const response = await fetch('/rag/system-info');
+        const data = await response.json();
+        
+        const settingsDiv = document.getElementById('currentSettings');
+        if (data.config) {
+            let html = '<table class="table table-sm">';
+            html += `<tr><td>LLMモデル:</td><td>${data.config.llm?.model_name || '未設定'}</td></tr>`;
+            html += `<tr><td>埋め込みモデル:</td><td>${data.config.embedding?.model_name || 'multilingual-e5-large'}</td></tr>`;
+            html += `<tr><td>Temperature:</td><td>${data.config.llm?.temperature || 0.3}</td></tr>`;
+            html += `<tr><td>ベクトルストア:</td><td>${data.config.vector_store?.type || 'Qdrant'}</td></tr>`;
+            html += '</table>';
+            settingsDiv.innerHTML = html;
+        }
+    } catch (error) {
+        document.getElementById('currentSettings').innerHTML = 
+            '<div class="text-muted">設定情報を取得できませんでした</div>';
+    }
+}
+
+// モデル設定フォームの送信
+document.getElementById('modelSettingsForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const resultDiv = document.getElementById('modelSettingsResult');
+    
+    resultDiv.innerHTML = '<div class="alert alert-info">設定を保存中...</div>';
+    
+    try {
+        const settings = {
+            llm_model: formData.get('model'),
+            embedding_model: formData.get('embedding_model'),
+            temperature: parseFloat(formData.get('temperature'))
+        };
+        
+        const response = await fetch('/rag/update-settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(settings)
+        });
+        
+        if (response.ok) {
+            resultDiv.innerHTML = '<div class="alert alert-success">設定を保存しました。RAGシステムを再起動してください。</div>';
+            loadCurrentSettings();
+        } else {
+            throw new Error('設定の保存に失敗しました');
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `<div class="alert alert-danger">エラー: ${error.message}</div>`;
+    }
+});
+
+// ページ読み込み時に実行
+document.addEventListener('DOMContentLoaded', () => {
+    if (!{{ 'true' if rag_available else 'false' }}) {
+        return;
+    }
+    loadFinetunedModels();
+    loadCurrentSettings();
+});
+</script>
+{% endblock %}

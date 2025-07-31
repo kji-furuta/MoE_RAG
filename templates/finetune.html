@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+
+{% block title %}Fine-tuning - AI Fine-tuning & Text Generation System{% endblock %}
+
+{% block extra_styles %}
+.nav {
+    background: #f8f9fa;
+    padding: 15px 30px;
+    border-bottom: 1px solid #e0e0e0;
+}
+.nav a {
+    color: #667eea;
+    text-decoration: none;
+    margin-right: 20px;
+    font-weight: 500;
+}
+.nav a:hover {
+    text-decoration: underline;
+}
+.section {
+    background: #f8f9ff;
+    border-left: 4px solid #667eea;
+}
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: #e0e0e0;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 10px 0;
+}
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    transition: width 0.3s ease;
+}
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+.status-running {
+    background: #4CAF50;
+    animation: pulse 1s infinite;
+}
+.status-completed {
+    background: #2196F3;
+}
+.status-error {
+    background: #f44336;
+}
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+{% endblock %}
+
+{% block main_title %}
+<h1>
+    <img src="/static/logo_teikoku.png" alt="Logo" class="title-logo">
+    🖥️ Fine-tuning Interface</h1>
+<p>Fine-tune models with custom datasets</p>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="nav">
+        <a href="/">🏠 Home</a>
+        <a href="/models">📋 Model List</a>
+        <a href="/finetune">🎯 Fine-tuning</a>
+    </div>
+    
+    <div class="content">
+        <!-- データアップロードセクション -->
+        <div class="section">
+            <h2>📁 Data Upload</h2>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="trainingData">Training Data (JSONL/JSON):</label>
+                    <input type="file" id="trainingData" name="file" accept=".jsonl,.json" required>
+                </div>
+                <button type="submit" class="btn">📤 Upload Data</button>
+            </form>
+            <div id="uploadResult"></div>
+        </div>
+        
+        <!-- ファインチューニング設定セクション -->
+        <div class="section">
+            <h2>⚙️ Fine-tuning Configuration</h2>
+            <form id="trainingForm">
+                <div class="form-group">
+                    <label for="baseModel">Base Model:</label>
+                    <select id="baseModel" name="baseModel" required>
+                        <option value="">Select a base model...</option>
+                        <optgroup label="Small Models (Fast Training)">
+                            <option value="stabilityai/japanese-stablelm-3b-4e1t-instruct">Japanese StableLM 3B Instruct</option>
+                            <option value="elyza/ELYZA-japanese-Llama-2-7b-instruct">ELYZA Japanese Llama-2 7B Instruct</option>
+                            <option value="microsoft/Phi-3.5-mini-instruct">Microsoft Phi-3.5 Mini Instruct (3.8B)</option>
+                        </optgroup>
+                        <optgroup label="Medium Models (Recommended)">
+                            <option value="stabilityai/japanese-stablelm-instruct-alpha-7b-v2">Japanese StableLM Instruct Alpha 7B v2</option>
+                            <option value="tokyotech-llm/Swallow-7b-instruct-hf">Swallow 7B Instruct Japanese</option>
+                            <option value="elyza/ELYZA-japanese-Llama-2-13b-instruct">ELYZA Japanese Llama-2 13B Instruct</option>
+                        </optgroup>
+                        <optgroup label="Large Models (High Performance)">
+                            <option value="tokyotech-llm/Swallow-13b-instruct-hf">Swallow 13B Instruct Japanese</option>
+                            <option value="Qwen/Qwen2.5-14B-Instruct">Qwen 2.5 14B Instruct</option>
+                            <option value="microsoft/Orca-2-13b">Microsoft Orca-2 13B</option>
+                        </optgroup>
+                        <optgroup label="Very Large Models (High Performance)">
+                            <option value="Qwen/Qwen2.5-32B-Instruct">Qwen 2.5 32B Instruct</option>
+                            <option value="cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese">CyberAgent DeepSeek-R1 Distill Qwen 32B Japanese</option>
+                            <option value="meta-llama/Llama-3.1-8B-Instruct">Meta Llama 3.1 8B Instruct</option>
+                        </optgroup>
+                        <optgroup label="Ultra Large Models (Maximum Performance)">
+                            <option value="tokyotech-llm/Swallow-70b-instruct-hf">Swallow 70B Instruct Japanese</option>
+                            <option value="microsoft/WizardLM-2-8x22B">WizardLM-2 8x22B</option>
+                            <option value="meta-llama/Llama-3.1-70B-Instruct">Meta Llama 3.1 70B Instruct</option>
+                        </optgroup>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="trainingMethod">Training Method:</label>
+                    <select id="trainingMethod" name="trainingMethod" required>
+                        <option value="qlora">QLoRA (Recommended)</option>
+                        <option value="lora">LoRA</option>
+                        <option value="full">Full Fine-tuning</option>
+                    </select>
+                </div>
+                
+                <div id="loraConfig" style="display: none;">
+                    <h3>LoRA/QLoRA Configuration</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label for="loraR">LoRA Rank (r):</label>
+                            <input type="number" id="loraR" name="loraR" value="16" min="1" max="256">
+                        </div>
+                        <div class="form-group">
+                            <label for="loraAlpha">LoRA Alpha:</label>
+                            <input type="number" id="loraAlpha" name="loraAlpha" value="32" min="1" max="512">
+                        </div>
+                        <div class="form-group">
+                            <label for="loraDropout">LoRA Dropout:</label>
+                            <input type="number" id="loraDropout" name="loraDropout" value="0.1" min="0" max="1" step="0.1">
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="learningRate">Learning Rate:</label>
+                        <input type="number" id="learningRate" name="learningRate" value="2e-4" min="1e-6" max="1e-2" step="1e-6">
+                    </div>
+                    <div class="form-group">
+                        <label for="numEpochs">Number of Epochs:</label>
+                        <input type="number" id="numEpochs" name="numEpochs" value="3" min="1" max="10">
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="batchSize">Batch Size:</label>
+                        <input type="number" id="batchSize" name="batchSize" value="4" min="1" max="16">
+                    </div>
+                    <div class="form-group">
+                        <label for="maxLength">Max Sequence Length:</label>
+                        <input type="number" id="maxLength" name="maxLength" value="512" min="128" max="2048">
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn">🚀 Start Training</button>
+            </form>
+        </div>
+        
+        <!-- トレーニング状況セクション -->
+        <div class="section">
+            <h2>📊 Training Status</h2>
+            <div id="trainingStatus">
+                <p>No training in progress</p>
+            </div>
+            <div id="trainingProgress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <p id="progressText">0%</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+// トレーニング方法の変更に応じてUIを更新
+document.getElementById('trainingMethod').addEventListener('change', function() {
+    const loraConfig = document.getElementById('loraConfig');
+    const learningRate = document.getElementById('learningRate');
+    
+    if (this.value === 'qlora' || this.value === 'lora') {
+        loraConfig.style.display = 'block';
+        learningRate.value = '2e-4';
+    } else {
+        loraConfig.style.display = 'none';
+        learningRate.value = '5e-5';
+    }
+});
+
+// システム情報を取得
+async function loadSystemInfo() {
+    try {
+        const response = await fetch('/api/system-info');
+        const data = await response.json();
+        
+        if (data.error) {
+            document.getElementById('systemInfo').innerHTML = `<p>Error: ${data.error}</p>`;
+            return;
+        }
+        
+        let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">';
+        
+        if (data.gpu) {
+            html += `
+                <div>
+                    <h3>GPU Information</h3>
+                    <p><strong>Name:</strong> ${data.gpu.name || 'Unknown'}</p>
+                    <p><strong>Memory:</strong> ${data.gpu.memory || 'Unknown'}</p>
+                    <p><strong>Available:</strong> ${data.gpu.available ? 'Yes' : 'No'}</p>
+                </div>
+            `;
+        }
+        
+        if (data.cuda) {
+            html += `
+                <div>
+                    <h3>CUDA Information</h3>
+                    <p><strong>Available:</strong> ${data.cuda.available ? 'Yes' : 'No'}</p>
+                    <p><strong>Version:</strong> ${data.cuda.version || 'Unknown'}</p>
+                </div>
+            `;
+        }
+        
+        if (data.pytorch) {
+            html += `
+                <div>
+                    <h3>PyTorch Information</h3>
+                    <p><strong>Version:</strong> ${data.pytorch.version || 'Unknown'}</p>
+                </div>
+            `;
+        }
+        
+        if (data.cpu) {
+            html += `
+                <div>
+                    <h3>CPU Information</h3>
+                    <p><strong>Name:</strong> ${data.cpu.name || 'Unknown'}</p>
+                    <p><strong>Cores:</strong> ${data.cpu.cores || 'Unknown'}</p>
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+        document.getElementById('systemInfo').innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error loading system info:', error);
+        document.getElementById('systemInfo').innerHTML = '<p>Failed to load system information</p>';
+    }
+}
+
+// データアップロード処理
+document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData();
+    const fileInput = document.getElementById('trainingData');
+    formData.append('file', fileInput.files[0]);
+    
+    const resultDiv = document.getElementById('uploadResult');
+    resultDiv.innerHTML = '<p>Uploading...</p>';
+    
+    try {
+        const response = await fetch('/api/upload-data', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            resultDiv.innerHTML = `
+                <div style="background: #d4edda; color: #155724; padding: 15px; border-radius: 5px; margin-top: 10px;">
+                    <h3>Upload Successful!</h3>
+                    <p><strong>Filename:</strong> ${result.filename}</p>
+                    <p><strong>Data Count:</strong> ${result.data_count}</p>
+                    <p><strong>Size:</strong> ${result.size} bytes</p>
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; margin-top: 10px;">
+                    <h3>Upload Failed</h3>
+                    <p>${result.detail}</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Upload error:', error);
+        resultDiv.innerHTML = `
+            <div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; margin-top: 10px;">
+                <h3>Upload Error</h3>
+                <p>${error.message}</p>
+            </div>
+        `;
+    }
+});
+
+// トレーニング開始処理
+document.getElementById('trainingForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    
+    // データの検証
+    const modelName = formData.get('baseModel');
+    const trainingMethod = formData.get('trainingMethod');
+    
+    if (!modelName) {
+        alert('Please select a base model');
+        return;
+    }
+    
+    console.log('Training data:', {
+        model_name: modelName,
+        training_method: trainingMethod,
+        lora_config: {
+            r: parseInt(formData.get('loraR')),
+            alpha: parseInt(formData.get('loraAlpha')),
+            dropout: parseFloat(formData.get('loraDropout'))
+        },
+        training_config: {
+            learning_rate: parseFloat(formData.get('learningRate')),
+            num_epochs: parseInt(formData.get('numEpochs')),
+            batch_size: parseInt(formData.get('batchSize')),
+            max_length: parseInt(formData.get('maxLength'))
+        }
+    });
+    
+    const trainingData = {
+        model_name: modelName,
+        training_method: trainingMethod,
+        training_data: ["/workspace/data/uploaded/training_data.jsonl"], // 固定パス
+        lora_config: {
+            r: parseInt(formData.get('loraR')),
+            alpha: parseInt(formData.get('loraAlpha')),
+            dropout: parseFloat(formData.get('loraDropout'))
+        },
+        training_config: {
+            learning_rate: parseFloat(formData.get('learningRate')),
+            num_epochs: parseInt(formData.get('numEpochs')),
+            batch_size: parseInt(formData.get('batchSize')),
+            max_length: parseInt(formData.get('maxLength'))
+        }
+    };
+    
+    const statusDiv = document.getElementById('trainingStatus');
+    const progressDiv = document.getElementById('trainingProgress');
+    
+    statusDiv.innerHTML = '<p>Starting training...</p>';
+    progressDiv.style.display = 'block';
+    
+    try {
+        console.log('Sending training request:', trainingData);
+        
+        const response = await fetch('/api/train', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(trainingData)
+        });
+        
+        console.log('Response status:', response.status);
+        const result = await response.json();
+        console.log('Response result:', result);
+        
+        if (response.ok) {
+            statusDiv.innerHTML = `
+                <p><span class="status-indicator status-running"></span>Training started (Task ID: ${result.task_id})</p>
+            `;
+            
+            // 定期的にステータスをチェック
+            checkTrainingStatus(result.task_id);
+        } else {
+            statusDiv.innerHTML = `
+                <p><span class="status-indicator status-error"></span>Training failed: ${result.detail || result.message || 'Unknown error'}</p>
+            `;
+            progressDiv.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Training error:', error);
+        statusDiv.innerHTML = `
+            <p><span class="status-indicator status-error"></span>Training error: ${error.message}</p>
+        `;
+        progressDiv.style.display = 'none';
+    }
+});
+
+// トレーニングステータスをチェック
+async function checkTrainingStatus(taskId) {
+    try {
+        const response = await fetch(`/api/training-status/${taskId}`);
+        const status = await response.json();
+        
+        const statusDiv = document.getElementById('trainingStatus');
+        const progressDiv = document.getElementById('trainingProgress');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        
+        if (status.status === 'completed') {
+            statusDiv.innerHTML = `
+                <p><span class="status-indicator status-completed"></span>Training completed!</p>
+                <p><strong>Model saved to:</strong> ${status.model_path || 'Unknown'}</p>
+            `;
+            progressDiv.style.display = 'none';
+        } else if (status.status === 'error') {
+            statusDiv.innerHTML = `
+                <p><span class="status-indicator status-error"></span>Training failed: ${status.message}</p>
+            `;
+            progressDiv.style.display = 'none';
+        } else {
+            statusDiv.innerHTML = `
+                <p><span class="status-indicator status-running"></span>${status.message}</p>
+            `;
+            progressFill.style.width = `${status.progress}%`;
+            progressText.textContent = `${Math.round(status.progress)}%`;
+            
+            // 1秒後に再チェック
+            setTimeout(() => checkTrainingStatus(taskId), 1000);
+        }
+    } catch (error) {
+        console.error('Status check error:', error);
+    }
+}
+
+// ページ読み込み時にシステム情報を取得
+document.addEventListener('DOMContentLoaded', function() {
+    loadSystemInfo();
+});
+{% endblock %} 

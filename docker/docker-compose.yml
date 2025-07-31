@@ -1,0 +1,145 @@
+version: '3.8'
+
+services:
+  ai-ft:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: ai-ft-rag:latest
+    container_name: ai-ft-container
+    hostname: ai-ft
+    
+    # GPU access - requires nvidia-docker2
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    
+    # Environment variables
+    environment:
+      - CUDA_VISIBLE_DEVICES=0,1
+      - PYTHONPATH=/workspace
+      - WANDB_API_KEY=${WANDB_API_KEY:-}
+      - HF_TOKEN=${HF_TOKEN:-}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    
+    # Port mappings
+    ports:
+      - "8888:8888"  # Jupyter Lab
+      - "6006:6006"  # TensorBoard
+      - "8050:8050"  # Web Interface (統合)
+      - "8051:8051"  # RAG API (開発・テスト用)
+    
+    # Volume mounts
+    volumes:
+      - ../src:/workspace/src
+      - ../config:/workspace/config
+      - ../scripts:/workspace/scripts
+      - ../notebooks:/workspace/notebooks
+      - ../data:/workspace/data
+      - ../models:/workspace/models
+      - ../tests:/workspace/tests
+      - ../app:/workspace/app
+      - ../outputs:/workspace/outputs
+      - ./logs:/workspace/logs
+      - ~/.cache/huggingface:/root/.cache/huggingface
+      - ~/.wandb:/root/.wandb
+      # RAG専用ディレクトリ
+      - ../temp_uploads:/workspace/temp_uploads
+      - ../qdrant_data:/workspace/qdrant_data
+      - ../docs:/workspace/docs
+      - ../examples:/workspace/examples
+      # RAGデータ永続化
+      - ai_ft_rag_metadata:/workspace/metadata
+      - ai_ft_rag_processed:/workspace/outputs/rag_index
+    
+    # Working directory
+    working_dir: /workspace
+    
+    # Keep container running
+    tty: true
+    stdin_open: true
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Shared memory size for DataLoader
+    shm_size: '32gb'
+    
+    # Ulimits for better performance
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      stack:
+        soft: 67108864
+        hard: 67108864
+
+  # TensorBoard service (optional separate container)
+  tensorboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: ai-ft-tensorboard
+    command: tensorboard --logdir=/workspace/logs --host=0.0.0.0 --port=6006
+    ports:
+      - "6007:6006"  # Different port to avoid conflict
+    volumes:
+      - ./logs:/workspace/logs
+    depends_on:
+      - ai-ft
+    profiles:
+      - tensorboard
+
+  # Jupyter Lab service (optional separate container)
+  jupyter:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: ai-ft-jupyter
+    command: jupyter lab --ip=0.0.0.0 --port=8888 --allow-root --no-browser
+    ports:
+      - "8889:8888"  # Different port to avoid conflict
+    volumes:
+      - ../notebooks:/workspace/notebooks
+      - ../data:/workspace/data
+      - ../src:/workspace/src
+    depends_on:
+      - ai-ft
+    profiles:
+      - jupyter
+
+  # Qdrant Vector Database Service
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: ai-ft-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    environment:
+      - QDRANT__TELEMETRY_DISABLED=true
+    restart: unless-stopped
+
+# Networks
+networks:
+  default:
+    name: ai-ft-network
+
+# Volumes for persistent data
+volumes:
+  models_data:
+    driver: local
+  logs_data:
+    driver: local
+  qdrant_storage:
+    driver: local
+  ai_ft_rag_metadata:
+    driver: local
+  ai_ft_rag_processed:
+    driver: local

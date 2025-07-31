@@ -1,0 +1,18 @@
+# 環境変数ファイル（センシティブ情報を含む）
+.env
+.env.local
+.env.production
+
+# ログファイル
+logs/
+*.log
+
+# 一時ファイル
+*.tmp
+*.temp
+.DS_Store
+
+# Dockerボリューム
+volumes/
+data/
+models/

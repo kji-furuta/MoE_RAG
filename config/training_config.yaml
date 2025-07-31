@@ -1,0 +1,123 @@
+# Training Configuration for CALM3-22B
+# This configuration is optimized for large model fine-tuning
+
+# Model configurations
+models:
+  calm3-22b:
+    model_path: "./calm3-22b"
+    model_id: "cyberagent/calm3-22b-chat"
+    tokenizer_path: "./calm3-22b"
+    dtype: "float16"
+    
+# Training presets
+training_presets:
+  # Full fine-tuning preset
+  full_finetuning:
+    batch_size: 1
+    gradient_accumulation_steps: 16
+    learning_rate: 2e-5
+    num_epochs: 3
+    max_seq_length: 2048
+    warmup_ratio: 0.1
+    gradient_checkpointing: true
+    fp16: true
+    
+  # LoRA fine-tuning preset  
+  lora_finetuning:
+    batch_size: 2
+    gradient_accumulation_steps: 8
+    learning_rate: 3e-4
+    num_epochs: 3
+    max_seq_length: 2048
+    warmup_ratio: 0.1
+    lora_r: 64
+    lora_alpha: 128
+    lora_dropout: 0.05
+    target_modules:
+      - "q_proj"
+      - "k_proj"
+      - "v_proj"
+      - "o_proj"
+      - "gate_proj"
+      - "up_proj"
+      - "down_proj"
+    
+  # QLoRA fine-tuning preset (most memory efficient)
+  qlora_finetuning:
+    batch_size: 4
+    gradient_accumulation_steps: 4
+    learning_rate: 2e-4
+    num_epochs: 3
+    max_seq_length: 2048
+    warmup_ratio: 0.1
+    load_in_4bit: true
+    bnb_4bit_quant_type: "nf4"
+    bnb_4bit_compute_dtype: "float16"
+    bnb_4bit_use_double_quant: true
+    lora_r: 64
+    lora_alpha: 128
+    lora_dropout: 0.05
+
+# Memory optimization settings
+memory_optimization:
+  gradient_checkpointing: true
+  cpu_offload: false
+  disk_offload: false
+  use_flash_attention: true
+  max_memory_per_gpu: "40GB"
+  
+# DeepSpeed configurations
+deepspeed:
+  enabled: false
+  config_path: "configs/deepspeed/ds_config_large.json"
+  
+# Dataset settings
+dataset:
+  train_file: "data/processed/training_data.jsonl"
+  validation_split: 0.1
+  max_samples: null  # Set to limit number of samples
+  preprocessing_num_workers: 4
+  
+# Training settings
+training:
+  output_dir: "outputs/calm3-22b-finetuned"
+  logging_dir: "outputs/calm3-22b-finetuned/logs"
+  logging_steps: 10
+  save_steps: 500
+  eval_steps: 100
+  save_total_limit: 3
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  eval_accumulation_steps: 1
+  prediction_loss_only: true
+  
+# Hardware settings
+hardware:
+  num_gpus: 1
+  gpu_type: "auto"  # auto, a100, v100, etc.
+  mixed_precision: "fp16"  # fp16, bf16, no
+  
+# Optimization settings
+optimization:
+  optimizer: "adamw_torch"
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1e-8
+  max_grad_norm: 1.0
+  weight_decay: 0.01
+  
+# Evaluation settings
+evaluation:
+  eval_strategy: "steps"
+  per_device_eval_batch_size: 1
+  
+# Other settings
+other:
+  seed: 42
+  data_seed: 42
+  dataloader_num_workers: 4
+  remove_unused_columns: false
+  label_names: ["labels"]
+  report_to: ["tensorboard"]
+  push_to_hub: false

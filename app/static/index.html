@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Fine-tuning Toolkit - Web Interface</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/static/style.css" rel="stylesheet">
+</head>
+<body>
+    <!-- ナビゲーションバー -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-cpu"></i> AI Fine-tuning Toolkit
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#dashboard">ダッシュボード</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#training">ファインチューニング</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#inference">テキスト生成</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#models">モデル管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link external-link" href="/manual" target="_blank" onclick="window.open('/manual', '_blank'); return false;">
+                            <i class="bi bi-book"></i> マニュアル
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link external-link" href="/system-overview" target="_blank" onclick="window.open('/system-overview', '_blank'); return false;">
+                            <i class="bi bi-info-circle"></i> システム概要
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- サイドバー -->
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-speedometer2"></i> システム状況</h5>
+                    </div>
+                    <div class="card-body" id="system-info">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">読み込み中...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5><i class="bi bi-list-task"></i> 実行中のタスク</h5>
+                    </div>
+                    <div class="card-body" id="running-tasks">
+                        <p class="text-muted">実行中のタスクはありません</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- メインコンテンツ -->
+            <div class="col-md-9">
+                <!-- ダッシュボード -->
+                <div id="dashboard" class="content-section">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <h2><i class="bi bi-house"></i> ダッシュボード</h2>
+                            <p class="lead">AI Fine-tuning Toolkit へようこそ！日本語LLMのファインチューニングを簡単に行えます。</p>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <i class="bi bi-upload display-4 text-primary"></i>
+                                    <h5 class="card-title mt-3">データアップロード</h5>
+                                    <p class="card-text">ファインチューニング用のデータをアップロードします</p>
+                                    <a href="#training" class="btn btn-primary">開始</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <i class="bi bi-gear display-4 text-success"></i>
+                                    <h5 class="card-title mt-3">ファインチューニング</h5>
+                                    <p class="card-text">モデルのファインチューニングを実行します</p>
+                                    <a href="#training" class="btn btn-success">実行</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <i class="bi bi-chat-dots display-4 text-info"></i>
+                                    <h5 class="card-title mt-3">テキスト生成</h5>
+                                    <p class="card-text">ファインチューニング済みモデルでテキスト生成</p>
+                                    <a href="#inference" class="btn btn-info">試す</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ファインチューニングセクション -->
+                <div id="training" class="content-section" style="display: none;">
+                    <h2><i class="bi bi-gear"></i> ファインチューニング</h2>
+                    
+                    <!-- データアップロード -->
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5>1. トレーニングデータのアップロード</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="trainingFile" class="form-label">JSONL形式のファイルを選択:</label>
+                                <input type="file" class="form-control" id="trainingFile" accept=".jsonl,.json">
+                                <div class="form-text">
+                                    サポート形式: .jsonl (1行1JSON形式)
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-primary" onclick="uploadFile()">
+                                <i class="bi bi-cloud-upload"></i> アップロード
+                            </button>
+                            <div id="upload-status" class="mt-3"></div>
+                        </div>
+                    </div>
+
+                    <!-- モデル設定 -->
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5>2. モデル設定</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <label for="baseModel" class="form-label">ベースモデル:</label>
+                                    <select class="form-select" id="baseModel">
+                                        <option value="">モデルを選択してください</option>
+                                    </select>
+                                    <div id="model-warning" style="display: none; margin-top: 10px;"></div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="trainingMethod" class="form-label">トレーニング方法:</label>
+                                    <select class="form-select" id="trainingMethod" onchange="updateTrainingOptions()">
+                                        <option value="lora">LoRA (推奨)</option>
+                                        <option value="qlora">QLoRA (8bit)</option>
+                                        <option value="full">フルファインチューニング</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="loraRank" class="form-label">LoRA Rank:</label>
+                                    <input type="number" class="form-control" id="loraRank" value="16" min="1" max="64">
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-4">
+                                    <label for="learningRate" class="form-label">学習率:</label>
+                                    <input type="number" class="form-control" id="learningRate" value="0.0003" step="0.0001">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="batchSize" class="form-label">バッチサイズ:</label>
+                                    <input type="number" class="form-control" id="batchSize" value="4" min="1">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="epochs" class="form-label">エポック数:</label>
+                                    <input type="number" class="form-control" id="epochs" value="3" min="1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- トレーニング実行 -->
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5>3. トレーニング実行</h5>
+                        </div>
+                        <div class="card-body">
+                            <button type="button" class="btn btn-success btn-lg" onclick="startTraining()">
+                                <i class="bi bi-play-circle"></i> ファインチューニング開始
+                            </button>
+                            <div id="training-status" class="mt-3"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- テキスト生成セクション -->
+                <div id="inference" class="content-section" style="display: none;">
+                    <h2><i class="bi bi-chat-dots"></i> テキスト生成</h2>
+                    
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5>モデル選択と生成設定</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="modelSelect" class="form-label">使用するモデル:</label>
+                                    <select class="form-select" id="modelSelect">
+                                        <option value="">モデルを選択してください</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="temperature" class="form-label">Temperature:</label>
+                                    <input type="number" class="form-control" id="temperature" value="0.7" step="0.1" min="0.1" max="2.0">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="maxLength" class="form-label">最大長:</label>
+                                    <input type="number" class="form-control" id="maxLength" value="200" min="10" max="500">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5>テキスト生成</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="promptText" class="form-label">プロンプト:</label>
+                                <textarea class="form-control" id="promptText" rows="3" placeholder="ここに生成したいテキストのプロンプトを入力してください..."></textarea>
+                            </div>
+                            <button type="button" class="btn btn-primary" onclick="generateText()">
+                                <i class="bi bi-magic"></i> テキスト生成
+                            </button>
+                            <div id="generation-result" class="mt-3"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- モデル管理セクション -->
+                <div id="models" class="content-section" style="display: none;">
+                    <h2><i class="bi bi-collection"></i> モデル管理</h2>
+                    
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5>利用可能なモデル</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="available-models">
+                                <div class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">読み込み中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5>保存済みモデル</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="saved-models">
+                                <div class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">読み込み中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/script_new.js"></script>
+</body>
+</html>

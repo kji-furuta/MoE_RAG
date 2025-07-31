@@ -1,0 +1,101 @@
+{
+  "train_batch_size": "auto",
+  "train_micro_batch_size_per_gpu": "auto",
+  "gradient_accumulation_steps": "auto",
+  "gradient_clipping": 1.0,
+  "steps_per_print": 10,
+  "zero_optimization": {
+    "stage": 3,
+    "offload_optimizer": {
+      "device": "cpu",
+      "pin_memory": true,
+      "buffer_count": 4,
+      "fast_init": false
+    },
+    "offload_param": {
+      "device": "cpu",
+      "pin_memory": true,
+      "buffer_count": 5,
+      "buffer_size": 100000000.0,
+      "max_in_cpu": 1000000000.0
+    },
+    "overlap_comm": true,
+    "contiguous_gradients": true,
+    "sub_group_size": 1000000000.0,
+    "reduce_bucket_size": "auto",
+    "stage3_prefetch_bucket_size": "auto",
+    "stage3_param_persistence_threshold": "auto",
+    "stage3_max_live_parameters": 1000000000.0,
+    "stage3_max_reuse_distance": 1000000000.0,
+    "stage3_gather_16bit_weights_on_model_save": true,
+    "round_robin_gradients": true
+  },
+  "optimizer": {
+    "type": "AdamW",
+    "params": {
+      "lr": "auto",
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "eps": 1e-08,
+      "weight_decay": 0.01
+    }
+  },
+  "scheduler": {
+    "type": "WarmupLR",
+    "params": {
+      "warmup_min_lr": 0,
+      "warmup_max_lr": "auto",
+      "warmup_num_steps": "auto"
+    }
+  },
+  "fp16": {
+    "enabled": true,
+    "auto_cast": false,
+    "loss_scale": 0,
+    "initial_scale_power": 32,
+    "loss_scale_window": 1000,
+    "hysteresis": 2,
+    "consecutive_hysteresis": false,
+    "min_loss_scale": 1
+  },
+  "activation_checkpointing": {
+    "partition_activations": true,
+    "cpu_checkpointing": true,
+    "contiguous_memory_optimization": true,
+    "number_checkpoints": null,
+    "synchronize_checkpoint_boundary": false,
+    "profile": false
+  },
+  "wall_clock_breakdown": false,
+  "compression_training": {
+    "weight_quantization": {
+      "shared_parameters": {
+        "enabled": true,
+        "quantizer_kernel": true,
+        "schedule_offset": 0,
+        "quantize_groups": 1,
+        "quantize_verbose": false,
+        "quantization_type": "symmetric",
+        "quantize_weight_in_forward": true,
+        "rounding": "nearest",
+        "fp16_mixed_quantize": false,
+        "quantize_change_ratio": 0.001
+      },
+      "different_groups": {
+        "wq1": {
+          "params": {
+            "start_bits": 12,
+            "target_bits": 8,
+            "quantization_period": 1000
+          },
+          "modules": [
+            "attention",
+            "self_attention"
+          ]
+        }
+      }
+    }
+  }
+}

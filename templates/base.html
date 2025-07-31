@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AI Fine-tuning & Text Generation System{% endblock %}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+        }
+        
+        /* サイドバー */
+        .sidebar {
+            width: 300px;
+            background: #2c3e50;
+            color: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* タイトルバー */
+        .sidebar-header {
+            background:  #1a252f;
+            padding: 20px;
+            border-bottom: 2px solid #3498db;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .sidebar-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+            color: #ecf0f1;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        /* サイドバーコンテンツ */
+        .sidebar-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .system-info {
+            margin-bottom: 30px;
+        }
+        
+        .info-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            border-left: 3px solid #3498db;
+        }
+        
+        .info-item h3 {
+            margin: 0 0 8px 0;
+            font-size: 0.9em;
+            color: #bdc3c7;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .info-item p {
+            margin: 0;
+            font-size: 0.85em;
+            color: #ecf0f1;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online {
+            background: #27ae60;
+        }
+        
+        .status-offline {
+            background: #e74c3c;
+        }
+        
+        .status-warning {
+            background: #f39c12;
+        }
+        
+        /* メインコンテンツ */
+        .main-content {
+            flex: 1;
+            margin-left: 300px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 固定メインタイトルバー */
+        .main-header {
+            background: linear-gradient(135deg, #01014b 0%, #06014b 100%);
+            color: #e8e8e8;
+            padding: 5px 30px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .main-header h1 {
+            margin: 0;
+            font-size: 3.2em;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 25px;
+            color: #f0f0f0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .main-header p {
+            margin: 3px 0 0 0;
+            font-size: 1.4em;
+            color: #d0d0d0;
+            font-weight: 600;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+        }
+        
+        .title-logo {
+            width: 300px;  /* 12.5倍サイズ */
+            height: 70px;  /* 6.25倍サイズ */
+            object-fit: contain;
+            border-radius: 12px;
+            box-shadow: 4px 4px 10px rgba(0,0,0,0.5);
+            margin-right: 25px;
+        }
+        
+        /* メインコンテンツエリア */
+        .main-content-area {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        
+        .section h2 {
+            color: #333;
+            margin-top: 0;
+            font-size: 1.8em;
+            font-weight: 400;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            background: #cbf3d6;
+            border: 2px solid #692df5;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-block;
+            text-decoration: none;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #4CAF50;
+            background: #f0f8f0;
+        }
+        
+        .error {
+            border-left-color: #f44336;
+            background: #ffebee;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .refresh-btn {
+            background: #4CAF50;
+            padding: 8px 16px;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .nav-links {
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .nav-links a {
+            margin: 0 10px;
+            text-decoration: none;
+        }
+        
+        /* レスポンシブ対応 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            body {
+                flex-direction: column;
+            }
+        }
+        
+        /* ブロックコンテンツ用のスタイル */
+        {% block extra_styles %}{% endblock %}
+    </style>
+</head>
+<body>
+    <!-- サイドバー -->
+    <div class="sidebar">
+        <!-- タイトルバー -->
+        <div class="sidebar-header">
+            <h2>🖥️ System Information</h2>
+        </div>
+        
+        <!-- サイドバーコンテンツ -->
+        <div class="sidebar-content">
+            <div class="system-info">
+                <div class="info-item">
+                    <h3>GPU Status</h3>
+                    <div id="gpu-list">
+                        <div>Loading...</div>
+                    </div>
+                </div>
+                
+                <div class="info-item">
+                    <h3>CUDA Status</h3>
+                    <div id="cuda-status">
+                        <span class="status-indicator status-online"></span>
+                        <span id="cuda-available">Loading...</span>
+                    </div>
+                    <p id="cuda-version">Version: Loading...</p>
+                </div>
+                
+                <div class="info-item">
+                    <h3>PyTorch</h3>
+                    <p id="pytorch-version">Version: Loading...</p>
+                </div>
+                
+                <div class="info-item">
+                    <h3>CPU & Memory</h3>
+                    <p id="cpu-info">CPU: Loading...</p>
+                    <p id="ram-info">RAM: Loading...</p>
+                </div>
+                
+                <div class="info-item">
+                    <h3>Model Cache</h3>
+                    <p id="cache-status">Status: Loading...</p>
+                </div>
+            </div>
+            
+            <div class="nav-links">
+                <a href="/" class="btn" style="width: 100%; margin-bottom: 10px;">🏠 Home</a>
+                <a href="/models" class="btn" style="width: 100%; margin-bottom: 10px;">📋 Model List</a>
+                <a href="/finetune" class="btn" style="width: 100%; margin-bottom: 10px;">🎯 Fine-tuning</a>
+                <a href="/rag" class="btn" style="width: 100%; margin-bottom: 10px;">🏗️ RAG System</a>
+                <a href="/readme" class="btn" style="width: 100%; margin-bottom: 10px;">📖 操作マニュアル</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- メインコンテンツ -->
+    <div class="main-content">
+        <!-- 固定メインタイトルバー -->
+        <div class="main-header">
+            {% block main_title %}
+            <h1>
+                <img src="/static/logo_teikoku.png" alt="Logo" class="title-logo">
+                🖥️ AI Fine-tuning & Text Generation System
+            </h1>
+            <p>Advanced AI model fine-tuning and text generation platform</p>
+            {% endblock %}
+        </div>
+        
+        <!-- メインコンテンツエリア -->
+        <div class="main-content-area">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+    
+    <script>
+        // システム情報を定期的に更新
+        async function updateSystemInfo() {
+            try {
+                const response = await fetch('/api/system-info');
+                const data = await response.json();
+                
+                console.log('System info response:', data);
+                
+                if (data.error) {
+                    console.error('System info error:', data.error);
+                    return;
+                }
+                
+                // GPU情報
+                if (data.gpu && Array.isArray(data.gpu)) {
+                    const gpuListElement = document.getElementById('gpu-list');
+                    if (gpuListElement) {
+                        let gpuHtml = '';
+                        data.gpu.forEach((gpu, index) => {
+                            const statusClass = gpu.available ? 'status-online' : 'status-offline';
+                            gpuHtml += `
+                                <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                                    <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                                        <span class="status-indicator ${statusClass}"></span>
+                                        <strong>GPU ${gpu.device}: ${gpu.name}</strong>
+                                    </div>
+                                    <div style="font-size: 0.8em; color: #bdc3c7;">
+                                        Memory: ${gpu.memory}
+                                        ${gpu.memory_used ? ` (Used: ${gpu.memory_used}, Free: ${gpu.memory_free})` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        gpuListElement.innerHTML = gpuHtml;
+                    }
+                }
+                
+                // CUDA情報
+                if (data.cuda) {
+                    const cudaAvailableElement = document.getElementById('cuda-available');
+                    const cudaVersionElement = document.getElementById('cuda-version');
+                    const cudaStatus = document.querySelector('#cuda-status .status-indicator');
+                    
+                    if (cudaAvailableElement) {
+                        cudaAvailableElement.textContent = data.cuda.available ? 'Available' : 'Not Available';
+                    }
+                    if (cudaVersionElement) {
+                        cudaVersionElement.textContent = `Version: ${data.cuda.version || 'Unknown'}`;
+                    }
+                    if (cudaStatus) {
+                        if (data.cuda.available) {
+                            cudaStatus.className = 'status-indicator status-online';
+                        } else {
+                            cudaStatus.className = 'status-indicator status-offline';
+                        }
+                    }
+                }
+                
+                // PyTorch情報
+                if (data.pytorch) {
+                    const pytorchElement = document.getElementById('pytorch-version');
+                    if (pytorchElement) {
+                        pytorchElement.textContent = `Version: ${data.pytorch.version || 'Unknown'}`;
+                    }
+                }
+                
+                // CPU & RAM情報
+                if (data.cpu) {
+                    const cpuElement = document.getElementById('cpu-info');
+                    if (cpuElement) {
+                        cpuElement.textContent = `CPU: ${data.cpu.name || 'Unknown'} (${data.cpu.cores || 'Unknown'} cores)`;
+                    }
+                }
+                
+                if (data.ram) {
+                    const ramElement = document.getElementById('ram-info');
+                    if (ramElement) {
+                        ramElement.textContent = `RAM: ${data.ram.total || 'Unknown'} (${data.ram.percent || 'Unknown'} used)`;
+                    }
+                }
+                
+                // キャッシュ情報
+                if (data.cache) {
+                    const cacheElement = document.getElementById('cache-status');
+                    if (cacheElement) {
+                        cacheElement.textContent = `Status: ${data.cache.status || 'Unknown'}`;
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Failed to update system info:', error);
+            }
+        }
+        
+        // ページ読み込み時にシステム情報を更新
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSystemInfo();
+            // 30秒ごとに更新
+            setInterval(updateSystemInfo, 30000);
+        });
+        
+        // ブロックコンテンツ用のスクリプト
+        {% block extra_scripts %}{% endblock %}
+    </script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+# Model configuration file
+# This file contains the configuration for available models
+
+models:
+  # Small Models (3B-7B)
+  japanese-stablelm-3b:
+    name: "Japanese StableLM 3B Instruct"
+    model_id: "stabilityai/japanese-stablelm-3b-4e1t-instruct"
+    type: "instruct"
+    size: "3B"
+    gpu_required: "8GB"
+    description: "Stability AI's Japanese StableLM 3B instruction model"
+    
+  rinna-gpt-neox-3.6b:
+    name: "Rinna GPT-NeoX 3.6B"
+    model_id: "rinna/japanese-gpt-neox-3.6b"
+    type: "base"
+    size: "3.6B"
+    gpu_required: "8GB"
+    description: "Rinna's Japanese GPT-NeoX 3.6B base model"
+    
+  line-japanese-lm-3.6b:
+    name: "LINE Japanese LM 3.6B"
+    model_id: "line-corporation/japanese-large-lm-3.6b"
+    type: "base"
+    size: "3.6B"
+    gpu_required: "8GB"
+    description: "LINE's Japanese language model 3.6B"
+
+  # Medium Models (8B-13B)
+  elyza-llama-3-8b:
+    name: "ELYZA Llama-3 Japanese 8B"
+    model_id: "elyza/ELYZA-japanese-Llama-3-8B"
+    type: "instruct"
+    size: "8B"
+    gpu_required: "16GB"
+    description: "ELYZA's Japanese Llama-3 8B model"
+
+  # Large Models (17B-32B)
+  llama-3.1-17b:
+    name: "Meta Llama 3.1 17B Instruct"
+    model_id: "meta-llama/Llama-3.1-17B-Instruct"
+    type: "instruct"
+    size: "17B"
+    gpu_required: "34GB"
+    description: "Meta's Llama 3.1 17B instruction model"
+    
+  phi-3.5-17b:
+    name: "Microsoft Phi-3.5 17B Instruct"
+    model_id: "microsoft/Phi-3.5-17B-Instruct"
+    type: "instruct"
+    size: "17B"
+    gpu_required: "34GB"
+    description: "Microsoft's Phi-3.5 17B instruction model"
+    
+  qwen2.5-17b:
+    name: "Qwen 2.5 17B Instruct"
+    model_id: "Qwen/Qwen2.5-17B-Instruct"
+    type: "instruct"
+    size: "17B"
+    gpu_required: "34GB"
+    description: "Alibaba's Qwen 2.5 17B instruction model"
+    
+  calm3-22b:
+    name: "CyberAgent CALM3 22B Chat"
+    model_id: "cyberagent/calm3-22b-chat"
+    type: "chat"
+    size: "22B"
+    gpu_required: "44GB"
+    description: "CyberAgent's CALM3 22B Japanese chat model"
+    
+  llama-3.1-32b:
+    name: "Meta Llama 3.1 32B Instruct"
+    model_id: "meta-llama/Llama-3.1-32B-Instruct"
+    type: "instruct"
+    size: "32B"
+    gpu_required: "64GB"
+    description: "Meta's Llama 3.1 32B instruction model"
+    
+  phi-3.5-32b:
+    name: "Microsoft Phi-3.5 32B Instruct"
+    model_id: "microsoft/Phi-3.5-32B-Instruct"
+    type: "instruct"
+    size: "32B"
+    gpu_required: "64GB"
+    description: "Microsoft's Phi-3.5 32B instruction model"
+    
+  qwen2.5-32b:
+    name: "Qwen 2.5 32B Instruct"
+    model_id: "Qwen/Qwen2.5-32B-Instruct"
+    type: "instruct"
+    size: "32B"
+    gpu_required: "64GB"
+    description: "Alibaba's Qwen 2.5 32B instruction model"
+    
+  deepseek-r1-32b:
+    name: "DeepSeek R1 Distill Qwen 32B Japanese"
+    model_id: "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese"
+    type: "instruct"
+    size: "32B"
+    gpu_required: "64GB"
+    description: "CyberAgent's DeepSeek R1 distilled to Qwen 32B for Japanese"
+
+  # Extra Large Models (70B)
+  llama-3.1-70b:
+    name: "Meta Llama 3.1 70B Instruct"
+    model_id: "meta-llama/Llama-3.1-70B-Instruct"
+    type: "instruct"
+    size: "70B"
+    gpu_required: "140GB"
+    description: "Meta's Llama 3.1 70B instruction model"
+
+# Default model to use
+default_model: "calm3-22b"
+
+# Model loading configuration
+model_loading:
+  device_map: "auto"
+  torch_dtype: "auto"
+  low_cpu_mem_usage: true
+  trust_remote_code: true

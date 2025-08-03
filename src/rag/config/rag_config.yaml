@@ -38,10 +38,10 @@ llm:
     0: 36GB
     1: 36GB
   max_new_tokens: 2048
-  model_name: outputs/フルファインチューニング_20250726_124935
-  model_path: outputs/フルファインチューニング_20250726_124935
+  model_name: outputs/フルファインチューニング_20250801_130717
+  model_path: outputs/フルファインチューニング_20250801_130717
   repetition_penalty: 1.1
-  temperature: 0.3
+  temperature: 0.1
   top_p: 0.95
   torch_dtype: float16
   use_finetuned: true
@@ -112,7 +112,7 @@ ui:
 vector_store:
   qdrant:
     collection_name: road_design_docs
-    url: http://qdrant:6333
     prefer_grpc: false
     timeout: 60
+    url: http://qdrant:6333
   type: qdrant

@@ -28,6 +28,7 @@ from typing import Optional
 import sys
 import time
 from pathlib import Path as PathlibPath
+import io
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)
@@ -157,6 +158,32 @@ class DocumentUploadResponse(BaseModel):
     processing_status: str
     metadata: Optional[Dict[str, Any]] = None
 
+class SavedSearchResult(BaseModel):
+    """保存された検索結果"""
+    id: str
+    query: str
+    answer: str
+    citations: List[Dict[str, Any]]
+    sources: List[Dict[str, Any]]
+    confidence_score: float
+    search_type: str
+    top_k: int
+    saved_at: str
+    metadata: Optional[Dict[str, Any]] = None
+
+class SaveSearchRequest(BaseModel):
+    """検索結果保存リクエスト"""
+    query_response: QueryResponse
+    name: Optional[str] = Field(None, description="保存名")
+    tags: Optional[List[str]] = Field(None, description="タグ")
+
+class SearchHistoryResponse(BaseModel):
+    """検索履歴レスポンス"""
+    total: int
+    results: List[SavedSearchResult]
+    page: int
+    limit: int
+
 # テンプレートエンジンの設定
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -173,6 +200,17 @@ class RAGApplication:
         self.metadata_manager: Optional[MetadataManager] = None
         self.is_initialized = False
         self.initialization_error = None
+        # Docker環境に対応した永続化ディレクトリの設定
+        if os.path.exists("/workspace"):
+            # Docker環境内
+            self.search_history_dir = Path("/workspace/data/search_history")
+        else:
+            # ローカル環境
+            project_root = Path(__file__).parent.parent
+            self.search_history_dir = project_root / "data" / "search_history"
+        
+        self.search_history_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Search history directory: {self.search_history_dir}")
         
     async def initialize(self):
         """非同期でシステムを初期化"""
@@ -212,6 +250,114 @@ class RAGApplication:
                     status_code=503,
                     detail="RAG system is not yet initialized"
                 )
+    
+    def save_search_result(self, query_response: QueryResponse, name: Optional[str] = None, tags: Optional[List[str]] = None) -> SavedSearchResult:
+        """検索結果を保存"""
+        result_id = str(uuid.uuid4())
+        timestamp = datetime.now().isoformat()
+        
+        saved_result = SavedSearchResult(
+            id=result_id,
+            query=query_response.query,
+            answer=query_response.answer,
+            citations=query_response.citations,
+            sources=query_response.sources,
+            confidence_score=query_response.confidence_score,
+            search_type=query_response.metadata.get("search_type", "hybrid"),
+            top_k=query_response.metadata.get("top_k", 5),
+            saved_at=timestamp,
+            metadata={
+                "name": name or f"Search_{timestamp[:10]}",
+                "tags": tags or [],
+                "processing_time": query_response.processing_time
+            }
+        )
+        
+        # JSONファイルとして保存
+        file_path = self.search_history_dir / f"{result_id}.json"
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(saved_result.dict(), f, ensure_ascii=False, indent=2)
+        
+        return saved_result
+    
+    def get_search_history(self, page: int = 1, limit: int = 10, tag: Optional[str] = None) -> SearchHistoryResponse:
+        """検索履歴を取得"""
+        all_results = []
+        
+        # すべての保存済み結果を読み込み
+        for json_file in self.search_history_dir.glob("*.json"):
+            try:
+                with open(json_file, "r", encoding="utf-8") as f:
+                    result_data = json.load(f)
+                    
+                # タグフィルタリング
+                if tag and tag not in result_data.get("metadata", {}).get("tags", []):
+                    continue
+                    
+                all_results.append(SavedSearchResult(**result_data))
+            except Exception as e:
+                logger.error(f"Error loading search result {json_file}: {e}")
+        
+        # 日時で降順ソート
+        all_results.sort(key=lambda x: x.saved_at, reverse=True)
+        
+        # ページネーション
+        total = len(all_results)
+        start = (page - 1) * limit
+        end = start + limit
+        paginated_results = all_results[start:end]
+        
+        return SearchHistoryResponse(
+            total=total,
+            results=paginated_results,
+            page=page,
+            limit=limit
+        )
+    
+    def get_saved_result(self, result_id: str) -> Optional[SavedSearchResult]:
+        """保存された検索結果を取得"""
+        file_path = self.search_history_dir / f"{result_id}.json"
+        
+        if not file_path.exists():
+            return None
+            
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                result_data = json.load(f)
+                return SavedSearchResult(**result_data)
+        except Exception as e:
+            logger.error(f"Error loading search result {result_id}: {e}")
+            return None
+    
+    def export_search_results(self, result_ids: List[str], format: str = "json") -> bytes:
+        """検索結果をエクスポート"""
+        results = []
+        for result_id in result_ids:
+            result = self.get_saved_result(result_id)
+            if result:
+                results.append(result.dict())
+        
+        if format == "csv":
+            import csv
+            import io
+            
+            output = io.StringIO()
+            if results:
+                writer = csv.DictWriter(output, fieldnames=["query", "answer", "confidence_score", "saved_at", "search_type"])
+                writer.writeheader()
+                for result in results:
+                    writer.writerow({
+                        "query": result["query"],
+                        "answer": result["answer"],
+                        "confidence_score": result["confidence_score"],
+                        "saved_at": result["saved_at"],
+                        "search_type": result["search_type"]
+                    })
+            
+            return output.getvalue().encode("utf-8")
+        else:
+            # JSON format
+            return json.dumps(results, ensure_ascii=False, indent=2).encode("utf-8")
 
 # RAGアプリケーションインスタンス
 rag_app = RAGApplication()
@@ -259,12 +405,18 @@ async def startup_event():
 
 # Ollama統合のインポート
 try:
+    import sys
+    from pathlib import Path
+    # scripts/convertディレクトリをパスに追加
+    scripts_convert_path = Path(__file__).parent.parent / "scripts" / "convert"
+    sys.path.insert(0, str(scripts_convert_path))
+    
     from ollama_integration import OllamaIntegration
     OLLAMA_AVAILABLE = True
     logger.info("Ollama統合が利用可能です")
-except ImportError:
+except ImportError as e:
     OLLAMA_AVAILABLE = False
-    logger.warning("Ollama統合が利用できません")
+    logger.warning(f"Ollama統合が利用できません: {e}")
 
 # 利用可能なモデル定義
 available_models = [
@@ -907,40 +1059,20 @@ async def run_training_task(task_id: str, request: TrainingRequest):
 @app.get("/manual", response_class=HTMLResponse)
 async def manual_page():
     """利用マニュアルページ"""
-    manual_path = os.path.join(static_dir, "manual.html")
-    try:
-        if os.path.exists(manual_path):
-            with open(manual_path, "r", encoding="utf-8") as f:
-                return HTMLResponse(content=f.read())
-        else:
-            return HTMLResponse(
-                content="<h1>Manual page not found</h1>", 
-                status_code=404
-            )
-    except Exception as e:
-        return HTMLResponse(
-            content=f"<h1>Error loading manual</h1><p>Error: {str(e)}</p>", 
-            status_code=500
-        )
+    # TODO: Create manual.html template in templates directory
+    return HTMLResponse(
+        content="<h1>Manual page not implemented yet</h1>", 
+        status_code=404
+    )
 
 @app.get("/system-overview", response_class=HTMLResponse)
 async def system_overview_page():
     """システム概要ページ"""
-    overview_path = os.path.join(static_dir, "system-overview.html")
-    try:
-        if os.path.exists(overview_path):
-            with open(overview_path, "r", encoding="utf-8") as f:
-                return HTMLResponse(content=f.read())
-        else:
-            return HTMLResponse(
-                content="<h1>System overview page not found</h1>", 
-                status_code=404
-            )
-    except Exception as e:
-        return HTMLResponse(
-            content=f"<h1>Error loading system overview</h1><p>Error: {str(e)}</p>", 
-            status_code=500
-        )
+    # TODO: Create system-overview.html template in templates directory
+    return HTMLResponse(
+        content="<h1>System overview page not implemented yet</h1>", 
+        status_code=404
+    )
 
 @app.get("/docs/{doc_name}")
 async def serve_documentation(doc_name: str):
@@ -1140,6 +1272,36 @@ async def generate_text(request: GenerationRequest):
         # キャッシュキー
         cache_key = str(model_path)
         
+        # メモリ不足を事前にチェック
+        if torch.cuda.is_available():
+            # 現在の空きメモリを確認
+            free_memory = torch.cuda.mem_get_info()[0] / (1024**3)
+            logger.info(f"現在のGPU空きメモリ: {free_memory:.2f} GB")
+            
+            # 32Bモデルは最低でも10GBの空きメモリが必要
+            if free_memory < 10 and OLLAMA_AVAILABLE:
+                logger.info("メモリ不足のため、直接Ollamaにフォールバックします")
+                try:
+                    ollama = OllamaIntegration()
+                    result = ollama.generate_text(
+                        model_name="llama3.2:3b",
+                        prompt=request.prompt,
+                        temperature=request.temperature,
+                        top_p=request.top_p,
+                        max_tokens=request.max_length
+                    )
+                    
+                    if result.get("success", False):
+                        return {
+                            "prompt": request.prompt,
+                            "generated_text": result.get("generated_text", ""),
+                            "model_path": request.model_path,
+                            "method": "ollama",
+                            "note": "GPUメモリ不足のため、Ollamaモデルを使用しました"
+                        }
+                except Exception as e:
+                    logger.error(f"Ollamaフォールバック失敗: {e}")
+        
         # モデルがキャッシュにない場合は読み込み
         if cache_key not in model_cache:
             # メモリ不足を防ぐため、既存のキャッシュをクリア
@@ -1248,15 +1410,23 @@ async def generate_text(request: GenerationRequest):
                             llm_int8_enable_fp32_cpu_offload=True
                         )
                         
-                        # デバイスマップを最適化（両方のGPUを使用）
+                        # デバイスマップを最適化
+                        # GPUメモリの空き容量を確認
+                        free_memory_gb = torch.cuda.mem_get_info()[0] / (1024**3)
+                        # 安全マージンを含めて設定
+                        safe_memory = max(1, int(free_memory_gb * 0.8))  # 80%を使用
+                        
                         max_memory = {
-                            0: "18GB",  # GPU0に少し余裕を持たせる
-                            1: "18GB",  # GPU1も同様
-                            "cpu": "16GB"  # CPUメモリも活用
+                            0: f"{safe_memory}GB",
+                            "cpu": "32GB"  # CPUメモリを増やしてオフロードを促進
                         }
                         
                         # メモリ不足対策の強化
                         try:
+                            # モデルロード前にもう一度メモリをクリア
+                            torch.cuda.empty_cache()
+                            torch.cuda.synchronize()
+                            
                             logger.info("フルファインチューニングモデルを量子化付きで読み込み中...")
                             model = AutoModelForCausalLM.from_pretrained(
                                 str(model_path),
@@ -1284,9 +1454,9 @@ async def generate_text(request: GenerationRequest):
                                     available_models = ollama_integration.list_models()
                                     logger.info(f"利用可能なOllamaモデル: {available_models}")
                                     
-                                    # ファインチューニング済みモデル名を取得
-                                    model_name = request.model_path.split("/")[-1]
-                                    ollama_model_name = f"road-engineering-expert"  # 変換済みモデル名
+                                    # 利用可能なOllamaモデルから選択
+                                    ollama_model_name = "llama3.2:3b"  # 直接指定
+                                    logger.info(f"Ollamaモデル {ollama_model_name} を使用します")
                                     
                                     # Ollamaでテキスト生成
                                     result = ollama_integration.generate_text(
@@ -1304,7 +1474,8 @@ async def generate_text(request: GenerationRequest):
                                             "generated_text": result.get("generated_text", "Ollama生成エラー"),
                                             "model_path": request.model_path,
                                             "fallback": "ollama",
-                                            "method": "ollama"
+                                            "method": "ollama",
+                                            "note": "GPUメモリ不足のため、Ollamaモデルで生成しました"
                                         }
                                     else:
                                         logger.warning(f"Ollama生成失敗: {result.get('error', 'Unknown error')}")
@@ -1379,57 +1550,73 @@ async def generate_text(request: GenerationRequest):
         logger.info("ファインチューニング済みモデルでテキスト生成を実行します")
         
         # Ollamaが利用可能で、メモリ不足の場合のフォールバック
-        if OLLAMA_AVAILABLE and torch.cuda.is_available():
-            gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3
-            if gpu_memory < 30:  # 30GB未満の場合はOllamaを試行
-                logger.info(f"GPUメモリ不足（{gpu_memory:.1f}GB）のため、Ollamaを使用します")
-                try:
-                    ollama = OllamaIntegration()
+        if OLLAMA_AVAILABLE:
+            # GPUメモリを確認
+            try:
+                if torch.cuda.is_available():
+                    gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3
+                    free_memory = torch.cuda.mem_get_info()[0] / 1024**3
+                    logger.info(f"GPUメモリ: 合計 {gpu_memory:.1f}GB, 空き {free_memory:.1f}GB")
                     
-                    # 利用可能なOllamaモデルを確認
-                    available_models = ollama.list_models()
-                    logger.info(f"利用可能なOllamaモデル: {available_models}")
-                    
-                    # ファインチューニング済みモデル名を取得
-                    model_name = request.model_path.split("/")[-1]
-                    ollama_model_name = f"road-engineering-expert"  # 変換済みモデル名
-                    
-                    # Ollamaでテキスト生成
-                    result = ollama.generate_text(
-                        model_name=ollama_model_name,
-                        prompt=request.prompt,
-                        temperature=request.temperature,
-                        top_p=request.top_p,
-                        max_tokens=request.max_length
-                    )
-                    
-                    if result.get("success", False):
-                        logger.info("Ollamaでの生成が成功しました")
-                        return {
-                            "prompt": request.prompt,
-                            "generated_text": result.get("generated_text", "Ollama生成エラー"),
-                            "model_path": request.model_path,
-                            "method": "ollama",
-                            "verification_info": {
-                                "model_path": request.model_path,
-                                "base_model": "ollama-converted",
-                                "training_method": "full",
-                                "prompt": request.prompt,
-                                "generation_params": {
-                                    "max_length": request.max_length,
-                                    "temperature": request.temperature,
-                                    "top_p": request.top_p
-                                }
-                            }
-                        }
-                    else:
-                        logger.warning(f"Ollama生成失敗: {result.get('error', 'Unknown error')}")
-                        # フォールバック: 通常の方法を試行
+                    # 空きメモリが5GB未満の場合はOllamaを使用
+                    if free_memory < 5:
+                        logger.info(f"GPUメモリ不足（空き{free_memory:.1f}GB）のため、Ollamaを使用します")
+                        ollama = OllamaIntegration()
                         
-                except Exception as ollama_error:
-                    logger.error(f"Ollama統合エラー: {str(ollama_error)}")
-                    import traceback
-                    logger.error(f"Ollamaエラー詳細: {traceback.format_exc()}")
+                        # 利用可能なOllamaモデルを確認
+                        available_models = ollama.list_models()
+                        logger.info(f"利用可能なOllamaモデル: {available_models}")
+                        
+                        # 使用するOllamaモデルを選択
+                        ollama_model_name = None
+                        if available_models.get("models"):
+                            for model_info in available_models["models"]:
+                                model_name_str = model_info.get("name", "")
+                                if "llama3.2:3b" in model_name_str:
+                                    ollama_model_name = model_name_str
+                                    break
+                            if not ollama_model_name and available_models["models"]:
+                                ollama_model_name = available_models["models"][0].get("name")
+                        
+                        if ollama_model_name:
+                            logger.info(f"Ollamaモデル {ollama_model_name} を使用します")
+                            
+                            # Ollamaでテキスト生成
+                            result = ollama.generate_text(
+                                model_name=ollama_model_name,
+                                prompt=request.prompt,
+                                temperature=request.temperature,
+                                top_p=request.top_p,
+                                max_tokens=request.max_length
+                            )
+                            
+                            if result.get("success", False):
+                                logger.info("Ollamaでの生成が成功しました")
+                                return {
+                                    "prompt": request.prompt,
+                                    "generated_text": result.get("generated_text", "Ollama生成エラー"),
+                                    "model_path": request.model_path,
+                                    "method": "ollama",
+                                    "note": "GPUメモリ不足のため、Ollamaモデルで生成しました",
+                                    "verification_info": {
+                                        "model_path": request.model_path,
+                                        "base_model": "ollama-converted",
+                                        "training_method": "full",
+                                        "prompt": request.prompt,
+                                        "generation_params": {
+                                            "max_length": request.max_length,
+                                            "temperature": request.temperature,
+                                            "top_p": request.top_p
+                                        }
+                                    }
+                                }
+                            else:
+                                logger.warning(f"Ollama生成失敗: {result.get('error', 'Unknown error')}")
+                                # フォールバック: 通常の方法を試行
+            except Exception as ollama_error:
+                logger.error(f"Ollama統合エラー: {str(ollama_error)}")
+                import traceback
+                logger.error(f"Ollamaエラー詳細: {traceback.format_exc()}")
                     # フォールバック: 通常の方法を試行
         
         # モデル情報の記録
@@ -2339,7 +2526,7 @@ async def generate_with_model_selection(request: dict):
                 gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3
                 if gpu_memory < 30 and OLLAMA_AVAILABLE:
                     # Ollamaにフォールバック
-                    ollama_model_name = "roadexpert"  # デフォルトのOllamaモデル
+                    ollama_model_name = "llama3.2:3b"  # 利用可能なOllamaモデル
                     logger.info(f"メモリ不足のため、Ollamaモデル {ollama_model_name} を使用します")
                     
                     ollama = OllamaIntegration()
@@ -2468,27 +2655,56 @@ async def rag_health_check():
 @app.get("/rag/system-info", response_model=SystemInfoResponse)
 async def rag_get_system_info():
     """RAGシステム情報を取得"""
-    if not rag_app.is_initialized:
-        # RAGが初期化されていない場合でも設定情報を返す
+    try:
+        # 設定ファイルから直接読み込み
+        config_path = Path("src/rag/config/rag_config.yaml")
+        config_data = {}
+        
+        if config_path.exists():
+            import yaml
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config_data = yaml.safe_load(f)
+        
+        # システム情報を構築
+        system_info = {
+            "config": {
+                "llm": {
+                    "model_name": config_data.get('llm', {}).get('model_name', '未設定'),
+                    "base_model": config_data.get('llm', {}).get('base_model', '未設定'),
+                    "temperature": config_data.get('llm', {}).get('temperature', 0.3),
+                    "use_finetuned": config_data.get('llm', {}).get('use_finetuned', False),
+                    "model_path": config_data.get('llm', {}).get('model_path', '未設定')
+                },
+                "embedding": {
+                    "model_name": config_data.get('embedding', {}).get('model_name', 'multilingual-e5-large')
+                },
+                "vector_store": {
+                    "type": config_data.get('vector_store', {}).get('type', 'Qdrant')
+                }
+            },
+            "status": "initialized" if rag_app.is_initialized else "not_initialized"
+        }
+        
         return SystemInfoResponse(
-            status="not_initialized",
+            status="success",
+            system_info=system_info,
+            timestamp=datetime.now().isoformat()
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to get system info: {e}")
+        return SystemInfoResponse(
+            status="error",
             system_info={
                 "config": {
-                    "llm": {"model_name": "未初期化"},
+                    "llm": {"model_name": "設定読み込みエラー"},
                     "embedding": {"model_name": "multilingual-e5-large"},
                     "vector_store": {"type": "Qdrant"}
-                }
+                },
+                "error": str(e)
             },
             timestamp=datetime.now().isoformat()
         )
-    
-    system_info = rag_app.query_engine.get_system_info()
-    
-    return SystemInfoResponse(
-        status="success",
-        system_info=system_info,
-        timestamp=datetime.now().isoformat()
-    )
 
 @app.post("/rag/update-settings")
 async def rag_update_settings(settings: Dict[str, Any]):
@@ -2752,6 +2968,91 @@ async def process_uploaded_rag_document(
         
     except Exception as e:
         logger.error(f"Background RAG document processing failed: {e}")
+
+@app.post("/rag/save-search")
+async def save_search_result(request: SaveSearchRequest):
+    """検索結果を保存"""
+    try:
+        rag_app.check_initialized()
+        
+        saved_result = rag_app.save_search_result(
+            query_response=request.query_response,
+            name=request.name,
+            tags=request.tags
+        )
+        
+        return {
+            "status": "success",
+            "message": "Search result saved successfully",
+            "result_id": saved_result.id,
+            "saved_at": saved_result.saved_at
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to save search result: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/rag/search-history", response_model=SearchHistoryResponse)
+async def get_search_history(
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    tag: Optional[str] = None
+):
+    """検索履歴を取得"""
+    try:
+        rag_app.check_initialized()
+        
+        history = rag_app.get_search_history(page=page, limit=limit, tag=tag)
+        return history
+        
+    except Exception as e:
+        logger.error(f"Failed to get search history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/rag/search-result/{result_id}")
+async def get_saved_search_result(result_id: str):
+    """保存された検索結果を取得"""
+    try:
+        rag_app.check_initialized()
+        
+        result = rag_app.get_saved_result(result_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Search result not found")
+            
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get saved search result: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/rag/export-searches")
+async def export_search_results(
+    result_ids: str = Query(..., description="カンマ区切りの結果ID"),
+    format: str = Query("json", pattern="^(json|csv)$")
+):
+    """検索結果をエクスポート"""
+    try:
+        rag_app.check_initialized()
+        
+        ids = result_ids.split(",")
+        export_data = rag_app.export_search_results(ids, format=format)
+        
+        filename = f"search_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{format}"
+        media_type = "text/csv" if format == "csv" else "application/json"
+        
+        return StreamingResponse(
+            io.BytesIO(export_data),
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to export search results: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/rag/upload-document")
 async def rag_upload_document(

@@ -59,39 +59,74 @@ class LLMGenerator:
         self.tokenizer = None
         self.model = None
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.use_ollama_fallback = False
+        self.ollama = None
         
         self._load_model()
         
     def _load_model(self):
-        """モデルを読み込み"""
+        """モデルを読み込み（メモリ最適化）"""
+        
+        # GPUメモリチェックとOllamaフォールバック
+        if torch.cuda.is_available():
+            free_memory = torch.cuda.mem_get_info()[0] / (1024**3)
+            logger.info(f"GPU空きメモリ: {free_memory:.2f} GB")
+            
+            # 8GB未満の場合はOllamaフォールバックを設定
+            if free_memory < 8:
+                logger.warning(f"GPUメモリ不足 ({free_memory:.2f}GB)。Ollamaフォールバックを有効化します")
+                self._enable_ollama_fallback()
+                return
         
         llm_config = self.config.llm
         
-        # ファインチューニング済みモデルを優先
-        if llm_config.use_finetuned and os.path.exists(llm_config.finetuned_model_path):
+        # モデルパスの決定（設定ファイルの選択を優先）
+        model_path = None
+        
+        # 1. 設定ファイルのmodel_nameを優先使用
+        if hasattr(llm_config, 'model_name') and llm_config.model_name:
+            model_path = llm_config.model_name
+            logger.info(f"Using configured model: {model_path}")
+        
+        # 2. model_pathが設定されている場合
+        elif hasattr(llm_config, 'model_path') and llm_config.model_path:
+            model_path = llm_config.model_path
+            logger.info(f"Using configured model path: {model_path}")
+        
+        # 3. ファインチューニング済みモデルを確認
+        elif llm_config.use_finetuned and hasattr(llm_config, 'finetuned_model_path') and os.path.exists(llm_config.finetuned_model_path):
             model_path = llm_config.finetuned_model_path
-            logger.info(f"Loading fine-tuned model: {model_path}")
+            logger.info(f"Using fine-tuned model: {model_path}")
+        
+        # 4. フォールバック: ベースモデル
         else:
             model_path = llm_config.base_model
-            logger.info(f"Loading base model: {model_path}")
+            logger.info(f"Using base model: {model_path}")
+        
+        # パスが相対パスの場合は絶対パスに変換
+        if not model_path.startswith('/') and '/' in model_path and not model_path.startswith('http'):
+            # プロジェクトルートからの相対パスとみなす
+            project_root = Path(__file__).parent.parent.parent.parent
+            absolute_path = project_root / model_path
+            if absolute_path.exists():
+                model_path = str(absolute_path)
+                logger.info(f"Resolved to absolute path: {model_path}")
+            else:
+                logger.warning(f"Model path does not exist: {absolute_path}")
+        
+        logger.info(f"Final model path: {model_path}")
             
         try:
+            # メモリクリア
+            torch.cuda.empty_cache()
+            
             # トークナイザーの読み込み
             self.tokenizer = AutoTokenizer.from_pretrained(model_path)
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
                 
-            # モデルの読み込み
-            model_kwargs = {
-                'torch_dtype': getattr(torch, llm_config.torch_dtype),
-                'device_map': llm_config.device_map,
-            }
-            
-            if llm_config.load_in_8bit:
-                model_kwargs['load_in_8bit'] = True
-                
-            if llm_config.max_memory:
-                model_kwargs['max_memory'] = llm_config.max_memory
+            # メモリ最適化されたモデル読み込み
+            model_kwargs = self._get_optimized_model_kwargs(llm_config)
                 
             self.model = AutoModelForCausalLM.from_pretrained(
                 model_path,
@@ -102,8 +137,67 @@ class LLMGenerator:
             
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
-            self.model = None
-            self.tokenizer = None
+            # モデルロード失敗時はOllamaフォールバックを試行
+            logger.warning("モデルロード失敗。Ollamaフォールバックを有効化します")
+            self._enable_ollama_fallback()
+    
+    def _get_optimized_model_kwargs(self, llm_config) -> Dict[str, Any]:
+        """メモリ最適化されたモデルロードパラメータを取得"""
+        
+        # 基本設定
+        model_kwargs = {
+            'torch_dtype': torch.float16,  # メモリ効率を優先
+            'low_cpu_mem_usage': True,
+            'trust_remote_code': True
+        }
+        
+        if torch.cuda.is_available():
+            free_memory = torch.cuda.mem_get_info()[0] / (1024**3)
+            
+            # 4bit量子化を適用
+            from transformers import BitsAndBytesConfig
+            model_kwargs['quantization_config'] = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.float16,
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_quant_type="nf4"
+            )
+            
+            # メモリ配分を最適化
+            safe_memory = max(1, int(free_memory * 0.7))  # 70%を使用
+            model_kwargs.update({
+                'device_map': 'auto',
+                'max_memory': {
+                    0: f"{safe_memory}GB",
+                    'cpu': '16GB'
+                }
+            })
+        else:
+            # CPUモード
+            model_kwargs.update({
+                'torch_dtype': torch.float32,
+                'device_map': None
+            })
+            
+        return model_kwargs
+    
+    def _enable_ollama_fallback(self):
+        """メモリ不足時のOllamaフォールバックを有効化"""
+        
+        self.use_ollama_fallback = True
+        self.model = None
+        self.tokenizer = None
+        logger.info("Ollamaフォールバックモードを有効化しました")
+        
+        # Ollama統合をインポート
+        try:
+            sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "scripts" / "convert"))
+            from ollama_integration import OllamaIntegration
+            self.ollama = OllamaIntegration()
+            logger.info("Ollama統合が利用可能です")
+        except ImportError as e:
+            logger.error(f"Ollama統合のインポートに失敗: {e}")
+            self.ollama = None
             
     def generate(self, 
                 prompt: str, 
@@ -111,8 +205,8 @@ class LLMGenerator:
                 max_new_tokens: Optional[int] = None) -> str:
         """テキストを生成"""
         
-        if not self.model or not self.tokenizer:
-            return self._fallback_generation(prompt, context)
+        if not self.model or not self.tokenizer or self.use_ollama_fallback:
+            return self._ollama_generation(prompt, context)
             
         llm_config = self.config.llm
         max_tokens = max_new_tokens or llm_config.max_new_tokens
@@ -152,7 +246,39 @@ class LLMGenerator:
             
         except Exception as e:
             logger.error(f"Generation failed: {e}")
-            return self._fallback_generation(prompt, context)
+            return self._ollama_generation(prompt, context)
+    
+    def _ollama_generation(self, prompt: str, context: str) -> str:
+        """メモリ不足時のOllamaフォールバック生成"""
+        
+        if not self.ollama:
+            return f"エラー: モデルが利用できません。クエリ: {prompt}"
+        
+        try:
+            # コンテキストとプロンプトを組み合わせ
+            full_prompt = self._build_prompt(prompt, context)
+            
+            # Ollamaで生成
+            result = self.ollama.generate_text(
+                model_name="llama3.2:3b",
+                prompt=full_prompt,
+                temperature=0.7,
+                top_p=0.9,
+                max_tokens=1024
+            )
+            
+            if result.get("success", False):
+                generated_text = result.get("generated_text", "")
+                logger.info("Ollamaでの生成が成功しました")
+                return generated_text
+            else:
+                error_msg = result.get("error", "Unknown error")
+                logger.error(f"Ollama生成エラー: {error_msg}")
+                return f"エラー: Ollama生成に失敗しました - {error_msg}"
+                
+        except Exception as e:
+            logger.error(f"Ollamaフォールバックエラー: {e}")
+            return f"エラー: 生成に失敗しました - {str(e)}"
             
     def _build_prompt(self, query: str, context: str) -> str:
         """プロンプトを構築"""
@@ -224,9 +350,20 @@ class RoadDesignQueryEngine:
         self.is_initialized = False
         
     def initialize(self):
-        """エンジンを初期化"""
+        """エンジンを初期化（メモリ最適化）"""
         
         logger.info("Initializing RoadDesignQueryEngine...")
+        
+        # GPUメモリチェック
+        if torch.cuda.is_available():
+            free_memory = torch.cuda.mem_get_info()[0] / (1024**3)
+            logger.info(f"GPU空きメモリ: {free_memory:.2f} GB")
+            
+            # メモリ不足の場合は軽量モードで初期化
+            if free_memory < 6:
+                logger.warning("メモリ不足のため、軽量モードで初期化します")
+                self._initialize_lightweight_mode()
+                return
         
         try:
             # 1. 埋め込みモデル
@@ -297,7 +434,87 @@ class RoadDesignQueryEngine:
             
         except Exception as e:
             logger.error(f"Failed to initialize RoadDesignQueryEngine: {e}")
-            raise
+            # 初期化失敗時は軽量モードでリトライ
+            logger.warning("標準初期化失敗。軽量モードでリトライします")
+            self._initialize_lightweight_mode()
+    
+    def _initialize_lightweight_mode(self):
+        """メモリ不足時の軽量モード初期化"""
+        
+        logger.info("軽量モードで初期化中...")
+        
+        try:
+            # 1. 基本コンポーネントのみ初期化
+            logger.info("Loading lightweight embedding model...")
+            self.embedding_model = EmbeddingModelFactory.create_model(
+                model_type="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",  # 軽量モデル
+                device="cpu" if torch.cuda.mem_get_info()[0] / (1024**3) < 4 else "cuda"
+            )
+            
+            # 2. ベクターストア（基本機能のみ）
+            embedding_dim = 384  # MiniLMの次元数
+            self.vector_store = QdrantVectorStore(
+                collection_name=self.config.vector_store.collection_name,
+                embedding_dim=embedding_dim,
+                path=self.vector_store_path
+            )
+            
+            # 3. メタデータマネージャー
+            self.metadata_manager = MetadataManager(db_path=self.metadata_db_path)
+            
+            # 4. ハイブリッド検索エンジン（軽量モード）
+            from ..retrieval.hybrid_search import HybridSearchEngine
+            self.hybrid_search = HybridSearchEngine(
+                vector_store=self.vector_store,
+                embedding_model=self.embedding_model,
+                vector_weight=0.7,  # ベクター検索主体
+                keyword_weight=0.3   # キーワード検索も併用
+            )
+            
+            # コーパスを初期化
+            self._initialize_search_corpus()
+            
+            # 5. OllamaベースのLLM生成器
+            self.llm_generator = LLMGenerator(self.config)
+            self.llm_generator._enable_ollama_fallback()  # 強制的にOllamaモード
+            
+            # 6. シンプルな引用エンジン
+            self.citation_engine = CitationQueryEngine(
+                hybrid_search_engine=self.hybrid_search,
+                llm_generator=self.llm_generator,
+                metadata_manager=self.metadata_manager
+            )
+            
+            self.is_initialized = True
+            logger.info("軽量モードでの初期化が完了しました")
+            
+        except Exception as e:
+            logger.error(f"軽量モード初期化も失敗: {e}")
+            # 最低限の機能で初期化
+            self._initialize_minimal_mode()
+    
+    def _initialize_minimal_mode(self):
+        """最低限の機能で初期化（Ollamaのみ）"""
+        
+        logger.warning("最低限モードで初期化中...")
+        
+        try:
+            # Ollamaのみで動作するシンプルなモード
+            self.llm_generator = LLMGenerator(self.config)
+            self.llm_generator._enable_ollama_fallback()
+            
+            # ダミーのメタデータマネージャー
+            self.metadata_manager = MetadataManager(db_path=":memory:")  # インメモリデータベース
+            
+            # ダミーのハイブリッド検索（基本的な機能のみ）
+            self.hybrid_search = None  # 最低限モードでは無効
+            
+            self.is_initialized = True
+            logger.info("最低限モードでの初期化が完了しました")
+            
+        except Exception as e:
+            logger.error(f"最低限モード初期化も失敗: {e}")
+            raise RuntimeError("すべての初期化が失敗しました")
             
     def _initialize_search_corpus(self):
         """検索用コーパスを初期化"""
@@ -344,6 +561,10 @@ class RoadDesignQueryEngine:
         logger.info(f"Processing query: {query_text}")
         
         try:
+            # 引用エンジンがない場合のみシンプルフォールバック
+            if not self.citation_engine and not self.hybrid_search:
+                return self._simple_ollama_query(query_text, top_k, processing_time)
+            
             # 検索クエリを構築
             search_query = SearchQuery(
                 text=query_text,
@@ -351,15 +572,28 @@ class RoadDesignQueryEngine:
                 filters=filters
             )
             
-            # 引用エンジンでクエリを実行
-            response = self.citation_engine.query(
-                query_text=query_text,
-                top_k=top_k,
-                include_sources=include_sources,
-                filters=filters
-            )
+            # Ollamaフォールバック時のハイブリッド検索対応
+            if self.llm_generator and self.llm_generator.use_ollama_fallback:
+                response = self._hybrid_search_with_ollama(
+                    query_text=query_text,
+                    top_k=top_k,
+                    search_type=search_type,
+                    filters=filters
+                )
+            else:
+                # 標準の引用エンジンでクエリを実行
+                response = self.citation_engine.query(
+                    query_text=query_text,
+                    top_k=top_k,
+                    include_sources=include_sources,
+                    filters=filters
+                )
             
             processing_time = time.time() - start_time
+            
+            if not response or not hasattr(response, 'source_chunks'):
+                # レスポンスが無い場合はOllamaフォールバック
+                return self._simple_ollama_query(query_text, top_k, processing_time)
             
             # 結果を変換
             sources = []
@@ -397,14 +631,32 @@ class RoadDesignQueryEngine:
                 
                 sources.append(source_data)
             
+            # citationsの処理を修正
+            citations = []
+            if hasattr(response, 'citations'):
+                for cite in response.citations:
+                    if isinstance(cite, dict):
+                        citations.append(cite)
+                    elif hasattr(cite, '__dict__'):
+                        citations.append(cite.__dict__)
+                    else:
+                        citations.append({'text': str(cite)})
+            
+            # metadataの処理
+            metadata = {}
+            if hasattr(response, 'generation_metadata'):
+                metadata = response.generation_metadata
+            elif hasattr(response, 'metadata'):
+                metadata = response.metadata
+            
             result = QueryResult(
                 query=query_text,
                 answer=response.answer,
-                citations=[cite.__dict__ for cite in response.citations],
+                citations=citations,
                 sources=sources,
                 confidence_score=response.confidence_score,
                 processing_time=processing_time,
-                metadata=response.generation_metadata
+                metadata=metadata
             )
             
             logger.info(f"Query completed in {processing_time:.2f}s, confidence: {response.confidence_score:.3f}")
@@ -413,17 +665,206 @@ class RoadDesignQueryEngine:
         except Exception as e:
             logger.error(f"Query failed: {e}")
             
-            # エラー時のフォールバック
+            # エラー時はOllamaフォールバックを試行
             processing_time = time.time() - start_time
+            return self._simple_ollama_query(query_text, top_k, processing_time, error=str(e))
+    
+    def _simple_ollama_query(self, query_text: str, top_k: int, processing_time: float, error: str = None) -> QueryResult:
+        """シンプルなOllamaクエリ（メモリ不足時のフォールバック）"""
+        
+        try:
+            if self.llm_generator and self.llm_generator.ollama:
+                # 拡張されたプロンプトで詳細な回答を生成
+                enhanced_prompt = self._build_enhanced_rag_prompt(query_text, "")
+                
+                result = self.llm_generator.ollama.generate_text(
+                    model_name="llama3.2:3b",
+                    prompt=enhanced_prompt,
+                    temperature=0.7,
+                    top_p=0.9,
+                    max_tokens=2048  # 文字数を大幅に拡張
+                )
+                
+                if result.get("success", False):
+                    answer = result.get("generated_text", "")
+                    confidence = 0.6  # Ollamaフォールバックの信頼度
+                else:
+                    answer = f"エラー: Ollama生成に失敗 - {result.get('error', 'Unknown error')}"
+                    confidence = 0.0
+            else:
+                answer = f"エラー: 生成モデルが利用できません。クエリ: {query_text}"
+                confidence = 0.0
+                
+            # エラー情報を追加
+            metadata = {'fallback': 'ollama', 'mode': 'simple'}
+            if error:
+                metadata['original_error'] = error
+                answer = f"[Ollamaフォールバック] {answer}"
+                
             return QueryResult(
                 query=query_text,
-                answer=f"申し訳ございませんが、クエリの処理中にエラーが発生しました: {str(e)}",
+                answer=answer,
+                citations=[],
+                sources=[],
+                confidence_score=confidence,
+                processing_time=processing_time,
+                metadata=metadata
+            )
+            
+        except Exception as e:
+            logger.error(f"Ollamaフォールバックも失敗: {e}")
+            return QueryResult(
+                query=query_text,
+                answer=f"申し訳ございませんが、すべての処理手段が失敗しました。エラー: {str(e)}",
                 citations=[],
                 sources=[],
                 confidence_score=0.0,
                 processing_time=processing_time,
-                metadata={'error': str(e)}
+                metadata={'error': str(e), 'fallback_failed': True}
             )
+    
+    def _hybrid_search_with_ollama(self, query_text: str, top_k: int, search_type: str, filters: Dict[str, Any] = None):
+        """ハイブリッド検索とOllama生成を組み合わせたクエリ処理"""
+        
+        try:
+            logger.info(f"Ollamaフォールバックモードでハイブリッド検索を実行: {query_text}")
+            
+            # 1. ハイブリッド検索で関連文書を取得
+            search_results = []
+            context_texts = []
+            
+            if self.hybrid_search:
+                try:
+                    # 検索クエリを構築
+                    search_query = SearchQuery(
+                        text=query_text,
+                        search_type=search_type,
+                        filters=filters
+                    )
+                    
+                    # ハイブリッド検索を実行
+                    search_results = self.hybrid_search.search(
+                        query=search_query,
+                        top_k=top_k
+                    )
+                    
+                    # コンテキストテキストを構築
+                    for result in search_results:
+                        context_texts.append(f"[出典: {result.metadata.get('title', '不明')}]\n{result.text}")
+                    
+                    logger.info(f"ハイブリッド検索で{len(search_results)}件の関連文書を取得")
+                    
+                except Exception as search_error:
+                    logger.error(f"ハイブリッド検索エラー: {search_error}")
+                    search_results = []
+                    context_texts = []
+            
+            # 2. Ollamaでコンテキスト付き回答を生成
+            context = "\n\n".join(context_texts) if context_texts else ""
+            
+            if self.llm_generator and self.llm_generator.ollama:
+                # 拡張されたプロンプトで詳細な回答を生成
+                enhanced_prompt = self._build_enhanced_rag_prompt(query_text, context)
+                
+                result = self.llm_generator.ollama.generate_text(
+                    model_name="llama3.2:3b",
+                    prompt=enhanced_prompt,
+                    temperature=0.7,
+                    top_p=0.9,
+                    max_tokens=2048  # 文字数を大幅に拡張
+                )
+                
+                if result.get("success", False):
+                    answer = result.get("generated_text", "")
+                    confidence = 0.8 if context_texts else 0.6  # コンテキストがある場合は高い信頼度
+                else:
+                    answer = f"エラー: Ollama生成に失敗 - {result.get('error', 'Unknown error')}"
+                    confidence = 0.0
+            else:
+                answer = "エラー: Ollama生成モデルが利用できません"
+                confidence = 0.0
+            
+            # 3. 結果を構築して返す
+            # ダミーのレスポンスオブジェクトを作成
+            class DummyResponse:
+                def __init__(self, answer, search_results, confidence):
+                    self.answer = answer
+                    self.source_chunks = search_results  # 検索結果をソースとして使用
+                    self.confidence_score = confidence
+                    self.citations = self._build_citations(search_results)
+                    self.metadata = {
+                        'fallback': 'ollama',
+                        'mode': 'hybrid_search_with_ollama',
+                        'source_count': len(search_results)
+                    }
+                
+                def _build_citations(self, search_results):
+                    citations = []
+                    for i, result in enumerate(search_results, 1):
+                        citations.append({
+                            'id': i,
+                            'text': result.text[:200] + "..." if len(result.text) > 200 else result.text,
+                            'source': result.metadata.get('title', f'文書{i}'),
+                            'score': getattr(result, 'hybrid_score', getattr(result, 'score', 0.0))
+                        })
+                    return citations
+            
+            return DummyResponse(answer, search_results, confidence)
+            
+        except Exception as e:
+            logger.error(f"ハイブリッド検索+Ollamaエラー: {e}")
+            # エラー時はシンプルモードにフォールバック
+            class ErrorResponse:
+                def __init__(self, error_msg):
+                    self.answer = f"エラー: {error_msg}"
+                    self.source_chunks = []
+                    self.confidence_score = 0.0
+                    self.citations = []
+                    self.metadata = {'error': error_msg}
+            
+            return ErrorResponse(str(e))
+    
+    def _build_enhanced_rag_prompt(self, query: str, context: str) -> str:
+        """拡張されたRAGプロンプトを構築（2000文字程度の詳細な回答用）"""
+        
+        if context:
+            prompt = f"""# 道路設計の専門家としての回答
+
+あなたは経験豊富な道路設計の専門家です。以下の参考資料を基に、質問に対して**詳細で実用的な回答**を提供してください。
+
+## 参考資料
+{context}
+
+## 質問
+{query}
+
+## 回答の指示
+1. **具体的で詳細な説明**を提供してください
+2. **数値や基準値**は参考資料から正確に引用してください
+3. **実務での注意点やポイント**を含めてください
+4. **関連する法規や基準**があれば言及してください
+5. **1500-2000文字程度**の充実した回答をお願いします
+6. 参考資料の情報を根拠として、**[出典: …]という形で出典を明記**してください
+
+## 回答"""
+        else:
+            prompt = f"""# 道路設計の専門家としての回答
+
+あなたは経験豊富な道路設計の専門家です。以下の質問に対して、一般的な知識を基に**詳細で実用的な回答**を提供してください。
+
+## 質問
+{query}
+
+## 回答の指示
+1. **具体的で詳細な説明**を提供してください
+2. **実務での注意点やポイント**を含めてください
+3. **関連する法規や基準**があれば言及してください
+4. **1500-2000文字程度**の充実した回答をお願いします
+5. 参考資料がないため、一般的な道路設計の知識を活用してください
+
+## 回答"""
+        
+        return prompt
             
     def batch_query(self, 
                    queries: List[str],

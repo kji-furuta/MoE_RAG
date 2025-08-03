@@ -78,6 +78,28 @@
         padding-left: 15px;
         padding-right: 15px;
     }
+    
+    /* 回答表示用のスタイル */
+    .answer-content {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 10px;
+    }
+    
+    .citations-list {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .citations-list .card {
+        border: 1px solid #e0e0e0;
+        box-shadow: none;
+    }
+    
+    .citations-list .card:hover {
+        background-color: #f5f5f5;
+    }
 </style>
 
 <div class="container rag-container">
@@ -113,6 +135,9 @@
         </li>
         <li class="nav-item">
             <a class="nav-link" data-bs-toggle="tab" href="#statistics">📊 統計情報</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#history">📋 検索履歴</a>
         </li>
     </ul>
 
@@ -261,6 +286,35 @@
                 </div>
             </div>
         </div>
+
+        <!-- 検索履歴タブ -->
+        <div class="tab-pane fade" id="history">
+            <div class="card">
+                <div class="card-body">
+                    <h3>📋 検索履歴</h3>
+                    <div class="mb-3">
+                        <button class="btn btn-primary" onclick="loadSearchHistory()">履歴を更新</button>
+                        <button class="btn btn-success" onclick="exportAllHistory()">全履歴をエクスポート</button>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tagFilter" class="form-label">タグでフィルタ</label>
+                        <select class="form-control" id="tagFilter" onchange="loadSearchHistory()">
+                            <option value="">すべて</option>
+                        </select>
+                    </div>
+                    
+                    <div id="historyList">
+                        <div class="text-muted">「履歴を更新」ボタンをクリックして履歴を読み込んでください</div>
+                    </div>
+                    
+                    <nav aria-label="履歴ページネーション">
+                        <ul class="pagination justify-content-center" id="historyPagination">
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
     </div>
     {% endif %}
 </div>
@@ -328,22 +382,7 @@ document.getElementById('searchForm')?.addEventListener('submit', async (e) => {
         const data = await response.json();
         
         if (response.ok) {
-            let html = '<div class="card mt-3">';
-            html += '<div class="card-body">';
-            html += `<h4>回答</h4><p>${data.answer}</p>`;
-            
-            if (data.sources && data.sources.length > 0) {
-                html += '<h5 class="mt-3">参照元</h5>';
-                html += '<ul>';
-                data.sources.forEach(source => {
-                    const score = source.score !== undefined ? source.score.toFixed(3) : 'N/A';
-                    html += `<li>${source.title} (スコア: ${score})</li>`;
-                });
-                html += '</ul>';
-            }
-            
-            html += '</div></div>';
-            resultDiv.innerHTML = html;
+            displaySearchResult(data);
         } else {
             throw new Error(data.detail || '検索エラー');
         }
@@ -518,22 +557,40 @@ async function loadFinetunedModels() {
 // 現在の設定を読み込む
 async function loadCurrentSettings() {
     try {
+        console.log('Loading current settings...');
         const response = await fetch('/rag/system-info');
+        console.log('Response status:', response.status);
+        
         const data = await response.json();
+        console.log('Response data:', data);
         
         const settingsDiv = document.getElementById('currentSettings');
-        if (data.config) {
+        
+        if (data.system_info && data.system_info.config) {
+            const config = data.system_info.config;
             let html = '<table class="table table-sm">';
-            html += `<tr><td>LLMモデル:</td><td>${data.config.llm?.model_name || '未設定'}</td></tr>`;
-            html += `<tr><td>埋め込みモデル:</td><td>${data.config.embedding?.model_name || 'multilingual-e5-large'}</td></tr>`;
-            html += `<tr><td>Temperature:</td><td>${data.config.llm?.temperature || 0.3}</td></tr>`;
-            html += `<tr><td>ベクトルストア:</td><td>${data.config.vector_store?.type || 'Qdrant'}</td></tr>`;
+            
+            // LLMモデルの詳細表示
+            const modelName = config.llm?.model_name || '未設定';
+            const isFinetunedModel = modelName.includes('outputs/') || modelName.includes('フルファインチューニング');
+            const modelType = isFinetunedModel ? 'ファインチューニング済み' : 'ベースモデル';
+            
+            html += `<tr><td><strong>使用中のLLMモデル:</strong></td><td><span class="badge ${isFinetunedModel ? 'bg-success' : 'bg-secondary'}">${modelType}</span><br><code>${modelName}</code></td></tr>`;
+            html += `<tr><td>埋め込みモデル:</td><td>${config.embedding?.model_name || 'multilingual-e5-large'}</td></tr>`;
+            html += `<tr><td>Temperature:</td><td>${config.llm?.temperature || 0.3}</td></tr>`;
+            html += `<tr><td>ベクトルストア:</td><td>${config.vector_store?.type || 'Qdrant'}</td></tr>`;
+            html += `<tr><td>ファインチューニング使用:</td><td><span class="badge ${config.llm?.use_finetuned ? 'bg-success' : 'bg-secondary'}">${config.llm?.use_finetuned ? '有効' : '無効'}</span></td></tr>`;
             html += '</table>';
             settingsDiv.innerHTML = html;
+            console.log('Settings loaded successfully');
+        } else {
+            console.error('Invalid response structure:', data);
+            settingsDiv.innerHTML = '<div class="text-muted">設定データの構造が無効です</div>';
         }
     } catch (error) {
+        console.error('Failed to load settings:', error);
         document.getElementById('currentSettings').innerHTML = 
-            '<div class="text-muted">設定情報を取得できませんでした</div>';
+            `<div class="text-muted">設定情報を取得できませんでした: ${error.message}</div>`;
     }
 }
 
@@ -570,6 +627,427 @@ document.getElementById('modelSettingsForm')?.addEventListener('submit', async (
         resultDiv.innerHTML = `<div class="alert alert-danger">エラー: ${error.message}</div>`;
     }
 });
+
+// 検索結果を保存
+async function saveSearchResult() {
+    if (!window.lastSearchResult) {
+        alert('保存する検索結果がありません');
+        return;
+    }
+    
+    const name = prompt('保存名を入力してください（省略可）:');
+    const tags = prompt('タグをカンマ区切りで入力してください（省略可）:');
+    
+    try {
+        const response = await fetch('/rag/save-search', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                query_response: window.lastSearchResult,
+                name: name || null,
+                tags: tags ? tags.split(',').map(t => t.trim()) : null
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            alert(`検索結果を保存しました (ID: ${data.result_id})`);
+        } else {
+            throw new Error('保存に失敗しました');
+        }
+    } catch (error) {
+        alert(`エラー: ${error.message}`);
+    }
+}
+
+// 検索履歴を表示
+async function showSearchHistory() {
+    const modalHtml = `
+        <div class="modal fade" id="searchHistoryModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">📋 検索履歴</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" id="searchHistoryContent">
+                        <div class="text-center">読み込み中...</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                        <button type="button" class="btn btn-primary" onclick="exportSelectedResults()">選択した結果をエクスポート</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // モーダルが存在しない場合は追加
+    if (!document.getElementById('searchHistoryModal')) {
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+    
+    // 少し遅延を入れてからモーダルを表示（DOM更新を待つ）
+    setTimeout(() => {
+        const modalElement = document.getElementById('searchHistoryModal');
+        if (modalElement && typeof bootstrap !== 'undefined') {
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        } else {
+            console.error('Bootstrap Modal not available');
+            // フォールバック: 検索履歴タブに切り替える
+            const historyTab = document.querySelector('a[href="#history"]');
+            if (historyTab) {
+                historyTab.click();
+                loadSearchHistory();
+            }
+        }
+    }, 100);
+    
+    // 履歴を読み込み
+    try {
+        const response = await fetch('/rag/search-history?limit=20');
+        const data = await response.json();
+        
+        let html = '<div class="table-responsive">';
+        html += '<table class="table table-hover">';
+        html += '<thead><tr>';
+        html += '<th><input type="checkbox" id="selectAllHistory"></th>';
+        html += '<th>保存名</th>';
+        html += '<th>クエリ</th>';
+        html += '<th>信頼度</th>';
+        html += '<th>保存日時</th>';
+        html += '<th>操作</th>';
+        html += '</tr></thead>';
+        html += '<tbody>';
+        
+        data.results.forEach(result => {
+            html += `<tr>`;
+            html += `<td><input type="checkbox" class="history-checkbox" value="${result.id}"></td>`;
+            html += `<td>${result.metadata?.name || '-'}</td>`;
+            html += `<td>${result.query.substring(0, 50)}...</td>`;
+            html += `<td>${(result.confidence_score * 100).toFixed(1)}%</td>`;
+            html += `<td>${new Date(result.saved_at).toLocaleString('ja-JP')}</td>`;
+            html += `<td><button class="btn btn-sm btn-info" onclick="viewSavedResult('${result.id}')">詳細</button></td>`;
+            html += '</tr>';
+        });
+        
+        html += '</tbody></table></div>';
+        
+        document.getElementById('searchHistoryContent').innerHTML = html;
+        
+        // 全選択チェックボックスの処理
+        document.getElementById('selectAllHistory')?.addEventListener('change', (e) => {
+            document.querySelectorAll('.history-checkbox').forEach(cb => {
+                cb.checked = e.target.checked;
+            });
+        });
+        
+    } catch (error) {
+        document.getElementById('searchHistoryContent').innerHTML = 
+            `<div class="alert alert-danger">履歴の読み込みに失敗しました: ${error.message}</div>`;
+    }
+}
+
+// 保存された結果を表示
+async function viewSavedResult(resultId) {
+    try {
+        const response = await fetch(`/rag/search-result/${resultId}`);
+        const data = await response.json();
+        
+        // モーダルを閉じて、結果を表示
+        bootstrap.Modal.getInstance(document.getElementById('searchHistoryModal'))?.hide();
+        
+        // 検索結果表示エリアに結果を表示
+        const resultDiv = document.getElementById('searchResult');
+        window.lastSearchResult = data;
+        
+        // 既存の表示関数を再利用（データ形式を調整）
+        const formattedData = {
+            query: data.query,
+            answer: data.answer,
+            citations: data.citations,
+            sources: data.sources,
+            confidence_score: data.confidence_score,
+            processing_time: data.metadata?.processing_time || 0,
+            metadata: data.metadata || {}
+        };
+        
+        // 結果を表示（既存のコードを再利用）
+        displaySearchResult(formattedData);
+        
+    } catch (error) {
+        alert(`エラー: ${error.message}`);
+    }
+}
+
+// 選択した結果をエクスポート
+async function exportSelectedResults() {
+    const selectedIds = Array.from(document.querySelectorAll('.history-checkbox:checked'))
+        .map(cb => cb.value);
+    
+    if (selectedIds.length === 0) {
+        alert('エクスポートする結果を選択してください');
+        return;
+    }
+    
+    const format = confirm('CSV形式でエクスポートしますか？（キャンセルでJSON形式）') ? 'csv' : 'json';
+    
+    try {
+        const response = await fetch(`/rag/export-searches?result_ids=${selectedIds.join(',')}&format=${format}`);
+        const blob = await response.blob();
+        
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `search_results.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+    } catch (error) {
+        alert(`エクスポートに失敗しました: ${error.message}`);
+    }
+}
+
+// ページ読み込み時に実行
+document.addEventListener('DOMContentLoaded', function() {
+    // Bootstrapが利用可能かチェック
+    if (typeof bootstrap !== 'undefined') {
+        console.log('Bootstrap loaded successfully');
+    } else {
+        console.error('Bootstrap not loaded');
+    }
+    
+    // 検索履歴タブがアクティブになったときに自動的に履歴を読み込む
+    const historyTab = document.querySelector('a[href="#history"]');
+    if (historyTab) {
+        historyTab.addEventListener('shown.bs.tab', function() {
+            loadSearchHistory();
+        });
+    }
+});
+
+// 検索結果表示関数（再利用可能）
+function displaySearchResult(data) {
+    const resultDiv = document.getElementById('searchResult');
+    const formattedAnswer = data.answer.replace(/\n/g, '<br>');
+    
+    let html = '<div class="card mt-3">';
+    html += '<div class="card-body">';
+    html += '<h4>💡 回答</h4>';
+    html += `<div class="answer-content" style="white-space: pre-wrap; line-height: 1.6;">${formattedAnswer}</div>`;
+    
+    // 信頼度スコアの表示
+    if (data.confidence_score !== undefined) {
+        const confidence = (data.confidence_score * 100).toFixed(1);
+        html += `<div class="mt-3">`;
+        html += `<span class="badge bg-info">信頼度: ${confidence}%</span>`;
+        if (data.metadata && data.metadata.fallback) {
+            html += ` <span class="badge bg-warning">Fallback: ${data.metadata.fallback}</span>`;
+        }
+        html += `</div>`;
+    }
+    
+    // 引用元の表示
+    if (data.citations && data.citations.length > 0) {
+        html += '<h5 class="mt-4">📚 引用・参考資料</h5>';
+        html += '<div class="citations-list">';
+        data.citations.forEach(cite => {
+            html += '<div class="card mb-2">';
+            html += '<div class="card-body" style="padding: 10px;">';
+            html += `<strong>[出典: ${cite.source || '不明'}]</strong><br>`;
+            html += `<small>${cite.text}</small>`;
+            if (cite.score !== undefined) {
+                html += `<br><span class="badge bg-secondary">スコア: ${cite.score.toFixed(3)}</span>`;
+            }
+            html += '</div></div>';
+        });
+        html += '</div>';
+    }
+    
+    // 検索結果ソース
+    if (data.sources && data.sources.length > 0) {
+        html += '<h5 class="mt-4">🔍 検索結果詳細</h5>';
+        html += '<table class="table table-sm">';
+        html += '<thead><tr><th>タイトル</th><th>スコア</th></tr></thead>';
+        html += '<tbody>';
+        data.sources.forEach(source => {
+            const score = source.score !== undefined ? source.score.toFixed(3) : 'N/A';
+            html += `<tr>`;
+            html += `<td>${source.title || source.metadata?.title || '不明'}</td>`;
+            html += `<td>${score}</td>`;
+            html += `</tr>`;
+        });
+        html += '</tbody></table>';
+    }
+    
+    // 処理時間
+    if (data.processing_time) {
+        html += `<div class="text-muted mt-3">処理時間: ${data.processing_time.toFixed(2)}秒</div>`;
+    }
+    
+    // 保存ボタン
+    html += '<div class="mt-3">';
+    html += '<button class="btn btn-success" onclick="saveSearchResult()">💾 検索結果を保存</button>';
+    html += ' <button class="btn btn-info" onclick="showSearchHistory()">📋 検索履歴を表示</button>';
+    html += '</div>';
+    
+    html += '</div></div>';
+    
+    window.lastSearchResult = data;
+    resultDiv.innerHTML = html;
+}
+
+// 検索履歴タブ用の関数
+let currentHistoryPage = 1;
+let currentTagFilter = '';
+
+async function loadSearchHistory(page = 1, tag = '') {
+    const historyDiv = document.getElementById('historyList');
+    historyDiv.innerHTML = '<div class="alert alert-info">読み込み中...</div>';
+    
+    currentHistoryPage = page;
+    currentTagFilter = tag || document.getElementById('tagFilter')?.value || '';
+    
+    try {
+        let url = `/rag/search-history?page=${page}&limit=10`;
+        if (currentTagFilter) {
+            url += `&tag=${encodeURIComponent(currentTagFilter)}`;
+        }
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (response.ok) {
+            displayHistoryList(data);
+            updateTagFilter(data.results);
+        } else {
+            throw new Error(data.detail || '履歴の読み込みに失敗しました');
+        }
+    } catch (error) {
+        historyDiv.innerHTML = `<div class="alert alert-danger">エラー: ${error.message}</div>`;
+    }
+}
+
+function displayHistoryList(data) {
+    const historyDiv = document.getElementById('historyList');
+    
+    if (data.results.length === 0) {
+        historyDiv.innerHTML = '<div class="text-muted">保存された検索履歴がありません</div>';
+        return;
+    }
+    
+    let html = '<div class="table-responsive">';
+    html += '<table class="table table-hover">';
+    html += '<thead><tr>';
+    html += '<th>保存名</th>';
+    html += '<th>クエリ</th>';
+    html += '<th>信頼度</th>';
+    html += '<th>保存日時</th>';
+    html += '<th>操作</th>';
+    html += '</tr></thead>';
+    html += '<tbody>';
+    
+    data.results.forEach(result => {
+        html += `<tr>`;
+        html += `<td>${result.metadata?.name || '-'}</td>`;
+        html += `<td title="${result.query}">${result.query.substring(0, 50)}${result.query.length > 50 ? '...' : ''}</td>`;
+        html += `<td><span class="badge bg-info">${(result.confidence_score * 100).toFixed(1)}%</span></td>`;
+        html += `<td><small>${new Date(result.saved_at).toLocaleString('ja-JP')}</small></td>`;
+        html += `<td>`;
+        html += `<button class="btn btn-sm btn-info" onclick="viewSavedResultInTab('${result.id}')">表示</button>`;
+        html += `</td>`;
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table></div>';
+    historyDiv.innerHTML = html;
+}
+
+function updateTagFilter(results) {
+    const tagSelect = document.getElementById('tagFilter');
+    const existingTags = new Set();
+    
+    results.forEach(result => {
+        const tags = result.metadata?.tags || [];
+        tags.forEach(tag => existingTags.add(tag));
+    });
+    
+    const currentValue = tagSelect.value;
+    tagSelect.innerHTML = '<option value="">すべて</option>';
+    
+    existingTags.forEach(tag => {
+        const option = document.createElement('option');
+        option.value = tag;
+        option.textContent = tag;
+        if (tag === currentValue) {
+            option.selected = true;
+        }
+        tagSelect.appendChild(option);
+    });
+}
+
+async function viewSavedResultInTab(resultId) {
+    try {
+        const response = await fetch(`/rag/search-result/${resultId}`);
+        const data = await response.json();
+        
+        // 検索タブに切り替え
+        const searchTab = document.querySelector('a[href="#search"]');
+        const tab = new bootstrap.Tab(searchTab);
+        tab.show();
+        
+        // 結果を表示
+        const formattedData = {
+            query: data.query,
+            answer: data.answer,
+            citations: data.citations,
+            sources: data.sources,
+            confidence_score: data.confidence_score,
+            processing_time: data.metadata?.processing_time || 0,
+            metadata: data.metadata || {}
+        };
+        
+        displaySearchResult(formattedData);
+        
+    } catch (error) {
+        alert(`エラー: ${error.message}`);
+    }
+}
+
+async function exportAllHistory() {
+    try {
+        const response = await fetch('/rag/search-history?limit=1000');
+        const data = await response.json();
+        
+        if (data.results.length === 0) {
+            alert('エクスポートする履歴がありません');
+            return;
+        }
+        
+        const format = confirm('CSV形式でエクスポートしますか？（キャンセルでJSON形式）') ? 'csv' : 'json';
+        const allIds = data.results.map(r => r.id).join(',');
+        
+        const exportResponse = await fetch(`/rag/export-searches?result_ids=${allIds}&format=${format}`);
+        const blob = await exportResponse.blob();
+        
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `all_search_history.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+    } catch (error) {
+        alert(`エクスポートに失敗しました: ${error.message}`);
+    }
+}
 
 // ページ読み込み時に実行
 document.addEventListener('DOMContentLoaded', () => {

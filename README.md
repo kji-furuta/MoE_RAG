@@ -632,6 +632,12 @@ AI_FT_3/
 
 ## 📅 更新履歴
 
+### v2.3.0 (2025-08-03) - Bootstrap統合とUI改善
+- ✅ Bootstrap CSSとJavaScriptをbase.htmlに統合
+- ✅ RAGシステムの検索履歴表示ボタンエラー修正
+- ✅ "bootstrap is not defined"エラーの解消
+- ✅ モーダルダイアログとタブ機能の安定化
+
 ### v2.2.0 (2025-08-01) - デプロイメント最適化
 - ✅ Docker環境の完全統合と安定化
 - ✅ 統合Webインターフェースの起動プロセス改善

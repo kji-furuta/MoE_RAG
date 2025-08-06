@@ -1,60 +1,77 @@
 #!/bin/bash
 
-# AI Fine-tuning Toolkit Web Interface 起動スクリプト
+# AI_FT_3 統合Webインターフェース起動スクリプト
+# 継続学習管理システムを含む全機能を起動
 
-echo "🚀 AI Fine-tuning Toolkit Web Interface を起動中..."
+echo "🚀 AI_FT_3 統合Webインターフェースを起動中..."
+
+# 作業ディレクトリを設定
+cd /workspace
 
 # 必要なディレクトリを作成
-mkdir -p data/uploaded
-mkdir -p outputs
-mkdir -p app/static
-mkdir -p logs
+mkdir -p /workspace/outputs
+mkdir -p /workspace/data/continual_learning
+mkdir -p /workspace/logs
 
-# 依存関係の確認
-echo "📦 依存関係を確認中..."
-python -c "
+# 継続学習管理システムの初期化
+echo "📋 継続学習管理システムを初期化中..."
+
+# 継続学習用の設定ファイルを作成
+cat > /workspace/config/continual_learning_config.yaml << EOF
+# 継続学習管理システム設定
+continual_learning:
+  enabled: true
+  base_models:
+    - cyberagent/calm3-22b-chat
+    - cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese
+    - Qwen/Qwen2.5-14B-Instruct
+    - Qwen/Qwen2.5-32B-Instruct
+  
+  ewc_settings:
+    default_lambda: 5000
+    fisher_computation_batches: 100
+    use_efficient_storage: true
+  
+  training_settings:
+    default_epochs: 3
+    default_learning_rate: 2e-5
+    default_batch_size: 4
+    max_sequence_length: 512
+
+# モデル管理設定
+model_management:
+  auto_detect_finetuned: true
+  include_base_models: true
+  cache_enabled: true
+EOF
+
+echo "✅ 継続学習管理システムの設定を完了"
+
+# 継続学習APIのテスト
+echo "🔍 継続学習APIの動作確認中..."
+python3 -c "
+import requests
 import sys
+
 try:
-    import fastapi, uvicorn, torch
-    from fastapi import File, UploadFile
-    import psutil
-    print('✅ 基本依存関係OK')
-except ImportError as e:
-    print(f'❌ 依存関係エラー: {e}')
-    sys.exit(1)
-" 2>/dev/null
-
-if [ $? -ne 0 ]; then
-    echo "⚠️  依存関係が不足しています。インストール中..."
-    pip install fastapi uvicorn python-multipart psutil
-    echo "✅ 依存関係インストール完了"
-fi
-
-# GPU確認
-echo "🔍 GPU状況を確認中..."
-python -c "
-import torch
-print(f'PyTorch version: {torch.__version__}')
-print(f'CUDA available: {torch.cuda.is_available()}')
-if torch.cuda.is_available():
-    print(f'GPU count: {torch.cuda.device_count()}')
-    for i in range(torch.cuda.device_count()):
-        print(f'GPU {i}: {torch.cuda.get_device_name(i)}')
-else:
-    print('⚠️  GPU が検出されませんでした')
+    response = requests.get('http://localhost:8050/api/continual-learning/models', timeout=5)
+    if response.status_code == 200:
+        models = response.json()
+        print(f'✅ 継続学習API正常動作: {len(models)}個のモデルを検出')
+    else:
+        print(f'⚠ 継続学習API応答エラー: {response.status_code}')
+except Exception as e:
+    print(f'⚠ 継続学習API接続エラー: {e}')
 "
 
-# 既存のプロセス停止
-echo "🔄 既存のWebサーバープロセスを停止中..."
-pkill -f uvicorn 2>/dev/null || true
-sleep 2
+# Webサーバーを起動
+echo "🌐 統合Webサーバーを起動中..."
+echo "📊 利用可能な機能:"
+echo "  - メインダッシュボード: http://localhost:8050/"
+echo "  - ファインチューニング: http://localhost:8050/finetune"
+echo "  - 継続学習管理: http://localhost:8050/continual"
+echo "  - RAGシステム: http://localhost:8050/rag"
+echo "  - モデル管理: http://localhost:8050/models"
 
-# Webサーバー起動
-echo "🌐 Webサーバーを起動中..."
-echo "   アクセス URL: http://localhost:8050"
-echo "   停止するには Ctrl+C を押してください"
-echo ""
-
-# 統合版を起動
-echo "🔧 統合版Webインターフェースを起動中..."
-python -m uvicorn app.main_unified:app --host 0.0.0.0 --port 8050 --reload
+# 統合Webサーバーを起動
+exec python3 -m uvicorn app.main_unified:app --host 0.0.0.0 --port 8050 --reload

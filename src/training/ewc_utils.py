@@ -27,26 +27,39 @@ def get_gpu_memory_usage():
 
 class EWCHelper:
     """Elastic Weight Consolidation (EWC) のヘルパークラス"""
-    def __init__(self, model: nn.Module, device: torch.device):
+    def __init__(self, model: nn.Module, device: torch.device, use_efficient_storage: bool = True):
         self.model = model
         self.device = device
+        self.use_efficient_storage = use_efficient_storage
+        
         # パラメータをCPUに保存してメモリを節約
         # メタテンソル（device='meta'）はスキップ
         self.params = {}
+        self.param_shapes = {}  # パラメータの形状を記録
+        
         for n, p in model.named_parameters():
             if p.requires_grad and p.device.type != 'meta':
                 try:
-                    self.params[n] = p.clone().detach().cpu()
+                    if self.use_efficient_storage:
+                        # より効率的な保存方法：半精度で保存
+                        self.params[n] = p.clone().detach().cpu().half()
+                    else:
+                        self.params[n] = p.clone().detach().cpu()
+                    self.param_shapes[n] = p.shape
                 except Exception as e:
                     print(f"Warning: Cannot clone parameter {n}: {e}")
                     continue
         
         self.fisher_matrix = None
+        self.fisher_computed = False
+        
         # GPU メモリをクリア
         torch.cuda.empty_cache()
         gc.collect()
         
         print(f"EWCHelper initialized with {len(self.params)} parameters")
+        if self.use_efficient_storage:
+            print("Using efficient storage (half precision)")
         
         # モデルのパラメータ総数と実際に保存されたパラメータ数をチェック
         total_params = sum(1 for _, p in model.named_parameters() if p.requires_grad)

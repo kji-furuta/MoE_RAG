@@ -297,6 +297,46 @@
             }
         }
         
+        /* ナビゲーションメニューのスタイル */
+        .nav-menu {
+            margin-bottom: 30px;
+        }
+        
+        .nav-menu h3 {
+            color: #bdc3c7;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+        }
+        
+        .nav-item {
+            margin-bottom: 8px;
+        }
+        
+        .nav-item a {
+            display: block;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            color: #ecf0f1;
+            text-decoration: none;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+        }
+        
+        .nav-item a:hover {
+            background: rgba(255,255,255,0.2);
+            border-left-color: #3498db;
+            transform: translateX(5px);
+        }
+        
+        .nav-item a.active {
+            background: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+            font-weight: bold;
+        }
+        
         /* ブロックコンテンツ用のスタイル */
         {% block extra_styles %}{% endblock %}
     </style>
@@ -311,6 +351,43 @@
         
         <!-- サイドバーコンテンツ -->
         <div class="sidebar-content">
+            <!-- ナビゲーションメニュー -->
+            <div class="nav-menu">
+                <h3>ナビゲーション</h3>
+                <div class="nav-item">
+                    <a href="/">
+                        🏠 ホーム（統合システム）
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/finetune">
+                        📚 ファインチューニング
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/rag">
+                        🏗️ RAGシステム
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/models">
+                        📊 モデル管理
+                    </a>
+                </div>
+
+                <div class="nav-item">
+                    <a href="/continual">
+                        🔄 継続学習管理
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/readme">
+                        📖 README（操作マニュアル）
+                    </a>
+                </div>
+
+            </div>
+            
             <div class="system-info">
                 <div class="info-item">
                     <h3>GPU Status</h3>
@@ -345,13 +422,6 @@
                 </div>
             </div>
             
-            <div class="nav-links">
-                <a href="/" class="btn" style="width: 100%; margin-bottom: 10px;">🏠 Home</a>
-                <a href="/models" class="btn" style="width: 100%; margin-bottom: 10px;">📋 Model List</a>
-                <a href="/finetune" class="btn" style="width: 100%; margin-bottom: 10px;">🎯 Fine-tuning</a>
-                <a href="/rag" class="btn" style="width: 100%; margin-bottom: 10px;">🏗️ RAG System</a>
-                <a href="/readme" class="btn" style="width: 100%; margin-bottom: 10px;">📖 操作マニュアル</a>
-            </div>
         </div>
     </div>
     
@@ -469,9 +539,30 @@
             }
         }
         
+        // 現在のページをハイライト
+        function highlightCurrentPage() {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.nav-item a');
+            
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                const linkPath = link.getAttribute('href');
+                
+                // ホームページの特別処理
+                if (currentPath === '/' && linkPath === '/') {
+                    link.classList.add('active');
+                }
+                // その他のページ
+                else if (currentPath !== '/' && linkPath !== '/' && currentPath.startsWith(linkPath)) {
+                    link.classList.add('active');
+                }
+            });
+        }
+        
         // ページ読み込み時にシステム情報を更新
         document.addEventListener('DOMContentLoaded', function() {
             updateSystemInfo();
+            highlightCurrentPage();
             // 30秒ごとに更新
             setInterval(updateSystemInfo, 30000);
         });

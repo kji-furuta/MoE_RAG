@@ -44,10 +44,11 @@ services:
       - ../models:/workspace/models
       - ../tests:/workspace/tests
       - ../app:/workspace/app
+      - ../templates:/workspace/templates
       - ../outputs:/workspace/outputs
       - ./logs:/workspace/logs
-      - ~/.cache/huggingface:/root/.cache/huggingface
-      - ~/.wandb:/root/.wandb
+      - ~/.cache/huggingface:/home/ai-user/.cache/huggingface
+      - ~/.wandb:/home/ai-user/.wandb
       # RAG専用ディレクトリ
       - ../temp_uploads:/workspace/temp_uploads
       - ../qdrant_data:/workspace/qdrant_data

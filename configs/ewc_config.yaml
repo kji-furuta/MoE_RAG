@@ -1,0 +1,66 @@
+# EWC継続学習設定
+ewc:
+  # EWC基本設定
+  enabled: true
+  lambda_ewc: 5000.0  # EWC正則化の強さ
+  
+  # Fisher行列計算設定
+  fisher_computation:
+    num_samples: 1000  # Fisher行列計算に使用するサンプル数
+    max_batches: 100   # 最大バッチ数（メモリ制限用）
+    batch_size: 4      # Fisher計算時のバッチサイズ
+    use_cpu_storage: true  # Fisher行列をCPUに保存
+    
+  # メモリ最適化設定
+  memory_optimization:
+    clear_cache_interval: 10  # キャッシュクリア間隔
+    use_gradient_checkpointing: true
+    mixed_precision: true
+    
+  # タスク管理設定
+  task_management:
+    save_fisher_after_task: true
+    save_reference_model: true
+    fisher_save_path: "outputs/ewc_data/fisher_matrices"
+    reference_model_path: "outputs/ewc_data/reference_models"
+    
+  # 継続学習戦略
+  continual_strategy:
+    task_sequence:
+      - name: "base_training"
+        dataset: "data/base_dataset.jsonl"
+        epochs: 3
+        learning_rate: 2e-5
+        
+      - name: "specialized_bridges"
+        dataset: "data/continual/bridges_dataset.jsonl"
+        epochs: 2
+        learning_rate: 1e-5
+        use_ewc: true
+        
+      - name: "specialized_tunnels"
+        dataset: "data/continual/tunnels_dataset.jsonl"
+        epochs: 2
+        learning_rate: 1e-5
+        use_ewc: true
+        
+      - name: "specialized_intersections"
+        dataset: "data/continual/intersections_dataset.jsonl"
+        epochs: 2
+        learning_rate: 1e-5
+        use_ewc: true
+
+# 評価設定
+evaluation:
+  metrics:
+    - perplexity
+    - accuracy
+    - forgetting_score
+  save_results: true
+  visualization: true
+  
+# ログ設定
+logging:
+  level: INFO
+  save_to_file: true
+  log_dir: "logs/continual_learning"

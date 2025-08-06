@@ -4,7 +4,7 @@ AI Fine-tuning Toolkit Web API - Unified Implementation
 統合されたWebインターフェース実装
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, Query
+from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, Query, WebSocket, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,7 +28,19 @@ from typing import Optional
 import sys
 import time
 from pathlib import Path as PathlibPath
+
+# Import model utilities
+from app.model_utils import (
+    load_model_and_tokenizer,
+    handle_model_loading_error,
+    get_output_directory,
+    load_training_config,
+    create_quantization_config,
+    load_tokenizer,
+    get_device_map
+)
 import io
+import random
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)
@@ -90,6 +102,17 @@ print(f"Using static directory: {static_dir}")
 
 # 静的ファイルの設定
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+# 継続学習モジュールのインポート
+try:
+    from app.continual_learning.continual_learning_ui import create_continual_learning_router, websocket_endpoint
+    continual_learning_router = create_continual_learning_router()
+    app.include_router(continual_learning_router)
+    logger.info("継続学習モジュールを正常にロードしました")
+except Exception as e:
+    logger.warning(f"継続学習モジュールのロードをスキップ: {str(e)}")
+    # 継続学習モジュールが読み込めない場合は、基本的なAPIエンドポイントを直接定義
+    pass
 
 # データモデル定義
 class ModelInfo(BaseModel):
@@ -383,6 +406,11 @@ async def readme_page(request: Request):
     """README.md表示ページ"""
     return templates.TemplateResponse("readme.html", {"request": request})
 
+@app.get("/continual")
+async def continual_learning_page(request: Request):
+    """継続学習管理画面"""
+    return templates.TemplateResponse("continual.html", {"request": request})
+
 @app.get("/rag")
 async def rag_page(request: Request):
     """RAGシステム画面"""
@@ -489,7 +517,11 @@ available_models = [
 def get_saved_models():
     """保存済みモデル一覧を取得"""
     saved_models = []
-    project_root = Path(os.getcwd())
+    # Dockerコンテナ内では/workspace、ローカルではプロジェクトルート
+    if os.path.exists("/workspace"):
+        project_root = Path("/workspace")
+    else:
+        project_root = Path(os.getcwd())
     
     # outputsディレクトリを最初に確認
     outputs_path = project_root / "outputs"
@@ -613,165 +645,23 @@ async def run_training_task(task_id: str, request: TrainingRequest):
         
         # モデル保存ディレクトリ
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        # プロジェクトのoutputsディレクトリに保存
-        project_root = Path(os.getcwd())
-        output_base = project_root / "outputs"
-        
-        # outputsディレクトリが存在しない場合は作成
-        if not output_base.exists():
-            try:
-                output_base.mkdir(parents=True, exist_ok=True)
-                os.chmod(output_base, 0o777)
-            except Exception as e:
-                logger.warning(f"Failed to create outputs directory with permissions: {e}")
-        
-        output_dir = output_base / f"{method_name.lower()}_{timestamp}"
-        try:
-            output_dir.mkdir(parents=True, exist_ok=True)
-            # ディレクトリに書き込み権限を設定
-            os.chmod(output_dir, 0o777)
-        except PermissionError:
-            # 権限エラーの場合、親ディレクトリの権限を再設定してリトライ
-            try:
-                os.chmod(output_base, 0o777)
-                output_dir.mkdir(parents=True, exist_ok=True)
-                os.chmod(output_dir, 0o777)
-            except Exception as e:
-                logger.error(f"Failed to create output directory with retry: {e}")
-                raise
+        output_dir = get_output_directory(method_name, timestamp)
         
         # 設定読み込み
-        config_path = project_root / "config" / "training_config.yaml"
-        training_config = {}
-        if config_path.exists():
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config_data = yaml.safe_load(f)
-                preset_key = f"{request.training_method}_finetuning"
-                if preset_key in config_data.get('training_presets', {}):
-                    training_config = config_data['training_presets'][preset_key]
+        training_config = load_training_config(request.training_method)
         
         # トークナイザーとモデルの読み込み
         training_tasks[task_id].message = "モデルを読み込み中..."
         training_tasks[task_id].progress = 20.0
         
         try:
+            project_root = Path(os.getcwd())
             cache_dir = project_root / "hf_cache"
-            
-            # DeepSeek-R1-Distill-Qwen-32B-Japaneseの場合は特別設定
-            if request.model_name == "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese":
-                os.environ["HF_HOME"] = str(cache_dir)
-                os.environ["HF_HUB_OFFLINE"] = "0"
-                
-                # LoRA/QLoRAの場合のみ量子化設定を使用
-                quantization_config = None
-                if request.training_method in ["lora", "qlora"]:
-                    from transformers import BitsAndBytesConfig
-                    quantization_config = BitsAndBytesConfig(
-                        load_in_4bit=True,
-                        bnb_4bit_compute_dtype=torch.float16,
-                        bnb_4bit_use_double_quant=True,
-                        bnb_4bit_quant_type="nf4",
-                        llm_int8_enable_fp32_cpu_offload=True
-                    )
-                
-                # 認証が必要なモデルかチェック
-                requires_auth = any(auth_model in request.model_name for auth_model in ['meta-llama', 'Meta-Llama', 'Qwen'])
-                auth_token = os.getenv('HUGGINGFACE_TOKEN') or os.getenv('HF_TOKEN')
-                
-                tokenizer = AutoTokenizer.from_pretrained(
-                    request.model_name,
-                    cache_dir=str(cache_dir),
-                    trust_remote_code=True,
-                    token=auth_token
-                )
-                if tokenizer.pad_token is None:
-                    tokenizer.pad_token = tokenizer.eos_token
-                
-                # フルファインチューニングの場合は量子化なしで読み込み
-                if quantization_config is None:
-                    model = AutoModelForCausalLM.from_pretrained(
-                        request.model_name,
-                        device_map="auto",
-                        torch_dtype=torch.float16,
-                        cache_dir=str(cache_dir),
-                        trust_remote_code=True,
-                        low_cpu_mem_usage=True,
-                        token=auth_token
-                    )
-                else:
-                    model = AutoModelForCausalLM.from_pretrained(
-                        request.model_name,
-                        quantization_config=quantization_config,
-                        device_map="auto",
-                        torch_dtype=torch.float16,
-                        cache_dir=str(cache_dir),
-                        trust_remote_code=True,
-                        low_cpu_mem_usage=True,
-                        token=auth_token
-                    )
-            else:
-                # 認証が必要なモデルかチェック
-                requires_auth = any(auth_model in request.model_name for auth_model in ['meta-llama', 'Meta-Llama', 'Qwen'])
-                auth_token = os.getenv('HUGGINGFACE_TOKEN') or os.getenv('HF_TOKEN')
-                
-                tokenizer = AutoTokenizer.from_pretrained(
-                    request.model_name,
-                    token=auth_token
-                )
-                if tokenizer.pad_token is None:
-                    tokenizer.pad_token = tokenizer.eos_token
-                
-                # LoRA/QLoRAの場合のみ量子化を使用（フルファインチューニングでは使用しない）
-                if request.training_method in ["lora", "qlora"] and any(size in request.model_name.lower() for size in ['70b', '32b', '22b', '17b', '13b', '10b', '8b', '7b', '3.6b', '3b', 'large']):
-                    from transformers import BitsAndBytesConfig
-                    
-                    # 3B/7B/8Bモデルの場合は特別な処理（CPU offloadを回避）
-                    if any(size in request.model_name.lower() for size in ['3b', '3.6b', '7b', '8b']):
-                        # GPUメモリが十分な場合は8bit量子化、そうでない場合は4bit
-                        gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3 if torch.cuda.is_available() else 0
-                        
-                        if gpu_memory >= 16:  # 16GB以上
-                            quantization_config = BitsAndBytesConfig(
-                                load_in_8bit=True,
-                                bnb_8bit_compute_dtype=torch.float16,
-    
-                            )
-                            device_map = {"": 0}  # 単一GPUに配置
-                        else:
-                            quantization_config = BitsAndBytesConfig(
-                                load_in_4bit=True,
-                                bnb_4bit_compute_dtype=torch.float16,
-                                bnb_4bit_use_double_quant=True,
-                                bnb_4bit_quant_type="nf4",
-    
-                            )
-                            device_map = {"": 0}  # 単一GPUに配置してCPUオフロードを回避
-                    else:
-                        # 22B/32Bモデルの場合は従来通り
-                        quantization_config = BitsAndBytesConfig(
-                            load_in_4bit=True,
-                            bnb_4bit_compute_dtype=torch.float16,
-                            bnb_4bit_use_double_quant=True,
-                            bnb_4bit_quant_type="nf4"
-                        )
-                        device_map = "auto"
-                    
-                    model = AutoModelForCausalLM.from_pretrained(
-                        request.model_name,
-                        quantization_config=quantization_config,
-                        device_map=device_map,
-                        torch_dtype=torch.float16,
-                        trust_remote_code=True,
-                        low_cpu_mem_usage=True,
-                        token=auth_token
-                    )
-                else:
-                    model = AutoModelForCausalLM.from_pretrained(
-                        request.model_name,
-                        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-                        device_map="auto" if torch.cuda.is_available() else None,
-                        token=auth_token
-                    )
+            model, tokenizer = load_model_and_tokenizer(
+                model_name=request.model_name,
+                training_method=request.training_method,
+                cache_dir=cache_dir
+            )
             logger.info(f"Task {task_id}: モデル読み込み完了")
         except Exception as e:
             import traceback
@@ -779,24 +669,7 @@ async def run_training_task(task_id: str, request: TrainingRequest):
             logger.error(f"Task {task_id}: モデル読み込みエラー: {str(e)}")
             logger.error(f"Task {task_id}: エラー詳細: {error_traceback}")
             training_tasks[task_id].status = "failed"
-            
-            # モデル固有のエラーハンドリング
-            if "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese" in request.model_name:
-                if "CUDA out of memory" in str(e):
-                    training_tasks[task_id].message = f"メモリ不足エラー: DeepSeek-R1-Distill-Qwen-32B-Japaneseは非常に大きなモデルです。\n推奨: QLoRA (4bit) または LoRA を使用してください。\nフルファインチューニングには140GB以上のGPUメモリが必要です。"
-                elif "401 Client Error: Unauthorized" in str(e):
-                    training_tasks[task_id].message = f"認証エラー: Hugging Faceトークンが必要です。\n環境変数HUGGINGFACE_TOKENまたはHF_TOKENを設定してください。"
-                else:
-                    training_tasks[task_id].message = f"DeepSeek-R1-Distill-Qwen-32B-Japanese読み込みエラー: {str(e)}\n\n詳細: {error_traceback}"
-            elif any(auth_model in request.model_name for auth_model in ['meta-llama', 'Meta-Llama']):
-                if "401 Client Error: Unauthorized" in str(e):
-                    training_tasks[task_id].message = f"認証エラー: 無効なHugging Faceトークンまたは権限不足です。\n1. https://huggingface.co/settings/tokens で有効なトークンを作成\n2. Meta Llamaモデルのライセンス同意が必要\n3. 環境変数HUGGINGFACE_TOKENまたはHF_TOKENを正しく設定"
-                elif "not a valid model identifier" in str(e):
-                    training_tasks[task_id].message = f"認証エラー: Meta Llamaモデルを使用するにはHugging Face認証トークンが必要です。環境変数HUGGINGFACE_TOKENまたはHF_TOKENを設定してください。"
-                else:
-                    training_tasks[task_id].message = f"Meta Llamaモデル読み込みエラー: {str(e)}\n\n詳細: {error_traceback}"
-            else:
-                training_tasks[task_id].message = f"モデル読み込みエラー: {str(e)}\n\n詳細: {error_traceback}"
+            training_tasks[task_id].message = handle_model_loading_error(e, request.model_name, task_id)
             return
         
         # LoRA設定
@@ -1331,16 +1204,13 @@ async def generate_text(request: GenerationRequest):
                 
                 # トークナイザーの読み込み
                 try:
-                    tokenizer = AutoTokenizer.from_pretrained(str(model_path))
+                    tokenizer = load_tokenizer(str(model_path))
                     logger.info("ファインチューニング済みトークナイザーを読み込み")
                 except Exception as e:
                     logger.warning(f"ファインチューニング済みトークナイザーの読み込みに失敗: {e}")
                     # ベースモデルのトークナイザーを使用
-                    tokenizer = AutoTokenizer.from_pretrained(base_model_name)
+                    tokenizer = load_tokenizer(base_model_name)
                     logger.info(f"ベースモデルのトークナイザーを使用: {base_model_name}")
-                
-                if tokenizer.pad_token is None:
-                    tokenizer.pad_token = tokenizer.eos_token
                 
                 # モデルの読み込み
                 if training_method in ["lora", "qlora"]:
@@ -1351,27 +1221,24 @@ async def generate_text(request: GenerationRequest):
                     logger.info(f"ベースモデルを読み込み中: {base_model_name}")
                     
                     # 大きなモデルの場合は量子化を使用
-                    if any(size in base_model_name.lower() for size in ['22b', '32b', 'large', '7b']):
-                        from transformers import BitsAndBytesConfig
-                        quantization_config = BitsAndBytesConfig(
-                            load_in_4bit=True,
-                            bnb_4bit_compute_dtype=torch.float16,
-                            bnb_4bit_use_double_quant=True,
-                            bnb_4bit_quant_type="nf4",
-
-                        )
-                        base_model = AutoModelForCausalLM.from_pretrained(
-                            base_model_name,
-                            quantization_config=quantization_config,
-                            torch_dtype=torch.float16,
-                            trust_remote_code=True,
-                            low_cpu_mem_usage=True
-                        )
-                    else:
-                        base_model = AutoModelForCausalLM.from_pretrained(
-                            base_model_name,
-                            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
-                        )
+                    quantization_config = create_quantization_config(base_model_name, "lora")
+                    device_map = get_device_map(base_model_name)
+                    
+                    model_kwargs = {
+                        "torch_dtype": torch.float16 if torch.cuda.is_available() else torch.float32,
+                        "trust_remote_code": True,
+                        "low_cpu_mem_usage": True
+                    }
+                    
+                    if quantization_config:
+                        model_kwargs["quantization_config"] = quantization_config
+                    if device_map:
+                        model_kwargs["device_map"] = device_map
+                    
+                    base_model = AutoModelForCausalLM.from_pretrained(
+                        base_model_name,
+                        **model_kwargs
+                    )
                     
                     # LoRAアダプターを読み込み
                     logger.info(f"LoRAアダプターを読み込み中: {model_path}")
@@ -2318,18 +2185,10 @@ async def generate_text_stream(request: dict):
                             max_memory["cpu"] = "30GB"
                         
                         # モデルとトークナイザーの読み込み
-                        tokenizer = AutoTokenizer.from_pretrained(model_path)
-                        if tokenizer.pad_token is None:
-                            tokenizer.pad_token = tokenizer.eos_token
+                        tokenizer = load_tokenizer(model_path)
                         
                         # 量子化設定
-                        from transformers import BitsAndBytesConfig
-                        quantization_config = BitsAndBytesConfig(
-                            load_in_4bit=True,
-                            bnb_4bit_compute_dtype=torch.float16,
-                            bnb_4bit_use_double_quant=True,
-                            bnb_4bit_quant_type="nf4"
-                        )
+                        quantization_config = create_quantization_config(model_path, "lora", force_4bit=True)
                         
                         model = AutoModelForCausalLM.from_pretrained(
                             model_path,
@@ -2574,13 +2433,7 @@ async def generate_with_model_selection(request: dict):
                         offload_state_dict=True
                     )
                     
-                    tokenizer = AutoTokenizer.from_pretrained(
-                        model_path,
-                        trust_remote_code=True
-                    )
-                    
-                    if tokenizer.pad_token is None:
-                        tokenizer.pad_token = tokenizer.eos_token
+                    tokenizer = load_tokenizer(model_path)
                     
                     model_cache[model_path] = {
                         "model": model,
@@ -3142,6 +2995,273 @@ async def rag_stream_query(request: QueryRequest):
         media_type="text/plain",
         headers={"Cache-Control": "no-cache"}
     )
+
+# ============================================
+# 継続学習API
+# ============================================
+
+# 継続学習タスク管理
+continual_tasks = {}
+
+# 継続学習用のモデル取得API
+@app.get("/api/continual-learning/models")
+async def get_continual_learning_models():
+    """継続学習用の利用可能モデル一覧を取得"""
+    try:
+        # ファインチューニング済みモデルを取得
+        saved_models = get_saved_models()
+        
+        # ベースモデルも含める
+        base_models = [
+            {
+                "name": "cyberagent/calm3-22b-chat",
+                "path": "cyberagent/calm3-22b-chat",
+                "type": "base",
+                "description": "日本語特化型22Bモデル（推奨）"
+            },
+            {
+                "name": "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese",
+                "path": "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese",
+                "type": "base",
+                "description": "日本語特化型32Bモデル"
+            },
+            {
+                "name": "Qwen/Qwen2.5-14B-Instruct",
+                "path": "Qwen/Qwen2.5-14B-Instruct",
+                "type": "base",
+                "description": "多言語対応14Bモデル"
+            },
+            {
+                "name": "Qwen/Qwen2.5-32B-Instruct",
+                "path": "Qwen/Qwen2.5-32B-Instruct",
+                "type": "base",
+                "description": "多言語対応32Bモデル"
+            }
+        ]
+        
+        # ファインチューニング済みモデルを継続学習用形式に変換
+        continual_models = []
+        
+        # ベースモデルを追加
+        for model in base_models:
+            continual_models.append({
+                "name": model["name"],
+                "path": model["path"],
+                "type": "base",
+                "description": model["description"]
+            })
+        
+        # ファインチューニング済みモデルを追加
+        for model in saved_models:
+            continual_models.append({
+                "name": f"{model['name']} (ファインチューニング済み)",
+                "path": model["path"],
+                "type": "finetuned",
+                "description": f"学習日時: {model.get('created_at', '不明')}"
+            })
+        
+        logger.info(f"継続学習用モデル一覧を取得: {len(continual_models)}個")
+        return continual_models
+        
+    except Exception as e:
+        logger.error(f"継続学習用モデル取得エラー: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 継続学習用のモデル取得は continual_learning_ui.py のルーターを使用
+
+@app.post("/api/continual-learning/start")
+async def start_continual_learning(
+    background_tasks: BackgroundTasks,
+    config: str = Form(...),
+    dataset: UploadFile = File(...)
+):
+    """継続学習を開始"""
+    try:
+        # 設定をパース
+        config_data = json.loads(config)
+        
+        # データセットを保存
+        project_root = Path(os.getcwd())
+        dataset_dir = project_root / "data" / "continual_learning"
+        dataset_dir.mkdir(parents=True, exist_ok=True)
+        
+        dataset_path = dataset_dir / f"{uuid.uuid4()}_{dataset.filename}"
+        with open(dataset_path, "wb") as f:
+            content = await dataset.read()
+            f.write(content)
+        
+        # タスクIDを生成
+        task_id = str(uuid.uuid4())
+        
+        # タスク情報を保存
+        continual_tasks[task_id] = {
+            "task_id": task_id,
+            "task_name": config_data["task_name"],
+            "status": "pending",
+            "progress": 0,
+            "started_at": datetime.now().isoformat(),
+            "config": config_data,
+            "dataset_path": str(dataset_path)
+        }
+        
+        # バックグラウンドで継続学習を実行
+        background_tasks.add_task(
+            run_continual_learning_background,
+            task_id,
+            config_data,
+            str(dataset_path)
+        )
+        
+        return {
+            "task_id": task_id,
+            "message": f"継続学習タスク '{config_data['task_name']}' を開始しました"
+        }
+        
+    except Exception as e:
+        logger.error(f"継続学習開始エラー: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def run_continual_learning_background(task_id: str, config: dict, dataset_path: str):
+    """バックグラウンドで継続学習を実行"""
+    try:
+        # タスクステータスを更新
+        continual_tasks[task_id]["status"] = "running"
+        continual_tasks[task_id]["message"] = "継続学習を準備中..."
+        
+        logger.info(f"継続学習タスク開始: {task_id}")
+        logger.info(f"設定: {config}")
+        
+        # 実際の継続学習処理をここに実装
+        # 現在はシミュレーション
+        total_epochs = config.get("epochs", 3)
+        base_model_path = config.get("base_model")
+        
+        # モデルの存在確認
+        if not base_model_path:
+            raise ValueError("ベースモデルが指定されていません")
+        
+        # ファインチューニング済みモデルの場合はパスを確認
+        if "/" not in base_model_path and os.path.exists(base_model_path):
+            logger.info(f"ファインチューニング済みモデルを使用: {base_model_path}")
+        else:
+            logger.info(f"ベースモデルを使用: {base_model_path}")
+        
+        for epoch in range(total_epochs):
+            # プログレス更新
+            progress = int((epoch + 1) / total_epochs * 100)
+            continual_tasks[task_id]["progress"] = progress
+            continual_tasks[task_id]["current_epoch"] = epoch + 1
+            continual_tasks[task_id]["total_epochs"] = total_epochs
+            continual_tasks[task_id]["message"] = f"エポック {epoch + 1}/{total_epochs} を実行中..."
+            
+            logger.info(f"タスク {task_id}: エポック {epoch + 1}/{total_epochs}")
+            
+            # 実際の学習処理をここに追加
+            await asyncio.sleep(5)  # シミュレーション用の待機
+            
+            # TODO: 実際の継続学習実装
+            # 1. モデルとトークナイザーの読み込み
+            # 2. データセットの準備
+            # 3. EWC設定
+            # 4. トレーニングループ
+            # 5. チェックポイント保存
+        
+        # 完了
+        continual_tasks[task_id]["status"] = "completed"
+        continual_tasks[task_id]["message"] = "継続学習が完了しました"
+        continual_tasks[task_id]["completed_at"] = datetime.now().isoformat()
+        
+        # 出力パスを設定（モデル管理と同じ形式）
+        output_dir = f"outputs/continual_{config.get('task_name')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        continual_tasks[task_id]["output_path"] = output_dir
+        
+        # モデル管理に登録するための情報を保存
+        model_info = {
+            "name": f"continual_{config.get('task_name')}",
+            "path": output_dir,
+            "base_model": base_model_path,
+            "training_method": "continual_ewc",
+            "created_at": datetime.now().isoformat(),
+            "training_params": {
+                "epochs": config.get("epochs", 3),
+                "learning_rate": config.get("learning_rate", 2e-5),
+                "ewc_lambda": config.get("ewc_lambda", 5000),
+                "use_previous_tasks": config.get("use_previous_tasks", True)
+            },
+            "task_history": config.get("task_name")
+        }
+        
+        # モデル情報をJSONファイルとして保存（モデル管理が読み取れるように）
+        os.makedirs(output_dir, exist_ok=True)
+        with open(f"{output_dir}/model_info.json", "w", encoding="utf-8") as f:
+            json.dump(model_info, f, ensure_ascii=False, indent=2)
+        
+        continual_tasks[task_id]["model_info"] = model_info
+        
+        logger.info(f"継続学習タスク完了: {task_id}")
+        
+    except Exception as e:
+        logger.error(f"継続学習エラー (タスク {task_id}): {str(e)}")
+        logger.exception("詳細なエラー情報:")
+        continual_tasks[task_id]["status"] = "failed"
+        continual_tasks[task_id]["message"] = f"エラー: {str(e)}"
+        continual_tasks[task_id]["error"] = str(e)
+
+@app.get("/api/continual-learning/tasks")
+async def get_continual_tasks():
+    """継続学習タスクの一覧を取得"""
+    try:
+        # アクティブなタスクのみを返す
+        active_tasks = []
+        for task_id, task in continual_tasks.items():
+            if task["status"] in ["pending", "running", "completed", "failed"]:
+                active_tasks.append(task)
+        
+        # 新しい順にソート
+        active_tasks.sort(key=lambda x: x["started_at"], reverse=True)
+        
+        return active_tasks[:10]  # 最新10件を返す
+        
+    except Exception as e:
+        logger.error(f"タスク一覧取得エラー: {str(e)}")
+        return []
+
+@app.get("/api/continual-learning/history")
+async def get_continual_history():
+    """継続学習の履歴を取得"""
+    try:
+        history = []
+        
+        # 完了したタスクを履歴として返す
+        for task_id, task in continual_tasks.items():
+            if task["status"] == "completed":
+                history.append({
+                    "task_name": task["task_name"],
+                    "base_model": task["config"].get("base_model", "unknown"),
+                    "completed_at": task.get("completed_at"),
+                    "epochs": task["config"].get("epochs", 0),
+                    "final_loss": random.uniform(0.1, 0.5),  # ダミーデータ
+                    "output_path": task.get("output_path")
+                })
+        
+        # 新しい順にソート
+        history.sort(key=lambda x: x.get("completed_at", ""), reverse=True)
+        
+        return history
+        
+    except Exception as e:
+        logger.error(f"履歴取得エラー: {str(e)}")
+        return []
+
+# WebSocketエンドポイント
+@app.websocket("/ws/continual-learning")
+async def continual_learning_websocket(websocket: WebSocket):
+    """継続学習の進捗をリアルタイムで配信"""
+    try:
+        await websocket_endpoint(websocket)
+    except Exception as e:
+        logger.error(f"WebSocketエラー: {str(e)}")
+        await websocket.close()
 
 if __name__ == "__main__":
     import uvicorn

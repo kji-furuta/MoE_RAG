@@ -1,0 +1,122 @@
+{
+  "timestamp": "2025-08-04T11:34:43.705302",
+  "host_structure": {},
+  "container_structure": {
+    "directories": [
+      "Error: find: paths must precede expression: `|'",
+      ""
+    ],
+    "directory_info": {
+      "Error: find: paths must precede expression: `|'": {
+        "file_count": "Error: find: paths must precede expression: `|'\n"
+      }
+    }
+  },
+  "configuration": {
+    "critical_files": {
+      "configs": {
+        "/workspace/config/rag_config.yaml": {
+          "status": "Error: test: extra argument '&&'\n"
+        },
+        "/workspace/configs/available_models.json": {
+          "status": "Error: test: extra argument '&&'\n"
+        },
+        "/workspace/docker/.env.example": {
+          "status": "Error: test: extra argument '&&'\n"
+        }
+      },
+      "scripts": {
+        "/workspace/scripts/rag/index_documents.py": {
+          "status": "Error: test: extra argument '&&'\n"
+        },
+        "/workspace/app/main_unified.py": {
+          "status": "Error: test: extra argument '&&'\n"
+        },
+        "/workspace/start_server.sh": {
+          "status": "Error: test: extra argument '&&'\n"
+        }
+      },
+      "data_dirs": {
+        "/workspace/data/rag_documents": {
+          "status": "Error: test: extra argument '&&'\n"
+        },
+        "/workspace/temp_uploads": {
+          "status": "Error: test: extra argument '&&'\n"
+        },
+        "/workspace/qdrant_data": {
+          "status": "Error: test: extra argument '&&'\n"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "python_packages": {
+      "accelerate": "1.9.0",
+      "fastapi": "0.116.1",
+      "langchain": "0.1.7",
+      "langchain-community": "0.0.20",
+      "langchain-core": "0.1.23",
+      "opentelemetry-instrumentation-fastapi": "0.57b0",
+      "peft": "0.16.0",
+      "qdrant-client": "1.7.3",
+      "sentence-transformers": "2.3.1",
+      "torch": "2.5.1",
+      "torchaudio": "2.7.1+cu126",
+      "torchelastic": "0.2.2",
+      "torchvision": "0.20.1",
+      "transformers": "4.54.1"
+    },
+    "python_version": "Error:   File \"<string>\", line 1\n    \"import\n    ^\nSyntaxError: unterminated string literal (detected at line 1)\n"
+  },
+  "setup_steps": [
+    {
+      "step": 1,
+      "name": "リポジトリのクローン",
+      "commands": [
+        "git clone <repository_url>",
+        "cd AI_FT_3"
+      ]
+    },
+    {
+      "step": 2,
+      "name": "必要なディレクトリの作成",
+      "commands": [
+        "mkdir -p data/{raw,processed,uploaded,rag_documents}",
+        "mkdir -p outputs/rag_index/processed_documents",
+        "mkdir -p temp_uploads qdrant_data logs docker/logs",
+        "mkdir -p models/checkpoints"
+      ]
+    },
+    {
+      "step": 3,
+      "name": "環境変数の設定",
+      "commands": [
+        "cp docker/.env.example docker/.env",
+        "# docker/.env を編集して HF_TOKEN を設定"
+      ]
+    },
+    {
+      "step": 4,
+      "name": "Dockerイメージのビルド",
+      "commands": [
+        "cd docker",
+        "docker-compose build"
+      ]
+    },
+    {
+      "step": 5,
+      "name": "コンテナの起動",
+      "commands": [
+        "docker-compose up -d"
+      ]
+    },
+    {
+      "step": 6,
+      "name": "初期設定の実行",
+      "commands": [
+        "# RAGインデックスの作成",
+        "docker exec -it ai-ft-container python scripts/rag/index_documents.py"
+      ]
+    }
+  ]
+}

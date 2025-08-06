@@ -50,10 +50,11 @@ class QueryResult:
 class LLMGenerator:
     """LLM生成器"""
     
-    def __init__(self, config: RAGConfig):
+    def __init__(self, config: RAGConfig, load_model: bool = True):
         """
         Args:
             config: RAG設定
+            load_model: Whether to load the model immediately
         """
         self.config = config
         self.tokenizer = None
@@ -62,21 +63,43 @@ class LLMGenerator:
         self.use_ollama_fallback = False
         self.ollama = None
         
-        self._load_model()
+        if load_model:
+            self._load_model()
         
     def _load_model(self):
         """モデルを読み込み（メモリ最適化）"""
         
         # GPUメモリチェックとOllamaフォールバック
         if torch.cuda.is_available():
-            free_memory = torch.cuda.mem_get_info()[0] / (1024**3)
-            logger.info(f"GPU空きメモリ: {free_memory:.2f} GB")
+            # 全GPUのメモリをチェック
+            gpu_count = torch.cuda.device_count()
+            total_free_memory = 0
+            max_free_memory = 0
+            best_gpu = 0
             
-            # 8GB未満の場合はOllamaフォールバックを設定
-            if free_memory < 8:
-                logger.warning(f"GPUメモリ不足 ({free_memory:.2f}GB)。Ollamaフォールバックを有効化します")
+            for i in range(gpu_count):
+                free_mem = torch.cuda.mem_get_info(i)[0] / (1024**3)
+                total_free_memory += free_mem
+                if free_mem > max_free_memory:
+                    max_free_memory = free_mem
+                    best_gpu = i
+                logger.info(f"GPU {i}: 空きメモリ {free_mem:.2f} GB")
+            
+            logger.info(f"合計GPU空きメモリ: {total_free_memory:.2f} GB (最大単一GPU: {max_free_memory:.2f} GB on GPU {best_gpu})")
+            
+            # 32Bモデルには最低20GB必要（単一GPUで）
+            required_memory = 20  # GB
+            if max_free_memory < required_memory:
+                logger.warning(f"GPUメモリ不足: 最大単一GPU {max_free_memory:.2f}GB / 必要 {required_memory}GB以上")
+                logger.warning("ファインチューニング済みモデル（32B）を読み込むにはメモリが不足しています。")
+                logger.warning("Ollamaフォールバックを有効化します。")
                 self._enable_ollama_fallback()
                 return
+            
+            # 最適なGPUを設定
+            torch.cuda.set_device(best_gpu)
+            self.device = torch.device(f'cuda:{best_gpu}')
+            logger.info(f"GPU {best_gpu} を使用してモデルをロードします")
         
         llm_config = self.config.llm
         
@@ -127,11 +150,32 @@ class LLMGenerator:
                 
             # メモリ最適化されたモデル読み込み
             model_kwargs = self._get_optimized_model_kwargs(llm_config)
-                
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_path,
-                **model_kwargs
-            )
+            
+            # GPUメモリ不足対策
+            if torch.cuda.is_available():
+                try:
+                    self.model = AutoModelForCausalLM.from_pretrained(
+                        model_path,
+                        **model_kwargs
+                    )
+                except Exception as gpu_error:
+                    if "GPU" in str(gpu_error) or "CUDA" in str(gpu_error):
+                        logger.warning(f"GPU読み込み失敗: {gpu_error}")
+                        logger.info("CPUモードで再試行します")
+                        # CPUモードで再試行
+                        model_kwargs['device_map'] = None
+                        model_kwargs['torch_dtype'] = torch.float32
+                        self.model = AutoModelForCausalLM.from_pretrained(
+                            model_path,
+                            **model_kwargs
+                        )
+                    else:
+                        raise
+            else:
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    model_path,
+                    **model_kwargs
+                )
             
             logger.info(f"Model loaded successfully on {self.device}")
             
@@ -152,28 +196,66 @@ class LLMGenerator:
         }
         
         if torch.cuda.is_available():
-            free_memory = torch.cuda.mem_get_info()[0] / (1024**3)
+            # 現在のデバイスのメモリ情報を取得（すでに最適なGPUが選択されている）
+            current_device = torch.cuda.current_device()
+            free_memory = torch.cuda.mem_get_info(current_device)[0] / (1024**3)
+            logger.info(f"GPU {current_device} 空きメモリ: {free_memory:.2f} GB")
             
-            # 4bit量子化を適用
-            from transformers import BitsAndBytesConfig
-            model_kwargs['quantization_config'] = BitsAndBytesConfig(
-                load_in_4bit=True,
-                bnb_4bit_compute_dtype=torch.float16,
-                bnb_4bit_use_double_quant=True,
-                bnb_4bit_quant_type="nf4"
-            )
+            if free_memory < 8:  # 8GB未満の場合
+                # 4bit量子化を適用
+                try:
+                    from transformers import BitsAndBytesConfig
+                    model_kwargs['quantization_config'] = BitsAndBytesConfig(
+                        load_in_4bit=True,
+                        bnb_4bit_compute_dtype=torch.float16,
+                        bnb_4bit_use_double_quant=True,
+                        bnb_4bit_quant_type="nf4",
+                        llm_int8_enable_fp32_cpu_offload=True  # CPUオフロードを有効化
+                    )
+                    logger.info("4bit量子化を使用します")
+                except ImportError:
+                    logger.warning("BitsAndBytesが利用できません。通常のfp16を使用します")
             
             # メモリ配分を最適化
             safe_memory = max(1, int(free_memory * 0.7))  # 70%を使用
+            
+            # offload_dirを設定（Qwen2ForCausalLM以外の場合のみ）
+            import tempfile
+            import os
+            offload_dir = tempfile.mkdtemp(prefix="model_offload_")
+            logger.info(f"オフロードディレクトリ: {offload_dir}")
+            
+            # モデルタイプに応じてoffload_dirを条件付きで追加
+            # 複数GPUに対応したメモリ配分
+            max_memory_dict = {}
+            for i in range(torch.cuda.device_count()):
+                gpu_free = torch.cuda.mem_get_info(i)[0] / (1024**3)
+                gpu_safe = max(1, int(gpu_free * 0.7))  # 各GPUの70%を使用
+                max_memory_dict[i] = f"{gpu_safe}GB"
+            max_memory_dict['cpu'] = '32GB'  # CPUメモリ
+            
             model_kwargs.update({
                 'device_map': 'auto',
-                'max_memory': {
-                    0: f"{safe_memory}GB",
-                    'cpu': '16GB'
-                }
+                'max_memory': max_memory_dict
             })
+            
+            # Qwen2ForCausalLM以外のモデルの場合のみoffload_dirを追加
+            try:
+                # モデル名をチェックしてQwen2ForCausalLMかどうかを判定
+                model_name = llm_config.get('model_name', '').lower()
+                if 'qwen' not in model_name or 'qwen2' not in model_name:
+                    model_kwargs.update({
+                        'offload_dir': offload_dir,  # オフロードディレクトリを追加
+                        'offload_state_dict': True   # 状態辞書のオフロードを有効化
+                    })
+                    logger.info("offload_dirを有効化しました")
+                else:
+                    logger.info("Qwen2ForCausalLMのため、offload_dirを無効化しました")
+            except Exception as e:
+                logger.warning(f"モデルタイプ判定エラー: {e}。offload_dirを無効化します")
         else:
             # CPUモード
+            logger.info("CPUモードで実行します")
             model_kwargs.update({
                 'torch_dtype': torch.float32,
                 'device_map': None
@@ -204,6 +286,16 @@ class LLMGenerator:
                 context: str,
                 max_new_tokens: Optional[int] = None) -> str:
         """テキストを生成"""
+        
+        # モデルが未ロードの場合、オンデマンドでロード
+        if not self.model and not self.use_ollama_fallback:
+            logger.info("Model not loaded, attempting on-demand loading...")
+            try:
+                self._load_model()
+            except Exception as e:
+                logger.error(f"Failed to load model on-demand: {e}")
+                # ロード失敗時はOllamaフォールバックに切り替え
+                self._enable_ollama_fallback()
         
         if not self.model or not self.tokenizer or self.use_ollama_fallback:
             return self._ollama_generation(prompt, context)
@@ -251,8 +343,29 @@ class LLMGenerator:
     def _ollama_generation(self, prompt: str, context: str) -> str:
         """メモリ不足時のOllamaフォールバック生成"""
         
+        # メモリ不足の警告メッセージを追加
+        memory_warning = ""
+        if torch.cuda.is_available():
+            # 全GPUのメモリをチェック
+            gpu_count = torch.cuda.device_count()
+            max_free_memory = 0
+            total_free_memory = 0
+            
+            for i in range(gpu_count):
+                free_mem = torch.cuda.mem_get_info(i)[0] / (1024**3)
+                total_free_memory += free_mem
+                max_free_memory = max(max_free_memory, free_mem)
+            
+            if max_free_memory < 20:  # 32Bモデルには最低20GB必要
+                memory_warning = (
+                    f"\n\n【システム通知】GPUメモリ不足のため、ファインチューニング済みモデルを読み込めません。\n"
+                    f"最大単一GPU空きメモリ: {max_free_memory:.2f}GB / 必要メモリ: 約20GB以上\n"
+                    f"合計GPU空きメモリ: {total_free_memory:.2f}GB (GPU数: {gpu_count})\n"
+                    f"代替モデル（Ollama）で回答を生成しています。\n"
+                )
+        
         if not self.ollama:
-            return f"エラー: モデルが利用できません。クエリ: {prompt}"
+            return f"エラー: ファインチューニング済みモデルが利用できません。{memory_warning}\nクエリ: {prompt}"
         
         try:
             # コンテキストとプロンプトを組み合わせ
@@ -270,15 +383,15 @@ class LLMGenerator:
             if result.get("success", False):
                 generated_text = result.get("generated_text", "")
                 logger.info("Ollamaでの生成が成功しました")
-                return generated_text
+                return memory_warning + generated_text if memory_warning else generated_text
             else:
                 error_msg = result.get("error", "Unknown error")
                 logger.error(f"Ollama生成エラー: {error_msg}")
-                return f"エラー: Ollama生成に失敗しました - {error_msg}"
+                return f"エラー: Ollama生成に失敗しました - {error_msg}{memory_warning}"
                 
         except Exception as e:
             logger.error(f"Ollamaフォールバックエラー: {e}")
-            return f"エラー: 生成に失敗しました - {str(e)}"
+            return f"エラー: 生成に失敗しました - {str(e)}{memory_warning}"
             
     def _build_prompt(self, query: str, context: str) -> str:
         """プロンプトを構築"""
@@ -419,7 +532,7 @@ class RoadDesignQueryEngine:
             
             # 6. LLM生成器
             logger.info("Loading LLM generator...")
-            self.llm_generator = LLMGenerator(self.config)
+            self.llm_generator = LLMGenerator(self.config, load_model=False)
             
             # 7. 引用エンジン
             logger.info("Initializing citation engine...")
@@ -475,7 +588,7 @@ class RoadDesignQueryEngine:
             self._initialize_search_corpus()
             
             # 5. OllamaベースのLLM生成器
-            self.llm_generator = LLMGenerator(self.config)
+            self.llm_generator = LLMGenerator(self.config, load_model=False)
             self.llm_generator._enable_ollama_fallback()  # 強制的にOllamaモード
             
             # 6. シンプルな引用エンジン
@@ -500,7 +613,7 @@ class RoadDesignQueryEngine:
         
         try:
             # Ollamaのみで動作するシンプルなモード
-            self.llm_generator = LLMGenerator(self.config)
+            self.llm_generator = LLMGenerator(self.config, load_model=False)
             self.llm_generator._enable_ollama_fallback()
             
             # ダミーのメタデータマネージャー

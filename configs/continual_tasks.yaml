@@ -1,0 +1,40 @@
+# configs/continual_tasks.yaml
+continual_learning:
+  base_model:
+    path: "outputs/フルファインチューニング_20250803_213130"
+    type: "full_finetuned"
+  
+  ewc_config:
+    lambda: 5000
+    fisher_computation:
+      num_samples: 1000
+      batch_size: 4
+      use_memory_efficient: true
+      block_size: 1000000
+    
+  tasks:
+    - name: "specialized_bridges"
+      dataset: "data/continual/bridges_dataset.jsonl"
+      epochs: 2
+      learning_rate: 1e-5
+      eval_previous_tasks: true
+      
+    - name: "specialized_tunnels"
+      dataset: "data/continual/tunnels_dataset.jsonl"
+      epochs: 2
+      learning_rate: 1e-5
+      eval_previous_tasks: true
+      
+    - name: "specialized_intersections"
+      dataset: "data/continual/intersections_dataset.jsonl"
+      epochs: 2
+      learning_rate: 1e-5
+      eval_previous_tasks: true
+  
+  evaluation:
+    metrics:
+      - accuracy
+      - perplexity
+      - forgetting_score
+    save_results: true
+    visualization: true

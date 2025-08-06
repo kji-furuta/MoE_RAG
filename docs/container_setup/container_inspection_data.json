@@ -1,0 +1,155 @@
+{
+  "timestamp": "2025-08-04T11:54:08.461136",
+  "container_info": {},
+  "file_structure": {
+    "workspace_root": "total 88\ndrwxr-xr-x  1 ai-user ai-user 4096 Aug  3 00:53 .\ndrwxr-xr-x  1 root    root    4096 Aug  4 01:57 ..\n-rwxr-xr-x  1 ai-user ai-user    0 Aug  2 13:37 =2.0.0\ndrwxr-xr-x  4 ai-user ai-user 4096 Aug  2 00:55 app\ndrwxr-xr-x  2 ai-user ai-user 4096 Jul 24 14:30 config\ndrwxr-xr-x  7 ai-user ai-user 4096 Aug  1 23:29 data\ndrwxr-xr-x  4 ai-user ai-user 4096 Aug  4 02:54 docs\ndrwxr-xr-x  2 ai-user ai-user 4096 Jul 24 14:30 examples\ndrwxr-xr-x  2 ai-user ai-user 4096 Jul 27 01:27 logs\ndrwxrwxrwx  2 ai-user ai-user 4096 Jul 30 13:54 metadata\ndrwxr-xr-x  2 ai-user ai-user 4096 Jul 24 14:35 models\ndrwxr-xr-x  2 ai-user ai-user 4096 Jul 24 14:35 notebooks\ndrwxr-xr-x 16 ai-user ai-user 4096 Aug  3 21:31 outputs\n-rwxr-xr-x  1 ai-user ai-user  843 Jul 24 14:30 pyproject.toml\ndrwxr-xr-x  2 ai-user ai-user 4096 Jul 27 13:56 qdrant_data\n-rwxr-xr-x  1 ai-user ai-user  618 Jul 24 14:30 requirements.txt\n-rwxr-xr-x  1 ai-user ai-user 1462 Jul 27 05:31 requirements_rag.txt\ndrwxr-xr-x  7 ai-user ai-user 4096 Jul 31 08:06 scripts\ndrwxr-xr-x  8 ai-user ai-user 4096 Jul 31 06:33 src\n-rwxr-xr-x  1 ai-user ai-user  339 Aug  1 01:54 start_server.sh\ndrwxr-xr-x  2 ai-user ai-user 4096 Aug  1 00:21 temp_uploads\ndrwxr-xr-x  1 ai-user ai-user 4096 Aug  3 00:53 templates\ndrwxr-xr-x  2 ai-user ai-user 4096 Jul 24 14:35 tests",
+    "directories": {
+      "src": true,
+      "src_contents": "total 36\ndrwxr-xr-x  8 ai-user ai-user 4096 Jul 31 06:33 .\ndrwxr-xr-x  1 ai-user ai-user 4096 Aug  3 00:53 ..\n-rw-r--r--  1 ai-user ai-user   31 Jul 24 14:30 __init__.py\ndrwxr-xr-x  2 ai-user ai-user 4096 Jul 25 21:48 __pycache__\ndrwxr-xr-x  2 ai-user ai-user 4096 Jul 31 06:33 data\ndrwxr-xr-x  2 ai-user ai-user 4096 Jul 31 08:02 models\ndrwxr-xr-x 10 ai-user ai-user 4096 Jul 31 08:02 rag\ndrwxr-xr-x  2 ai-user ai-user 4096 Jul 31 06:38 training\ndrwxr-xr-x  2 ai-user ai-user 4096 Jul 31 06:38 utils",
+      "app": true,
+      "app_contents": "total 184\ndrwxr-xr-x 4 ai-user ai-user   4096 Aug  2 00:55 .\ndrwxr-xr-x 1 ai-user ai-user   4096 Aug  3 00:53 ..\n-rw-r--r-- 1 ai-user ai-user      0 Jul 24 14:30 __init__.py\ndrwxr-xr-x 2 ai-user ai-user   4096 Aug  2 00:55 __pycache__\n-rw-r--r-- 1 ai-user ai-user 142009 Aug  2 00:55 main_unified.py\n-rw-r--r-- 1 ai-user ai-user  10697 Jul 24 14:30 memory_optimized_loader.py\n-rw-r--r-- 1 ai-user ai-user  14341 Jul 31 06:38 rag_interface.py\ndrwxr-xr-x 2 ai-user ai-user   4096 Aug  1 00:28 static",
+      "configs": false,
+      "scripts": true,
+      "scripts_contents": "total 152\ndrwxr-xr-x 7 ai-user ai-user  4096 Jul 31 08:06 .\ndrwxr-xr-x 1 ai-user ai-user  4096 Aug  3 00:53 ..\n-rw-r--r-- 1 ai-user ai-user  3056 Jul 31 06:33 check_available_models.py\ndrwxr-xr-x 3 ai-user ai-user  4096 Aug  1 01:48 convert\n-rwxr-xr-x 1 ai-user ai-user  3564 Jul 31 06:38 docker_build_rag.sh\n-rw-r--r-- 1 ai-user ai-user 10674 Jul 24 14:30 generate_deepspeed_configs.py\n-rw-r--r-- 1 ai-user ai-user     0 Jul 31 06:33 inference.py\n-rw-r--r-- 1 ai-user ai-user  5611 Jul 31 06:33 prep",
+      "data": true,
+      "data_contents": "total 28\ndrwxr-xr-x 7 ai-user ai-user 4096 Aug  1 23:29 .\ndrwxr-xr-x 1 ai-user ai-user 4096 Aug  3 00:53 ..\ndrwxr-xr-x 2 ai-user ai-user 4096 Jul 24 14:30 processed\ndrwxr-xr-x 5 ai-user ai-user 4096 Jul 25 14:44 rag_documents\ndrwxr-xr-x 2 ai-user ai-user 4096 Jul 24 14:30 raw\ndrwxr-xr-x 2 ai-user ai-user 4096 Aug  3 23:25 search_history\ndrwxr-xr-x 2 ai-user ai-user 4096 Jul 31 10:32 uploaded",
+      "outputs": true,
+      "outputs_contents": "total 64\ndrwxr-xr-x 16 ai-user ai-user 4096 Aug  3 21:31 .\ndrwxr-xr-x  1 ai-user ai-user 4096 Aug  3 00:53 ..\nlrwxrwxrwx  1 ai-user ai-user   20 Jul 26 07:12 latest -> lora_20250725_101104\ndrwxrwxrwx  2 ai-user ai-user 4096 Jul 25 06:17 lora_20250725_061715\ndrwxrwxrwx  2 ai-user ai-user 4096 Jul 25 07:36 lora_20250725_073613\ndrwxrwxrwx  2 ai-user ai-user 4096 Jul 25 10:33 lora_20250725_101104\ndrwxrwxrwx  2 ai-user ai-user 4096 Jul 25 02:52 qlora (4bit)_20250725_022902\ndrwxr-xr-x  3 ai-user ai-us",
+      "docker": false
+    },
+    "critical_files": {
+      "requirements.txt": {
+        "exists": true,
+        "path": "/workspace/requirements.txt",
+        "preview": "torch>=2.0.0\ntransformers>=4.30.0\ndatasets>=2.12.0\npeft>=0.8.0\naccelerate>=0.20.0"
+      },
+      "requirements_rag.txt": {
+        "exists": true,
+        "path": "/workspace/requirements_rag.txt",
+        "preview": "# RAGシステム用の依存関係\n\n# 基本ライブラリ\nllama-index==0.10.14\nqdrant-client==1.7.3"
+      },
+      "docker-compose.yml": {
+        "exists": false,
+        "path": "/workspace/docker-compose.yml"
+      },
+      "app/main_unified.py": {
+        "exists": true,
+        "path": "/workspace/app/main_unified.py",
+        "preview": "#!/usr/bin/env python3\n\"\"\"\nAI Fine-tuning Toolkit Web API - Unified Implementation\n統合されたWebインターフェース実装\n\"\"\""
+      },
+      "scripts/rag/index_documents.py": {
+        "exists": true,
+        "path": "/workspace/scripts/rag/index_documents.py",
+        "preview": "#!/usr/bin/env python3\n\"\"\"\n文書インデックス作成スクリプト\n道路設計文書を処理してベクトルストアに登録\n\"\"\""
+      }
+    }
+  },
+  "packages": {
+    "accelerate": "1.9.0",
+    "fastapi": "0.116.1",
+    "langchain": "0.1.7",
+    "langchain-community": "0.0.20",
+    "langchain-core": "0.1.23",
+    "opentelemetry-instrumentation-fastapi": "0.57b0",
+    "peft": "0.16.0",
+    "qdrant-client": "1.7.3",
+    "sentence-transformers": "2.3.1",
+    "torch": "2.5.1",
+    "torchaudio": "2.7.1+cu126",
+    "torchelastic": "0.2.2",
+    "torchvision": "0.20.1",
+    "transformers": "4.54.1"
+  },
+  "volumes": [
+    {
+      "source": "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu/374fa7fe65e6652c5e461e307cebb456b4baa615b2ad61b305b8f3941e5eb281",
+      "destination": "/workspace/data",
+      "type": "bind"
+    },
+    {
+      "source": "/var/lib/docker/volumes/docker_ai_ft_rag_processed/_data",
+      "destination": "/workspace/outputs/rag_index",
+      "type": "volume"
+    },
+    {
+      "source": "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu/1d55828d1e453f93dba56bdea6a7483a1d04a28eafb95eccaead4b24cb3521b9",
+      "destination": "/workspace/logs",
+      "type": "bind"
+    },
+    {
+      "source": "/home/kjifuruta/AI_FT/AI_FT_3/examples",
+      "destination": "/workspace/examples",
+      "type": "bind"
+    },
+    {
+      "source": "/var/lib/docker/volumes/docker_ai_ft_rag_metadata/_data",
+      "destination": "/workspace/metadata",
+      "type": "volume"
+    },
+    {
+      "source": "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu/a5b10350c884f4a91496df3ac448ef2ece4d69b43ba721eab553a1120f1c2994",
+      "destination": "/workspace/src",
+      "type": "bind"
+    },
+    {
+      "source": "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu/13fd3f638b9277998776c3933c1213572cbd950773da027240c8f2b50f9c64a4",
+      "destination": "/workspace/app",
+      "type": "bind"
+    },
+    {
+      "source": "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu/129999662200b16d8c15f41c6bf3b504287c00f5121c0d0f6e9336234fbbfb20",
+      "destination": "/workspace/scripts",
+      "type": "bind"
+    },
+    {
+      "source": "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu/c8d15e26c06793c7ea06875a14e2d4c51049dedbd033279f3222ef947d74b758",
+      "destination": "/root/.cache/huggingface",
+      "type": "bind"
+    },
+    {
+      "source": "/home/kjifuruta/AI_FT/AI_FT_3/qdrant_data",
+      "destination": "/workspace/qdrant_data",
+      "type": "bind"
+    },
+    {
+      "source": "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu/c9e3956c83279781fc6af3f39e29fcc4c442ebeefc2ce9c06aca90b8daa599d1",
+      "destination": "/workspace/tests",
+      "type": "bind"
+    },
+    {
+      "source": "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu/10307fd3ed5a5f11a3b4757ee22bcb25728daf436871948f9886e46d2ed6cffe",
+      "destination": "/workspace/docs",
+      "type": "bind"
+    },
+    {
+      "source": "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu/e70b37e597beef9a1fb786e8091c8f3231ce9645ef09f7ece7f2e7178fee4c46",
+      "destination": "/root/.wandb",
+      "type": "bind"
+    },
+    {
+      "source": "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu/39ea398362eddd7705fbe70372fb3c4303cc9257d4943c7931e5887915bd5f6a",
+      "destination": "/workspace/temp_uploads",
+      "type": "bind"
+    },
+    {
+      "source": "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu/15c02cdda4eb76b756a542e3bd2ee52d47053f8d7b9bcd8d1d3b18543b1e69ff",
+      "destination": "/workspace/outputs",
+      "type": "bind"
+    },
+    {
+      "source": "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu/61c22e57917cbbb8dca4731c80a6db94dfb58d4e385facd02c4b551cbe050af0",
+      "destination": "/workspace/models",
+      "type": "bind"
+    },
+    {
+      "source": "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu/06a991fc22255c6b98609a5fff61cef0f2009f6d90ba36086412b42587f2d310",
+      "destination": "/workspace/config",
+      "type": "bind"
+    },
+    {
+      "source": "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu/85cd271160e25e8e77005785ac2bede2db868b3b11b0b441e4434817199a21a3",
+      "destination": "/workspace/notebooks",
+      "type": "bind"
+    }
+  ]
+}

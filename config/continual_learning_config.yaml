@@ -1,0 +1,25 @@
+# 継続学習管理システム設定
+continual_learning:
+  enabled: true
+  base_models:
+    - cyberagent/calm3-22b-chat
+    - cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese
+    - Qwen/Qwen2.5-14B-Instruct
+    - Qwen/Qwen2.5-32B-Instruct
+  
+  ewc_settings:
+    default_lambda: 5000
+    fisher_computation_batches: 100
+    use_efficient_storage: true
+  
+  training_settings:
+    default_epochs: 3
+    default_learning_rate: 2e-5
+    default_batch_size: 4
+    max_sequence_length: 512
+
+# モデル管理設定
+model_management:
+  auto_detect_finetuned: true
+  include_base_models: true
+  cache_enabled: true

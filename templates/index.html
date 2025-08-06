@@ -1,8 +1,63 @@
 {% extends "base.html" %}
 
-{% block title %}AI Fine-tuning & Text Generation System{% endblock %}
+{% block title %}AI Fine-tuning, Text Generation & Continual Learning System{% endblock %}
 
 {% block extra_styles %}
+/* メインタブ */
+.main-tabs {
+    display: flex;
+    border-bottom: 3px solid #2c3e50;
+    margin-bottom: 30px;
+    background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
+    padding: 0;
+    border-radius: 8px 8px 0 0;
+}
+.main-tab {
+    flex: 1;
+    padding: 15px 25px;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s;
+    text-align: center;
+    position: relative;
+}
+.main-tab:hover {
+    background: rgba(52, 152, 219, 0.1);
+}
+.main-tab.active {
+    background: white;
+    color: #2c3e50;
+    border-radius: 8px 8px 0 0;
+}
+.main-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -3px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #3498db;
+}
+.main-tab-icon {
+    margin-right: 8px;
+    font-size: 20px;
+}
+.main-section {
+    display: none;
+    animation: fadeIn 0.3s;
+}
+.main-section.active {
+    display: block;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* セクションスタイル */
 .text-generation {
     background: #f0f8f0;
     border-left: 4px solid #4CAF50;
@@ -11,21 +66,115 @@
     background: #fff8f0;
     border-left: 4px solid #FF9800;
 }
+.continual-learning {
+    background: #f0f5ff;
+    border-left: 4px solid #3498db;
+}
+
+/* サブタブ（継続学習用） */
+.sub-tabs {
+    display: flex;
+    border-bottom: 2px solid #ddd;
+    margin-bottom: 20px;
+    background: #f5f5f5;
+    border-radius: 4px;
+}
+.sub-tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    background-color: transparent;
+    border: none;
+    margin: 4px;
+    transition: all 0.3s;
+    border-radius: 4px;
+    font-weight: 500;
+}
+.sub-tab:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+.sub-tab.active {
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.tab-content {
+    display: none;
+}
+.tab-content.active {
+    display: block;
+}
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: #ddd;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 10px 0;
+}
+.progress-fill {
+    height: 100%;
+    background-color: #27ae60;
+    transition: width 0.3s ease;
+    text-align: center;
+    color: white;
+    line-height: 20px;
+    font-size: 12px;
+}
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    margin-left: 10px;
+}
+.status-running {
+    background-color: #f39c12;
+    color: white;
+}
+.status-completed {
+    background-color: #27ae60;
+    color: white;
+}
+.status-failed {
+    background-color: #e74c3c;
+    color: white;
+}
+.task-item {
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    background-color: #f9f9f9;
+}
 {% endblock %}
 
 {% block main_title %}
             <h1>
                 <img src="/static/logo_teikoku.png" alt="Logo" class="title-logo">
-                🖥️ AI Fine-tuning & Text Generation System
+                🖥️ AI統合学習システム
             </h1>
-            <p>Generate text using fine-tuned models and Ollama models</p>
+            <p>テキスト生成・継続学習・ファインチューニングの統合プラットフォーム</p>
 {% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="content">
+        <!-- メインタブ -->
+        <div class="main-tabs">
+            <div class="main-tab active" onclick="switchMainTab('generation')">
+                <span class="main-tab-icon">✨</span>テキスト生成
+            </div>
+            <div class="main-tab" onclick="switchMainTab('continual')">
+                <span class="main-tab-icon">🔄</span>継続学習
+            </div>
+            <div class="main-tab" onclick="switchMainTab('tools')">
+                <span class="main-tab-icon">🛠️</span>その他ツール
+            </div>
+        </div>
+        
         <!-- テキスト生成セクション -->
-        <div class="section text-generation">
+        <div id="generation-section" class="main-section active">
+            <div class="section text-generation">
             <h2>✨ Text Generation</h2>
             <form id="generateForm">
                 <div class="form-group">
@@ -71,14 +220,111 @@
             </div>
             
             <div id="generateResult"></div>
+            </div>
         </div>
         
-        <!-- ファインチューニングセクション -->
-        <div class="section fine-tuning">
-            <h2>🎯 Fine-tuning</h2>
-            <p>To fine-tune a new model, use the main fine-tuning interface.</p>
-            <a href="/finetune" class="btn">📚 Go to Fine-tuning Interface</a>
-            <a href="/rag" class="btn" style="margin-left: 10px;">🏗️ Go to RAG System</a>
+        <!-- 継続学習セクション -->
+        <div id="continual-section" class="main-section">
+            <div class="section continual-learning">
+            <h2>🔄 Continual Learning</h2>
+            
+                <div class="sub-tabs">
+                    <div class="sub-tab active" onclick="switchContinualTab('training')">📝 新規学習</div>
+                    <div class="sub-tab" onclick="switchContinualTab('tasks')">📋 タスク一覧</div>
+                    <div class="sub-tab" onclick="switchContinualTab('history')">📊 学習履歴</div>
+                </div>
+            
+            <div id="continual-training" class="tab-content active">
+                <form id="continualLearningForm">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label for="baseModel">ベースモデル:</label>
+                            <select id="baseModel" required>
+                                <option value="">モデルを選択してください</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="taskName">タスク名:</label>
+                            <input type="text" id="taskName" required placeholder="例: specialized_bridges">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="dataset">学習データセット (JSONL形式):</label>
+                        <input type="file" id="dataset" accept=".jsonl" required>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label for="ewcLambda">EWC重要度 (λ):</label>
+                            <input type="number" id="ewcLambda" value="5000" min="0" step="100">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="epochs">エポック数:</label>
+                            <input type="number" id="epochs" value="3" min="1" max="10">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="learningRate">学習率:</label>
+                            <input type="number" id="learningRate" value="0.00002" min="0" step="0.000001">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="usePreviousTasks" checked style="margin: 0;">
+                            <span>以前のタスクのFisher行列を使用（破滅的忘却の防止）</span>
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn" id="startContinualBtn">🚀 継続学習を開始</button>
+                    <button type="button" class="btn refresh-btn" onclick="refreshContinualModels()">🔄 モデル更新</button>
+                </form>
+                
+                <div id="currentTaskStatus" style="margin-top: 20px;">
+                    <!-- 現在のタスク状態がここに表示されます -->
+                </div>
+            </div>
+            
+            <div id="continual-tasks" class="tab-content">
+                <div id="taskList">
+                    <p>読み込み中...</p>
+                </div>
+            </div>
+            
+            <div id="continual-history" class="tab-content">
+                <div id="taskHistory">
+                    <p>履歴を読み込み中...</p>
+                </div>
+            </div>
+            </div>
+        </div>
+        
+        <!-- その他ツールセクション -->
+        <div id="tools-section" class="main-section">
+            <div class="section fine-tuning">
+                <h2>🎯 その他のAIツール</h2>
+                <p>追加のAIツールとインターフェースにアクセス:</p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+                    <div style="border: 2px solid #FF9800; border-radius: 8px; padding: 20px; text-align: center; background: white;">
+                        <h3>📚 ファインチューニング</h3>
+                        <p>モデルのカスタマイズと最適化</p>
+                        <a href="/finetune" class="btn" style="width: 100%; margin-top: 10px;">インターフェースを開く</a>
+                    </div>
+                    <div style="border: 2px solid #4CAF50; border-radius: 8px; padding: 20px; text-align: center; background: white;">
+                        <h3>🏗️ RAGシステム</h3>
+                        <p>文書検索と知識ベース構築</p>
+                        <a href="/rag" class="btn" style="width: 100%; margin-top: 10px;">インターフェースを開く</a>
+                    </div>
+                    <div style="border: 2px solid #9C27B0; border-radius: 8px; padding: 20px; text-align: center; background: white;">
+                        <h3>📊 モデル管理</h3>
+                        <p>学習済みモデルの管理と評価</p>
+                        <a href="/models" class="btn" style="width: 100%; margin-top: 10px;">管理画面を開く</a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -87,10 +333,19 @@
 {% block extra_scripts %}
 let selectedModel = null;
 let selectedModelType = null;
+let currentTaskId = null;
 
 // ページ読み込み時にモデル一覧を取得
 document.addEventListener('DOMContentLoaded', function() {
     loadAvailableModels();
+    refreshContinualModels();
+    loadContinualTasks();
+    
+    // 継続学習フォームのサブミット処理
+    document.getElementById('continualLearningForm').addEventListener('submit', startContinualLearning);
+    
+    // 定期的なタスク更新
+    setInterval(loadContinualTasks, 5000);
 });
 
 // 利用可能なモデル一覧を取得
@@ -321,5 +576,258 @@ function showAlert(elementId, message, type) {
     const element = document.getElementById(elementId);
     const alertClass = type === 'danger' ? 'error' : type === 'warning' ? 'warning' : 'info';
     element.innerHTML = `<div class="${alertClass}">${message}</div>`;
+}
+
+// メインタブ切り替え
+function switchMainTab(tabName) {
+    // タブの状態を更新
+    const tabs = document.querySelectorAll('.main-tab');
+    const sections = document.querySelectorAll('.main-section');
+    
+    tabs.forEach(tab => tab.classList.remove('active'));
+    sections.forEach(section => section.classList.remove('active'));
+    
+    // アクティブなタブを設定
+    event.target.classList.add('active');
+    document.getElementById(tabName + '-section').classList.add('active');
+    
+    // 継続学習タブが選択された場合、タスク一覧を更新
+    if (tabName === 'continual') {
+        loadContinualTasks();
+        refreshContinualModels();
+    }
+}
+
+// 継続学習関連の関数
+
+// サブタブ切り替え（継続学習用）
+function switchContinualTab(tabName) {
+    const tabs = document.querySelectorAll('.continual-learning .sub-tab');
+    const contents = document.querySelectorAll('.continual-learning .tab-content');
+    
+    tabs.forEach(tab => tab.classList.remove('active'));
+    contents.forEach(content => content.classList.remove('active'));
+    
+    event.target.classList.add('active');
+    document.getElementById('continual-' + tabName).classList.add('active');
+    
+    if (tabName === 'history') {
+        loadContinualHistory();
+    }
+}
+
+// 継続学習用モデル一覧の更新（統合システムと同じAPIを使用）
+async function refreshContinualModels() {
+    try {
+        const response = await fetch('/api/available-models');
+        const data = await response.json();
+        
+        const select = document.getElementById('baseModel');
+        select.innerHTML = '<option value="">モデルを選択してください</option>';
+        
+        // ファインチューニング済みモデル
+        if (data.finetuned_models && data.finetuned_models.length > 0) {
+            const optgroup1 = document.createElement('optgroup');
+            optgroup1.label = 'ファインチューニング済みモデル';
+            
+            data.finetuned_models.forEach(model => {
+                const option = document.createElement('option');
+                // 継続学習ではパスを使用
+                option.value = model.path || `outputs/${model.name}`;
+                option.textContent = `${model.name} (${model.base_model || 'unknown'})`;
+                optgroup1.appendChild(option);
+            });
+            
+            select.appendChild(optgroup1);
+        }
+        
+        // 推奨ベースモデル（継続学習に適したモデルのみ）
+        const recommendedBaseModels = [
+            "rinna/japanese-gpt2-small",
+            "stabilityai/japanese-stablelm-3b-4e1t-instruct",
+            "elyza/ELYZA-japanese-Llama-2-7b-instruct"
+        ];
+        
+        if (data.ollama_models && data.ollama_models.length > 0) {
+            const optgroup2 = document.createElement('optgroup');
+            optgroup2.label = 'ベースモデル';
+            
+            data.ollama_models.forEach(model => {
+                if (recommendedBaseModels.includes(model.name)) {
+                    const option = document.createElement('option');
+                    option.value = model.name;
+                    option.textContent = `${model.name} (${model.size || 'unknown'})`;
+                    optgroup2.appendChild(option);
+                }
+            });
+            
+            if (optgroup2.children.length > 0) {
+                select.appendChild(optgroup2);
+            }
+        }
+        
+        console.log('継続学習用モデル一覧を更新しました');
+        
+    } catch (error) {
+        console.error('Error loading continual models:', error);
+    }
+}
+
+// 継続学習の開始
+async function startContinualLearning(event) {
+    event.preventDefault();
+    
+    const formData = new FormData();
+    const config = {
+        base_model: document.getElementById('baseModel').value,
+        task_name: document.getElementById('taskName').value,
+        use_previous_tasks: document.getElementById('usePreviousTasks').checked,
+        ewc_lambda: parseFloat(document.getElementById('ewcLambda').value),
+        epochs: parseInt(document.getElementById('epochs').value),
+        learning_rate: parseFloat(document.getElementById('learningRate').value),
+        use_memory_efficient: true
+    };
+    
+    formData.append('config', JSON.stringify(config));
+    formData.append('dataset', document.getElementById('dataset').files[0]);
+    
+    const startButton = document.getElementById('startContinualBtn');
+    startButton.disabled = true;
+    startButton.innerHTML = '開始中... ⏳';
+    
+    try {
+        const response = await fetch('/api/continual-learning/start', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'エラーが発生しました');
+        }
+        
+        const result = await response.json();
+        currentTaskId = result.task_id;
+        
+        showAlert('currentTaskStatus', '✅ ' + result.message, 'success');
+        
+        // フォームをリセット
+        document.getElementById('continualLearningForm').reset();
+        
+        // タスク一覧を更新
+        loadContinualTasks();
+        
+    } catch (error) {
+        showAlert('currentTaskStatus', 'エラー: ' + error.message, 'danger');
+    } finally {
+        startButton.disabled = false;
+        startButton.innerHTML = '🚀 継続学習を開始';
+    }
+}
+
+// タスク一覧の読み込み
+async function loadContinualTasks() {
+    try {
+        const response = await fetch('/api/continual-learning/tasks');
+        const tasks = await response.json();
+        
+        const taskList = document.getElementById('taskList');
+        
+        if (tasks.length === 0) {
+            taskList.innerHTML = '<p>実行中のタスクはありません</p>';
+            document.getElementById('currentTaskStatus').innerHTML = '<p>実行中のタスクはありません</p>';
+            return;
+        }
+        
+        let html = '';
+        let hasRunningTask = false;
+        
+        tasks.forEach(task => {
+            let statusBadge = '';
+            if (task.status === 'running') {
+                statusBadge = '<span class="status-badge status-running">実行中</span>';
+                hasRunningTask = true;
+                updateCurrentTaskStatus(task);
+            } else if (task.status === 'completed') {
+                statusBadge = '<span class="status-badge status-completed">完了</span>';
+            } else if (task.status === 'failed') {
+                statusBadge = '<span class="status-badge status-failed">失敗</span>';
+            }
+            
+            html += `
+                <div class="task-item">
+                    <h4>${task.task_name} ${statusBadge}</h4>
+                    <p>タスクID: ${task.task_id}</p>
+                    <p>開始時刻: ${new Date(task.started_at).toLocaleString('ja-JP')}</p>
+                    ${task.progress ? '<div class="progress-bar"><div class="progress-fill" style="width: ' + task.progress + '%">' + task.progress + '%</div></div>' : ''}
+                    ${task.message ? `<p>メッセージ: ${task.message}</p>` : ''}
+                </div>
+            `;
+        });
+        
+        taskList.innerHTML = html;
+        
+        if (!hasRunningTask) {
+            document.getElementById('currentTaskStatus').innerHTML = '<p>実行中のタスクはありません</p>';
+        }
+        
+    } catch (error) {
+        console.error('Error loading tasks:', error);
+    }
+}
+
+// 現在のタスク状態を更新
+function updateCurrentTaskStatus(task) {
+    const statusDiv = document.getElementById('currentTaskStatus');
+    const progress = task.progress || 0;
+    let html = '<div class="task-item">';
+    html += '<h4>' + task.task_name + ' <span class="status-badge status-running">実行中</span></h4>';
+    html += '<p>エポック: ' + (task.current_epoch || 0) + ' / ' + (task.total_epochs || 0) + '</p>';
+    html += '<div class="progress-bar">';
+    html += '<div class="progress-fill" style="width: ' + progress + '%">';
+    html += progress + '%';
+    html += '</div></div>';
+    if (task.message) {
+        html += '<p>メッセージ: ' + task.message + '</p>';
+    }
+    html += '</div>';
+    statusDiv.innerHTML = html;
+}
+
+// 学習履歴の読み込み
+async function loadContinualHistory() {
+    try {
+        const response = await fetch('/api/continual-learning/history');
+        const history = await response.json();
+        
+        const historyDiv = document.getElementById('taskHistory');
+        
+        if (history.length === 0) {
+            historyDiv.innerHTML = '<p>学習履歴がありません</p>';
+            return;
+        }
+        
+        let html = '<div style="max-height: 400px; overflow-y: auto;">';
+        
+        history.forEach(item => {
+            html += `
+                <div class="task-item">
+                    <h4>${item.task_name}</h4>
+                    <p>モデル: ${item.base_model}</p>
+                    <p>完了日時: ${new Date(item.completed_at).toLocaleString('ja-JP')}</p>
+                    <p>エポック数: ${item.epochs}</p>
+                    <p>最終損失: ${item.final_loss ? item.final_loss.toFixed(4) : 'N/A'}</p>
+                    ${item.output_path ? `<p>出力: ${item.output_path}</p>` : ''}
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        historyDiv.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error loading history:', error);
+        document.getElementById('taskHistory').innerHTML = '<p>履歴の読み込みに失敗しました</p>';
+    }
 }
 {% endblock %} 

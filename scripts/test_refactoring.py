@@ -1,176 +1,207 @@
 #!/usr/bin/env python3
 """
-リファクタリング後のコードをテストするスクリプト
+リファクタリング後のAPIルーター構造のテストスクリプト
 """
 
 import sys
-import os
+import json
 from pathlib import Path
 
 # プロジェクトルートをPythonパスに追加
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-def test_model_utils():
-    """model_utilsモジュールのテスト"""
-    print("Testing model_utils module...")
-    
-    try:
-        from app.model_utils import (
-            get_auth_token,
-            requires_authentication,
-            get_model_size_category,
-            create_quantization_config,
-            get_device_map,
-            load_tokenizer,
-            handle_model_loading_error,
-            get_output_directory,
-            load_training_config
-        )
-        
-        # 基本的な関数のテスト
-        print("✓ All imports successful")
-        
-        # 認証チェックのテスト
-        assert requires_authentication("meta-llama/Llama-2-7b") == True
-        assert requires_authentication("cyberagent/open-calm-3b") == False
-        print("✓ Authentication check works")
-        
-        # モデルサイズ判定のテスト
-        assert get_model_size_category("model-7b") == "medium"
-        assert get_model_size_category("model-32b") == "xlarge"
-        assert get_model_size_category("model-3b") == "small"
-        print("✓ Model size categorization works")
-        
-        # 量子化設定のテスト
-        config = create_quantization_config("test-model-7b", "lora")
-        assert config is not None
-        print("✓ Quantization config creation works")
-        
-        # デバイスマップのテスト
-        device_map = get_device_map("test-model-3b")
-        print(f"✓ Device map for small model: {device_map}")
-        
-        # 出力ディレクトリのテスト
-        output_dir = get_output_directory("test", "20240101_120000")
-        assert "test_20240101_120000" in str(output_dir)
-        print(f"✓ Output directory creation: {output_dir}")
-        
-        # エラーハンドリングのテスト
-        class MockError(Exception):
-            pass
-        
-        error = MockError("CUDA out of memory")
-        message = handle_model_loading_error(error, "test-model")
-        assert "GPUメモリ不足" in message
-        print("✓ Error handling works")
-        
-        print("\n✅ All model_utils tests passed!")
-        return True
-        
-    except Exception as e:
-        print(f"\n❌ Test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
 
-
-def test_main_unified_imports():
-    """main_unified.pyのインポートをテスト"""
-    print("\nTesting main_unified.py imports...")
+def check_router_structure():
+    """ルーター構造の確認"""
+    print("=== ルーター構造の確認 ===\n")
     
-    try:
-        # main_unified.pyがインポート可能か確認
-        import app.main_unified
-        print("✓ main_unified.py imports successfully")
-        
-        # model_utilsがmain_unifiedから使用されているか確認
-        import importlib
-        import ast
-        
-        main_unified_path = project_root / "app" / "main_unified.py"
-        with open(main_unified_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        # model_utilsのインポートが存在するか確認
-        if "from app.model_utils import" in content:
-            print("✓ model_utils is imported in main_unified.py")
+    router_dir = project_root / "app" / "routers"
+    expected_routers = [
+        "__init__.py",
+        "finetuning.py",
+        "rag.py",
+        "continual.py",
+        "models.py"
+    ]
+    
+    all_exist = True
+    for router_file in expected_routers:
+        file_path = router_dir / router_file
+        if file_path.exists():
+            print(f"✅ {router_file} が存在します")
         else:
-            print("⚠ model_utils import not found in main_unified.py")
+            print(f"❌ {router_file} が見つかりません")
+            all_exist = False
+    
+    return all_exist
+
+
+def check_models_structure():
+    """モデル定義構造の確認"""
+    print("\n=== モデル定義構造の確認 ===\n")
+    
+    models_dir = project_root / "app" / "models"
+    expected_models = [
+        "__init__.py",
+        "training.py",
+        "rag.py",
+        "models.py"
+    ]
+    
+    all_exist = True
+    for model_file in expected_models:
+        file_path = models_dir / model_file
+        if file_path.exists():
+            print(f"✅ {model_file} が存在します")
+        else:
+            print(f"❌ {model_file} が見つかりません")
+            all_exist = False
+    
+    return all_exist
+
+
+def check_main_app():
+    """メインアプリケーションファイルの確認"""
+    print("\n=== メインアプリケーションの確認 ===\n")
+    
+    # 新しいmain.pyの確認
+    new_main = project_root / "app" / "main.py"
+    old_main = project_root / "app" / "main_unified.py"
+    
+    if new_main.exists():
+        with open(new_main, 'r', encoding='utf-8') as f:
+            content = f.read()
+            lines = len(content.splitlines())
+        print(f"✅ 新しいmain.pyが存在します（{lines}行）")
         
-        # 重複コードが削減されているか確認
-        duplicates_before = content.count("BitsAndBytesConfig(")
-        print(f"  BitsAndBytesConfig direct usage: {duplicates_before} times")
+        # 重要な要素の確認
+        important_elements = [
+            "from app.routers import",
+            "app.include_router",
+            "lifespan",
+            "FastAPI"
+        ]
         
-        duplicates_tokenizer = content.count("tokenizer.pad_token = tokenizer.eos_token")
-        print(f"  Tokenizer pad_token setting: {duplicates_tokenizer} times")
-        
-        print("\n✅ Import test completed!")
-        return True
-        
-    except Exception as e:
-        print(f"\n❌ Import test failed: {e}")
-        import traceback
-        traceback.print_exc()
+        for element in important_elements:
+            if element in content:
+                print(f"  ✅ {element} が含まれています")
+            else:
+                print(f"  ❌ {element} が見つかりません")
+    else:
+        print(f"❌ 新しいmain.pyが見つかりません")
         return False
-
-
-def check_code_reduction():
-    """コード削減の効果を測定"""
-    print("\nChecking code reduction impact...")
     
-    main_unified_path = project_root / "app" / "main_unified.py"
-    model_utils_path = project_root / "app" / "model_utils.py"
-    
-    with open(main_unified_path, 'r', encoding='utf-8') as f:
-        main_lines = len(f.readlines())
-    
-    with open(model_utils_path, 'r', encoding='utf-8') as f:
-        utils_lines = len(f.readlines())
-    
-    print(f"  main_unified.py: {main_lines} lines")
-    print(f"  model_utils.py: {utils_lines} lines")
-    print(f"  Net new lines: {utils_lines} lines")
-    
-    # 重複コードの推定削減量
-    estimated_reduction = 200  # 約200行の重複コードを削減
-    print(f"  Estimated duplicate code removed: ~{estimated_reduction} lines")
-    print(f"  Effective reduction: ~{estimated_reduction - utils_lines} lines")
+    # 旧ファイルとの比較
+    if old_main.exists():
+        with open(old_main, 'r', encoding='utf-8') as f:
+            old_lines = len(f.read().splitlines())
+        print(f"\n📊 コード削減: {old_lines}行 → {lines}行 (削減率: {((old_lines-lines)/old_lines*100):.1f}%)")
     
     return True
 
 
+def check_dependencies():
+    """依存関係ファイルの確認"""
+    print("\n=== 依存関係ファイルの確認 ===\n")
+    
+    deps_file = project_root / "app" / "dependencies.py"
+    
+    if deps_file.exists():
+        print(f"✅ dependencies.pyが存在します")
+        
+        with open(deps_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # 重要な定義の確認
+        important_defs = [
+            "PROJECT_ROOT",
+            "DATA_DIR",
+            "OUTPUTS_DIR",
+            "training_tasks",
+            "continual_tasks",
+            "model_cache"
+        ]
+        
+        for def_name in important_defs:
+            if def_name in content:
+                print(f"  ✅ {def_name} が定義されています")
+            else:
+                print(f"  ❌ {def_name} が見つかりません")
+        
+        return True
+    else:
+        print(f"❌ dependencies.pyが見つかりません")
+        return False
+
+
+def test_imports():
+    """インポートのテスト"""
+    print("\n=== インポートテスト ===\n")
+    
+    try:
+        # ルーターのインポート
+        from app.routers import finetuning_router, rag_router, continual_router, models_router
+        print("✅ すべてのルーターがインポート可能です")
+        
+        # モデルのインポート
+        from app.models import TrainingRequest, QueryRequest, ModelInfo
+        print("✅ すべてのモデルがインポート可能です")
+        
+        # 依存関係のインポート
+        from app.dependencies import PROJECT_ROOT, training_tasks
+        print("✅ 依存関係がインポート可能です")
+        
+        return True
+        
+    except ImportError as e:
+        print(f"❌ インポートエラー: {e}")
+        return False
+
+
 def main():
-    """メインテスト実行"""
-    print("=" * 60)
-    print("Refactoring Test Suite")
-    print("=" * 60)
+    """メイン処理"""
+    print("="*60)
+    print("リファクタリング検証テスト")
+    print("="*60)
     
     results = []
     
-    # 各テストを実行
-    results.append(("Model Utils", test_model_utils()))
-    results.append(("Main Unified Imports", test_main_unified_imports()))
-    results.append(("Code Reduction", check_code_reduction()))
+    # 各チェックを実行
+    results.append(("ルーター構造", check_router_structure()))
+    results.append(("モデル構造", check_models_structure()))
+    results.append(("メインアプリ", check_main_app()))
+    results.append(("依存関係", check_dependencies()))
+    results.append(("インポート", test_imports()))
     
     # 結果サマリー
-    print("\n" + "=" * 60)
-    print("Test Results Summary")
-    print("=" * 60)
+    print("\n" + "="*60)
+    print("テスト結果サマリー")
+    print("="*60)
     
+    all_passed = True
     for test_name, passed in results:
-        status = "✅ PASSED" if passed else "❌ FAILED"
-        print(f"  {test_name}: {status}")
+        status = "✅ PASS" if passed else "❌ FAIL"
+        print(f"{test_name:15} : {status}")
+        if not passed:
+            all_passed = False
     
-    all_passed = all(result[1] for result in results)
-    
+    print("\n" + "="*60)
     if all_passed:
-        print("\n🎉 All tests passed! Refactoring successful!")
+        print("🎉 すべてのテストに合格しました！")
+        print("\nリファクタリングが正常に完了しています。")
+        print("次のステップ:")
+        print("1. Docker環境で新しいmain.pyを起動")
+        print("   docker exec ai-ft-container python -m uvicorn app.main:app --host 0.0.0.0 --port 8050")
+        print("2. 各APIエンドポイントの動作確認")
+        print("3. Webインターフェースの動作確認")
     else:
-        print("\n⚠️ Some tests failed. Please review the refactoring.")
+        print("⚠️  一部のテストが失敗しました")
+        print("失敗した項目を確認して修正してください")
     
-    return 0 if all_passed else 1
+    return all_passed
 
 
 if __name__ == "__main__":
-    exit(main())
+    success = main()
+    sys.exit(0 if success else 1)

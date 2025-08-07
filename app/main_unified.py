@@ -20,7 +20,10 @@ import psutil
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, Trainer
 from peft import LoraConfig, get_peft_model, TaskType, prepare_model_for_kbit_training
 import yaml
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+# 日本時間（JST）の設定
+JST = timezone(timedelta(hours=9))
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import traceback
@@ -277,7 +280,7 @@ class RAGApplication:
     def save_search_result(self, query_response: QueryResponse, name: Optional[str] = None, tags: Optional[List[str]] = None) -> SavedSearchResult:
         """検索結果を保存"""
         result_id = str(uuid.uuid4())
-        timestamp = datetime.now().isoformat()
+        timestamp = datetime.now(JST).isoformat()
         
         saved_result = SavedSearchResult(
             id=result_id,
@@ -405,11 +408,6 @@ async def models_page(request: Request):
 async def readme_page(request: Request):
     """README.md表示ページ"""
     return templates.TemplateResponse("readme.html", {"request": request})
-
-@app.get("/continual")
-async def continual_learning_page(request: Request):
-    """継続学習管理画面"""
-    return templates.TemplateResponse("continual.html", {"request": request})
 
 @app.get("/rag")
 async def rag_page(request: Request):
@@ -644,7 +642,7 @@ async def run_training_task(task_id: str, request: TrainingRequest):
         logger.info(f"Task {task_id}: トレーニング設定: {request.training_config}")
         
         # モデル保存ディレクトリ
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(JST).strftime("%Y%m%d_%H%M%S")
         output_dir = get_output_directory(method_name, timestamp)
         
         # 設定読み込み
@@ -1583,7 +1581,7 @@ async def generate_text(request: GenerationRequest):
                     outputs_dir.mkdir(exist_ok=True)
                     
                     # タイムスタンプ付きファイル名
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    timestamp = datetime.now(JST).strftime("%Y%m%d_%H%M%S")
                     model_name = Path(request.model_path).name
                     output_filename = f"generated_text_{model_name}_{timestamp}.json"
                     output_path = outputs_dir / output_filename
@@ -1754,7 +1752,7 @@ async def save_verification_results(verification_data: dict):
         verification_dir.mkdir(exist_ok=True)
         
         # ファイル名の生成
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(JST).strftime("%Y%m%d_%H%M%S")
         model_name = verification_data.get("model_path", "unknown").split("/")[-1]
         filename = f"verification_{model_name}_{timestamp}.json"
         
@@ -1880,6 +1878,20 @@ async def startup_event():
     (project_root / "data" / "uploaded").mkdir(parents=True, exist_ok=True)
     (project_root / "outputs").mkdir(parents=True, exist_ok=True)
     (project_root / "app" / "static").mkdir(parents=True, exist_ok=True)
+    (project_root / "data" / "continual_learning").mkdir(parents=True, exist_ok=True)
+    
+    # 継続学習タスクを読み込む
+    load_continual_tasks()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """アプリケーション終了時の処理"""
+    logger.info("AI Fine-tuning Toolkit Web API shutting down...")
+    
+    # 継続学習タスクを保存
+    save_continual_tasks()
+    
+    logger.info("Shutdown complete.")
 
 @app.post("/api/clear_cache")
 async def clear_model_cache():
@@ -2500,7 +2512,7 @@ async def rag_health_check():
     """RAGシステムヘルスチェック"""
     return {
         "status": "healthy" if rag_app.is_initialized else "initializing",
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(JST).isoformat(),
         "service": "Road Design RAG System",
         "available": RAG_AVAILABLE
     }
@@ -2541,7 +2553,7 @@ async def rag_get_system_info():
         return SystemInfoResponse(
             status="success",
             system_info=system_info,
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now(JST).isoformat()
         )
         
     except Exception as e:
@@ -2556,7 +2568,7 @@ async def rag_get_system_info():
                 },
                 "error": str(e)
             },
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now(JST).isoformat()
         )
 
 @app.post("/rag/update-settings")
@@ -2650,7 +2662,7 @@ async def rag_batch_query_documents(request: BatchQueryRequest):
             "status": "success",
             "results": [result.to_dict() for result in results],
             "total_queries": len(request.queries),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(JST).isoformat()
         }
         
     except Exception as e:
@@ -2713,7 +2725,7 @@ async def rag_list_documents(
                 "offset": offset,
                 "has_more": offset + limit < total
             },
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(JST).isoformat()
         }
         
     except Exception as e:
@@ -2731,7 +2743,7 @@ async def rag_get_statistics():
         return {
             "status": "success",
             "statistics": stats,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(JST).isoformat()
         }
         
     except Exception as e:
@@ -2776,7 +2788,7 @@ async def rag_delete_document(document_id: str):
             "status": "success",
             "message": f"Document {document_id} deleted successfully",
             "document_title": doc_metadata.title,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(JST).isoformat()
         }
         
     except HTTPException:
@@ -2892,7 +2904,7 @@ async def export_search_results(
         ids = result_ids.split(",")
         export_data = rag_app.export_search_results(ids, format=format)
         
-        filename = f"search_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{format}"
+        filename = f"search_results_{datetime.now(JST).strftime('%Y%m%d_%H%M%S')}.{format}"
         media_type = "text/csv" if format == "csv" else "application/json"
         
         return StreamingResponse(
@@ -2929,7 +2941,7 @@ async def rag_upload_document(
         upload_dir = PathlibPath("./temp_uploads")
         upload_dir.mkdir(exist_ok=True)
         
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(JST).strftime("%Y%m%d_%H%M%S")
         temp_filename = f"{timestamp}_{file.filename}"
         temp_path = upload_dir / temp_filename
         
@@ -3000,8 +3012,36 @@ async def rag_stream_query(request: QueryRequest):
 # 継続学習API
 # ============================================
 
-# 継続学習タスク管理
+# 継続学習タスク管理と永続化
+CONTINUAL_TASKS_FILE = Path(os.getcwd()) / "data" / "continual_learning" / "tasks_state.json"
 continual_tasks = {}
+
+def load_continual_tasks():
+    """保存された継続学習タスクを読み込む"""
+    global continual_tasks
+    try:
+        if CONTINUAL_TASKS_FILE.exists():
+            with open(CONTINUAL_TASKS_FILE, 'r', encoding='utf-8') as f:
+                continual_tasks = json.load(f)
+                logger.info(f"継続学習タスクを読み込みました: {len(continual_tasks)}件")
+        else:
+            continual_tasks = {}
+            logger.info("継続学習タスクファイルが存在しません。新規作成します。")
+    except Exception as e:
+        logger.error(f"継続学習タスク読み込みエラー: {str(e)}")
+        continual_tasks = {}
+
+def save_continual_tasks():
+    """継続学習タスクを保存する"""
+    try:
+        # ディレクトリが存在しない場合は作成
+        CONTINUAL_TASKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(CONTINUAL_TASKS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(continual_tasks, f, ensure_ascii=False, indent=2, default=str)
+        logger.info(f"継続学習タスクを保存しました: {len(continual_tasks)}件")
+    except Exception as e:
+        logger.error(f"継続学習タスク保存エラー: {str(e)}")
 
 # 継続学習用のモデル取得API
 @app.get("/api/continual-learning/models")
@@ -3099,10 +3139,11 @@ async def start_continual_learning(
             "task_name": config_data["task_name"],
             "status": "pending",
             "progress": 0,
-            "started_at": datetime.now().isoformat(),
+            "started_at": datetime.now(JST).isoformat(),
             "config": config_data,
             "dataset_path": str(dataset_path)
         }
+        save_continual_tasks()  # 新しいタスクを保存
         
         # バックグラウンドで継続学習を実行
         background_tasks.add_task(
@@ -3127,6 +3168,7 @@ async def run_continual_learning_background(task_id: str, config: dict, dataset_
         # タスクステータスを更新
         continual_tasks[task_id]["status"] = "running"
         continual_tasks[task_id]["message"] = "継続学習を準備中..."
+        save_continual_tasks()  # タスクの状態を保存
         
         logger.info(f"継続学習タスク開始: {task_id}")
         logger.info(f"設定: {config}")
@@ -3153,6 +3195,7 @@ async def run_continual_learning_background(task_id: str, config: dict, dataset_
             continual_tasks[task_id]["current_epoch"] = epoch + 1
             continual_tasks[task_id]["total_epochs"] = total_epochs
             continual_tasks[task_id]["message"] = f"エポック {epoch + 1}/{total_epochs} を実行中..."
+            save_continual_tasks()  # 進捗を保存
             
             logger.info(f"タスク {task_id}: エポック {epoch + 1}/{total_epochs}")
             
@@ -3169,10 +3212,11 @@ async def run_continual_learning_background(task_id: str, config: dict, dataset_
         # 完了
         continual_tasks[task_id]["status"] = "completed"
         continual_tasks[task_id]["message"] = "継続学習が完了しました"
-        continual_tasks[task_id]["completed_at"] = datetime.now().isoformat()
+        continual_tasks[task_id]["completed_at"] = datetime.now(JST).isoformat()
+        save_continual_tasks()  # 完了状態を保存
         
         # 出力パスを設定（モデル管理と同じ形式）
-        output_dir = f"outputs/continual_{config.get('task_name')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        output_dir = f"outputs/continual_{config.get('task_name')}_{datetime.now(JST).strftime('%Y%m%d_%H%M%S')}"
         continual_tasks[task_id]["output_path"] = output_dir
         
         # モデル管理に登録するための情報を保存
@@ -3181,7 +3225,7 @@ async def run_continual_learning_background(task_id: str, config: dict, dataset_
             "path": output_dir,
             "base_model": base_model_path,
             "training_method": "continual_ewc",
-            "created_at": datetime.now().isoformat(),
+            "created_at": datetime.now(JST).isoformat(),
             "training_params": {
                 "epochs": config.get("epochs", 3),
                 "learning_rate": config.get("learning_rate", 2e-5),
@@ -3197,6 +3241,7 @@ async def run_continual_learning_background(task_id: str, config: dict, dataset_
             json.dump(model_info, f, ensure_ascii=False, indent=2)
         
         continual_tasks[task_id]["model_info"] = model_info
+        save_continual_tasks()  # モデル情報を保存
         
         logger.info(f"継続学習タスク完了: {task_id}")
         
@@ -3206,6 +3251,7 @@ async def run_continual_learning_background(task_id: str, config: dict, dataset_
         continual_tasks[task_id]["status"] = "failed"
         continual_tasks[task_id]["message"] = f"エラー: {str(e)}"
         continual_tasks[task_id]["error"] = str(e)
+        save_continual_tasks()  # エラー状態を保存
 
 @app.get("/api/continual-learning/tasks")
 async def get_continual_tasks():

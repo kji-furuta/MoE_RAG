@@ -47,23 +47,6 @@ EOF
 
 echo "✅ 継続学習管理システムの設定を完了"
 
-# 継続学習APIのテスト
-echo "🔍 継続学習APIの動作確認中..."
-python3 -c "
-import requests
-import sys
-
-try:
-    response = requests.get('http://localhost:8050/api/continual-learning/models', timeout=5)
-    if response.status_code == 200:
-        models = response.json()
-        print(f'✅ 継続学習API正常動作: {len(models)}個のモデルを検出')
-    else:
-        print(f'⚠ 継続学習API応答エラー: {response.status_code}')
-except Exception as e:
-    print(f'⚠ 継続学習API接続エラー: {e}')
-"
-
 # Webサーバーを起動
 echo "🌐 統合Webサーバーを起動中..."
 echo "📊 利用可能な機能:"

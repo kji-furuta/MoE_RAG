@@ -928,13 +928,9 @@ async def run_training_task(task_id: str, request: TrainingRequest):
 # 競合するルートハンドラーを削除 - テンプレートベースのルートハンドラーを使用
 
 @app.get("/manual", response_class=HTMLResponse)
-async def manual_page():
+async def manual_page(request: Request):
     """利用マニュアルページ"""
-    # TODO: Create manual.html template in templates directory
-    return HTMLResponse(
-        content="<h1>Manual page not implemented yet</h1>", 
-        status_code=404
-    )
+    return templates.TemplateResponse("readme.html", {"request": request})
 
 @app.get("/system-overview", response_class=HTMLResponse)
 async def system_overview_page():

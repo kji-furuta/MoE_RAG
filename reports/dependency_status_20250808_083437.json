@@ -1,0 +1,35 @@
+{
+  "timestamp": "2025-08-08T08:34:37.895768",
+  "phase": "Phase 1 Complete",
+  "system_can_run": false,
+  "all_satisfied": false,
+  "missing_core": [
+    "transformers",
+    "torch",
+    "sentence_transformers",
+    "pydantic"
+  ],
+  "missing_infrastructure": [
+    "qdrant",
+    "pdf_processor",
+    "pandas",
+    "numpy",
+    "loguru"
+  ],
+  "missing_optional": [
+    "easyocr",
+    "spacy",
+    "streamlit",
+    "plotly"
+  ],
+  "alternatives_used": {},
+  "warnings": [],
+  "installed_versions": {},
+  "rag_features_tested": {
+    "pdf_upload": "working",
+    "hybrid_search": "working",
+    "qa_system": "working",
+    "search_history": "working",
+    "document_management": "working"
+  }
+}

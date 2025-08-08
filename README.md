@@ -68,7 +68,7 @@ Dockerベースの統合Webインターフェースで、日本語大規模言�
 - **マルチGPU対応**: DataParallel/DistributedDataParallel
 
 ### 🧠 メモリ最適化（新機能）
-- **動的量子化**: 32B/22Bモデルは4bit、7B/8Bモデルは8bit量子化を自動選択
+- **動的量子化**: 32B/22Bモデルは4bit、7B/8bitモデルは8bit量子化を自動選択
 - **CPUオフロード**: GPUメモリ不足時の自動CPU実行
 - **メモリ監視**: リアルタイムメモリ使用量の監視と警告
 - **モデルキャッシュ**: 効率的なモデル再利用
@@ -489,7 +489,7 @@ python3 scripts/test_specialized_features.py
 |:---|:---|:---|:---|
 | **速度** | km/h, m/s | 60km/h, 16.7m/s | 設計速度、制限速度 |
 | **長さ** | m, km, mm, cm | 150m, 2.5km | 曲線半径、幅員、延長 |
-| **勾配** | % | 5%, 8% | 縦断勾配、横断勾配 |
+| **勾配** | %, % | 5%, 8% | 縦断勾配、横断勾配 |
 | **角度** | 度, °, rad | 30度, 0.52rad | 交角、偏角 |
 | **面積** | m², km² | 25m², 1.5km² | 断面積、用地面積 |
 | **荷重** | kN, t | 245kN, 25t | 軸重、輪荷重 |
@@ -641,6 +641,14 @@ AI_FT_3/
 
 ## 📅 更新履歴
 
+### v2.4.0 (2025-08-08) - フェーズ2完了: 依存関係管理と監視機能の強化
+- ✅ **フェーズ2完了**: 依存関係管理、監視、包括的なテストスイートを含む、より堅牢なシステムへ移行。
+- ✅ **依存関係チェッカー**: `scripts/check_docker_dependencies.sh` や `scripts/check_rag_dependencies.py` により、環境の健全性を自動で検証。
+- ✅ **システム監視ガイド**: Grafana を利用した詳細な監視方法を `docs/MONITORING_GRAFANA_GUIDE.md` に追加。
+- ✅ **パフォーマンス最適化**: `docs/PERFORMANCE_OPTIMIZATION_GUIDE.md` に基づく最適化を実施。
+- ✅ **本番移行ガイド**: `docs/NEXT_STEPS_PRODUCTION.md` にて、本番環境へのデプロイ手順を詳述。
+- ✅ **テストスイート拡充**: フェーズ2完了を検証するためのテストスクリプト (`run_phase2_complete_test.sh`) を追加。
+
 ### v2.3.0 (2025-08-03) - Bootstrap統合とUI改善
 - ✅ Bootstrap CSSとJavaScriptをbase.htmlに統合
 - ✅ RAGシステムの検索履歴表示ボタンエラー修正
@@ -707,6 +715,11 @@ AI_FT_3/
 - [大規模モデルセットアップ](docs/LARGE_MODEL_SETUP.md) - 32B+モデルの設定方法
 - [マルチGPU最適化](docs/MULTI_GPU_OPTIMIZATION.md) - 分散学習の設定
 - [RAGアーキテクチャ](docs/ROAD_DESIGN_RAG_ARCHITECTURE.md) - RAGシステムの設計仕様
+- **[NEW]** [依存関係管理](docs/DEPENDENCY_MANAGEMENT.md) - プロジェクトの依存関係についての詳細
+- **[NEW]** [パフォーマンス最適化ガイド](docs/PERFORMANCE_OPTIMIZATION_GUIDE.md) - システムのパフォーマンスを向上させるためのガイド
+- **[NEW]** [監視ガイド（Grafana）](docs/MONITORING_GRAFANA_GUIDE.md) - Grafanaを使用した監視設定
+- **[NEW]** [本番移行への次のステップ](docs/NEXT_STEPS_PRODUCTION.md) - 本番環境への展開に関する考慮事項
+- **[NEW]** [フェーズ2テストガイド](docs/PHASE2_TEST_GUIDE.md) - フェーズ2のテスト手順
 
 ### 🌐 Webドキュメント
 - **利用マニュアル**: http://localhost:8050/manual
@@ -877,4 +890,3 @@ curl http://localhost:8050/api/system-info
 - **メモリ不足**: バッチサイズを1に削減
 - **学習が止まる**: GPUメモリ使用量を確認
 - **モデル保存エラー**: ディスク容量を確認
-

@@ -123,12 +123,12 @@ docker-compose up -d --build
 docker-compose up -d
 ```
 
-### 4. 統合Webインターフェースの起動
+### 4. 統合Webインターフェースの起動ocker exec ai-ft-container bash /workspace/scripts/start_web_interface.sh
 
 #### 方法1: 自動起動スクリプト（推奨）
 ```bash
 # コンテナ内で統合インターフェース起動
-docker exec ai-ft-container bash /workspace/scripts/start_web_interface.sh
+d
 ```
 
 #### 方法2: 手動起動（トラブルシューティング用）
@@ -778,6 +778,73 @@ docker logs ai-ft-container --tail 20
 ```
 
 **🚀 5分でファインチューニング・RAG開始！**
+
+### 📊 監視システム（Prometheus + Grafana）
+
+統合監視システムにより、アプリケーションのパフォーマンスとリソース使用状況をリアルタイムで監視できます。
+
+#### 監視システムの起動
+
+```bash
+# 監視統合環境の起動（メインアプリケーション + 監視ツール）
+./scripts/start_monitoring_with_main.sh
+
+# または個別に起動
+./scripts/manage_services.sh start-all  # すべて起動
+./scripts/manage_services.sh start-app  # アプリケーションのみ
+./scripts/manage_services.sh start-monitor  # 監視ツールのみ
+```
+
+#### アクセスURL
+
+- **Grafana ダッシュボード**: http://localhost:3000
+  - ログイン: admin/admin
+  - AI Fine-tuning Toolkit Dashboard で監視
+  
+- **Prometheus**: http://localhost:9090
+  - メトリクス確認とクエリ実行
+  
+- **メトリクスエンドポイント**: http://localhost:8050/metrics
+  - Prometheus形式のメトリクス出力
+
+#### 監視可能なメトリクス
+
+- **システムメトリクス**
+  - `ai_ft_cpu_usage_percent`: CPU使用率
+  - `ai_ft_memory_usage_percent`: メモリ使用率
+  - `ai_ft_gpu_available`: GPU利用可能状態
+  - `ai_ft_gpu_count`: GPU数
+  - `ai_ft_gpu_memory_used_mb`: GPU メモリ使用量
+
+- **アプリケーションメトリクス**
+  - `ai_ft_http_requests_total`: HTTPリクエスト数
+  - `ai_ft_rag_queries_total`: RAGクエリ数
+  - `ai_ft_training_tasks_total`: トレーニングタスク数
+  - `ai_ft_cache_hits_total`: キャッシュヒット数
+
+#### Grafanaダッシュボードの設定
+
+```bash
+# ダッシュボードの自動設定
+./scripts/setup_grafana_dashboard.sh
+```
+
+#### サービス管理コマンド
+
+```bash
+# 状態確認
+./scripts/manage_services.sh status
+
+# アプリケーション再起動
+./scripts/manage_services.sh restart-app
+
+# ログ確認
+./scripts/manage_services.sh logs-app      # アプリケーションログ
+./scripts/manage_services.sh logs-monitor  # 監視サービスログ
+
+# 停止
+./scripts/manage_services.sh stop-all      # すべて停止
+```
 
 ### 🔧 トラブルシューティング
 

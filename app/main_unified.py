@@ -61,6 +61,16 @@ except ImportError as e:
     RAG_AVAILABLE = False
     logger.warning(f"RAG system not available: {e}")
 
+# Prometheusメトリクスのインポート
+try:
+    from app.monitoring import metrics_collector, get_prometheus_metrics
+    logger.info("Prometheusメトリクスをインポートしました")
+    METRICS_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"メトリクスシステムのインポートをスキップ: {e}")
+    metrics_collector = None
+    METRICS_AVAILABLE = False
+
 # FastAPIアプリケーション初期化
 app = FastAPI(
     title="AI Fine-tuning Toolkit",
@@ -1862,6 +1872,37 @@ async def get_system_info():
             "ram": {"total": "Unknown", "used": "Unknown", "free": "Unknown", "percent": "Unknown"},
             "cache": {"status": "Unknown"}
         }
+
+@app.get("/metrics")
+async def get_metrics():
+    """Prometheusメトリクスエンドポイント"""
+    if METRICS_AVAILABLE and metrics_collector:
+        try:
+            # システムメトリクスを更新
+            metrics_collector.update_system_metrics()
+            
+            # トレーニングタスク数を更新
+            active_tasks = sum(1 for task in training_tasks.values() if task["status"] == "running")
+            metrics_collector.set_active_training_tasks(active_tasks)
+            
+            # RAG文書数を更新（RAGが利用可能な場合）
+            if RAG_AVAILABLE:
+                try:
+                    metadata_manager = MetadataManager()
+                    doc_count = len(metadata_manager.get_all_documents())
+                    metrics_collector.set_rag_documents_count(doc_count)
+                except:
+                    pass
+            
+            # メトリクスを返す
+            return get_prometheus_metrics()
+        except Exception as e:
+            logger.error(f"メトリクス生成エラー: {e}")
+            from fastapi.responses import Response
+            return Response(content="# Error generating metrics\n", media_type="text/plain")
+    else:
+        from fastapi.responses import Response
+        return Response(content="# Metrics not available\n", media_type="text/plain")
 
 # アプリケーション起動時の初期化
 @app.on_event("startup")

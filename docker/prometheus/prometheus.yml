@@ -1,0 +1,33 @@
+# Prometheus設定ファイル
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'ai-ft-monitor'
+
+scrape_configs:
+  # AI-FTアプリケーションのメトリクス
+  - job_name: 'ai-ft-app'
+    static_configs:
+      - targets: ['ai-ft:8050']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # Redis Exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 10s
+
+  # Node Exporter (システムメトリクス)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 10s
+
+  # Qdrant Vector DB
+  - job_name: 'qdrant'
+    static_configs:
+      - targets: ['qdrant:6334']
+    metrics_path: '/metrics'
+    scrape_interval: 30s

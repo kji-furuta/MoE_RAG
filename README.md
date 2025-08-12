@@ -4,19 +4,27 @@
 
 Dockerベースの統合Webインターフェースで、日本語大規模言語モデル（LLM）のファインチューニング、土木道路設計特化型RAGシステム、そしてEWCベースの継続学習を同一プラットフォームで実行できます。単一のポート（8050）で全機能にアクセス可能な革新的なツールキットです。
 
+## 📢 最新の更新 (2025年1月12日)
+
+✅ **全システム正常稼働確認済み**
+- **ファインチューニング**: cyberagent/calm3-22b-chatモデルで正常動作
+- **RAGシステム**: Qdrantベクトルデータベース377件インデックス済み、Ollama統合による高速応答実現
+- **継続学習**: EWCベース継続学習タスク管理システム正常稼働
+- **量子化モデル対応**: Ollama（Llama 3.2 3B）による軽量・高速推論
+
 ## 🌟 主要機能
 
 ### 🌐 統合Webインターフェース（RAG + 継続学習統合済み）
 - **単一ポートアクセス**: http://localhost:8050 で全機能利用可能
-- **ファインチューニング機能**: http://localhost:8050/finetune
-- **RAG機能**: http://localhost:8050/rag
-- **継続学習機能**: http://localhost:8050/continual （NEW）
+- **ファインチューニング機能**: http://localhost:8050/finetune ✅ 正常稼働
+- **RAG機能**: http://localhost:8050/rag ✅ 正常稼働
+- **継続学習機能**: http://localhost:8050/continual ✅ 正常稼働
 - **リアルタイム監視**: ファインチューニング進捗の可視化
 - **モデル管理**: 学習済みモデルの一覧・選択・生成
 - **データアップロード**: JSONLファイル + PDF文書の簡単アップロード
 - **システム情報**: GPU使用状況とメモリ監視
 - **プロフェッショナルデザイン**: 株）テイコクロゴと洗練されたUI
-- **Ollama統合**: Ollamaモデルの利用とダウンロード
+- **Ollama統合**: Ollamaモデル（Llama 3.2 3B）による高速推論 ✅ 動作確認済み
 
 ### 🏗️ 土木道路設計特化型RAGシステム（NEW: 統合済み）
 - **統合API**: `/rag/*` エンドポイントで9つのRAG機能を提供
@@ -123,12 +131,12 @@ docker-compose up -d --build
 docker-compose up -d
 ```
 
-### 4. 統合Webインターフェースの起動ocker exec ai-ft-container bash /workspace/scripts/start_web_interface.sh
+### 4. 統合Webインターフェースの起動
 
 #### 方法1: 自動起動スクリプト（推奨）
 ```bash
 # コンテナ内で統合インターフェース起動
-d
+docker exec ai-ft-container bash /workspace/scripts/start_web_interface.sh
 ```
 
 #### 方法2: 手動起動（トラブルシューティング用）

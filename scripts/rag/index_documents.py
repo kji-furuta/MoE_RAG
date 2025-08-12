@@ -13,6 +13,9 @@ import json
 from loguru import logger
 import uuid
 
+# Matplotlib用の環境変数を設定
+os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib_cache'
+
 # プロジェクトルートをパスに追加
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -33,8 +36,8 @@ def setup_logging(log_level: str = "INFO"):
     )
     
     # ファイルログも追加
-    log_file = Path("logs") / "indexing.log"
-    log_file.parent.mkdir(exist_ok=True)
+    log_file = Path("/workspace/logs") / "indexing.log"
+    log_file.parent.mkdir(exist_ok=True, parents=True)
     logger.add(
         log_file,
         level=log_level,

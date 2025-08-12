@@ -60,12 +60,37 @@ class LLMGenerator:
         self.tokenizer = None
         self.model = None
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.use_ollama_fallback = False
+        self.use_ollama_fallback = True  # デフォルトでOllamaを使用
         self.ollama = None
         
-        if load_model:
-            self._load_model()
+        # Ollamaモードを優先的に初期化
+        self._enable_ollama_fallback()
         
+        # 明示的にファインチューニングモデルが指定された場合のみローカルモデルを試行
+        if load_model and hasattr(config.llm, 'use_finetuned') and config.llm.use_finetuned:
+            # メモリチェック後にモデルロードを判断
+            if self._check_memory_for_model():
+                self._load_model()
+            else:
+                logger.info("メモリ不足のため、Ollamaフォールバックを使用します")
+        
+    def _check_memory_for_model(self) -> bool:
+        """モデルロードのための十分なメモリがあるかチェック"""
+        if not torch.cuda.is_available():
+            return False
+            
+        # 全GPUのメモリをチェック
+        gpu_count = torch.cuda.device_count()
+        max_free_memory = 0
+        
+        for i in range(gpu_count):
+            free_memory = torch.cuda.mem_get_info(i)[0] / (1024**3)
+            max_free_memory = max(max_free_memory, free_memory)
+        
+        # 22Bモデルには最低30GBが必要
+        required_memory = 30
+        return max_free_memory >= required_memory
+    
     def _load_model(self):
         """モデルを読み込み（メモリ最適化）"""
         
@@ -242,17 +267,23 @@ class LLMGenerator:
             # Qwen2ForCausalLM以外のモデルの場合のみoffload_dirを追加
             try:
                 # モデル名をチェックしてQwen2ForCausalLMかどうかを判定
-                model_name = llm_config.get('model_name', '').lower()
-                if 'qwen' not in model_name or 'qwen2' not in model_name:
+                if hasattr(llm_config, 'model_name'):
+                    model_name = str(llm_config.model_name).lower()
+                elif hasattr(llm_config, 'base_model'):
+                    model_name = str(llm_config.base_model).lower()
+                else:
+                    model_name = ''
+                    
+                if 'qwen' not in model_name:
                     model_kwargs.update({
-                        'offload_dir': offload_dir,  # オフロードディレクトリを追加
+                        'offload_folder': offload_dir,  # オフロードディレクトリを追加
                         'offload_state_dict': True   # 状態辞書のオフロードを有効化
                     })
-                    logger.info("offload_dirを有効化しました")
+                    logger.info("offload_folderを有効化しました")
                 else:
-                    logger.info("Qwen2ForCausalLMのため、offload_dirを無効化しました")
+                    logger.info("Qwen2ForCausalLMのため、offload_folderを無効化しました")
             except Exception as e:
-                logger.warning(f"モデルタイプ判定エラー: {e}。offload_dirを無効化します")
+                logger.warning(f"モデルタイプ判定エラー: {e}。offload_folderを無効化します")
         else:
             # CPUモード
             logger.info("CPUモードで実行します")
@@ -314,25 +345,42 @@ class LLMGenerator:
                 truncation=True,
                 max_length=4096 - max_tokens,
                 padding=True
-            ).to(self.device)
+            )
             
-            # 生成実行
+            # モデルがロードされているデバイスに送る
+            if hasattr(self.model, 'device'):
+                inputs = inputs.to(self.model.device)
+            else:
+                inputs = inputs.to(self.device)
+            
+            # 生成実行（タイムアウト設定を追加）
+            logger.info(f"Starting generation with max_tokens={max_tokens}")
+            
+            # 生成パラメータを調整（大規模モデル用の最適化）
+            generation_kwargs = {
+                'max_new_tokens': min(max_tokens, 512),  # 最大512トークンに制限
+                'temperature': llm_config.temperature,
+                'top_p': llm_config.top_p,
+                'repetition_penalty': llm_config.repetition_penalty,
+                'do_sample': True,
+                'pad_token_id': self.tokenizer.eos_token_id,
+                'eos_token_id': self.tokenizer.eos_token_id,
+                'early_stopping': True  # 早期停止を有効化
+            }
+            
             with torch.no_grad():
                 outputs = self.model.generate(
                     **inputs,
-                    max_new_tokens=max_tokens,
-                    temperature=llm_config.temperature,
-                    top_p=llm_config.top_p,
-                    repetition_penalty=llm_config.repetition_penalty,
-                    do_sample=True,
-                    pad_token_id=self.tokenizer.eos_token_id
+                    **generation_kwargs
                 )
+            logger.info(f"Generation completed, output shape: {outputs.shape}")
                 
             # デコード
             generated_text = self.tokenizer.decode(
                 outputs[0][inputs['input_ids'].shape[1]:],
                 skip_special_tokens=True
             )
+            logger.info(f"Generated text length: {len(generated_text)}")
             
             return generated_text.strip()
             

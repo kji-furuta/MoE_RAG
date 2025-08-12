@@ -1,0 +1,63 @@
+# Default configuration for AI Fine-Tuning Project
+
+# Model Configuration
+model:
+  name: "bert-base-uncased"  # or any Hugging Face model
+  num_labels: 2
+  dropout_rate: 0.1
+  max_length: 512
+
+# Training Configuration
+training:
+  batch_size: 16
+  learning_rate: 2e-5
+  num_epochs: 3
+  warmup_steps: 500
+  weight_decay: 0.01
+  gradient_accumulation_steps: 1
+  fp16: true
+  evaluation_strategy: "steps"
+  eval_steps: 500
+  save_steps: 1000
+  logging_steps: 100
+  save_total_limit: 3
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+
+# Data Configuration
+data:
+  train_file: "data/train.csv"
+  validation_file: "data/valid.csv"
+  test_file: "data/test.csv"
+  text_column: "text"
+  label_column: "label"
+  max_train_samples: null
+  max_val_samples: null
+  preprocessing_num_workers: 4
+
+# Paths
+paths:
+  output_dir: "./outputs"
+  logging_dir: "./logs"
+  cache_dir: "./cache"
+  model_save_dir: "./models"
+
+# Experiment Tracking
+tracking:
+  use_wandb: true
+  wandb_project: "ai-ft-7"
+  wandb_entity: null
+  use_mlflow: false
+  mlflow_tracking_uri: "mlruns"
+
+# Hardware Configuration
+hardware:
+  device: "cuda"  # or "cpu"
+  n_gpu: 1
+  seed: 42
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

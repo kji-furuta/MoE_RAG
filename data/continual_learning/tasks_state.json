@@ -142,5 +142,113 @@
       },
       "task_history": "task_4"
     }
+  },
+  "746452aa-f701-4c55-9f32-c054231f9926": {
+    "task_id": "746452aa-f701-4c55-9f32-c054231f9926",
+    "task_name": "task_5",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-08-12T09:54:21.280055+09:00",
+    "config": {
+      "base_model": "outputs/フルファインチューニング_20250811_174504",
+      "task_name": "task_5",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/7640cff1-35f9-4eef-a521-fa77d30f796c_conc_data.jsonl",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-08-12T09:54:39.006728+09:00",
+    "output_path": "outputs/continual_task_5_20250812_095439",
+    "model_info": {
+      "name": "continual_task_5",
+      "path": "outputs/continual_task_5_20250812_095439",
+      "base_model": "outputs/フルファインチューニング_20250811_174504",
+      "training_method": "continual_ewc",
+      "created_at": "2025-08-12T09:54:39.007502+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 5000,
+        "use_previous_tasks": true
+      },
+      "task_history": "task_5"
+    }
+  },
+  "366ecf0b-e2e6-4312-bad4-60a5fbe26a2a": {
+    "task_id": "366ecf0b-e2e6-4312-bad4-60a5fbe26a2a",
+    "task_name": "task_5",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-08-12T09:56:12.558765+09:00",
+    "config": {
+      "base_model": "outputs/フルファインチューニング_20250811_174504",
+      "task_name": "task_5",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/ce3c7f3a-5aed-432d-9771-a52b6c092efe_conc_data.jsonl",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-08-12T09:56:27.562315+09:00",
+    "output_path": "outputs/continual_task_5_20250812_095627",
+    "model_info": {
+      "name": "continual_task_5",
+      "path": "outputs/continual_task_5_20250812_095627",
+      "base_model": "outputs/フルファインチューニング_20250811_174504",
+      "training_method": "continual_ewc",
+      "created_at": "2025-08-12T09:56:27.562923+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 5000,
+        "use_previous_tasks": true
+      },
+      "task_history": "task_5"
+    }
+  },
+  "4c4b579a-b3e7-41b2-a2a2-0c312a701fb0": {
+    "task_id": "4c4b579a-b3e7-41b2-a2a2-0c312a701fb0",
+    "task_name": "task_6",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-08-12T14:00:13.430762+09:00",
+    "config": {
+      "base_model": "outputs/フルファインチューニング_20250812_133238",
+      "task_name": "task_6",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/f8cc6cc7-d587-4023-a8f0-3a35a0dea441_conc_data.jsonl",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-08-12T14:00:31.163659+09:00",
+    "output_path": "outputs/continual_task_6_20250812_140031",
+    "model_info": {
+      "name": "continual_task_6",
+      "path": "outputs/continual_task_6_20250812_140031",
+      "base_model": "outputs/フルファインチューニング_20250812_133238",
+      "training_method": "continual_ewc",
+      "created_at": "2025-08-12T14:00:31.164450+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 5000,
+        "use_previous_tasks": true
+      },
+      "task_history": "task_6"
+    }
   }
 }

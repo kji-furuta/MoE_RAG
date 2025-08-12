@@ -37,14 +37,15 @@ llm:
   max_memory:
     0: 36GB
     1: 36GB
-  max_new_tokens: 2048
-  model_name: outputs/フルファインチューニング_20250808_101703
-  model_path: outputs/フルファインチューニング_20250808_101703
+  max_new_tokens: 512
+  model_name: outputs/フルファインチューニング_20250812_133238
+  model_path: outputs/フルファインチューニング_20250812_133238
   repetition_penalty: 1.1
   temperature: 0.1
   top_p: 0.95
   torch_dtype: float16
   use_finetuned: true
+  use_ollama_fallback: true
 performance:
   batch_processing:
     batch_size: 50

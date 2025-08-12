@@ -3,10 +3,10 @@
 ## アーキテクチャ構成
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   RAG App   │────▶│  Prometheus  │────▶│   Grafana   │
-│  (Metrics)  │     │  (Storage)   │     │ (Visualize) │
-└─────────────┘     └──────────────┘     └─────────────┘
+┌─────────────┐      ┌──────────────┐      ┌─────────────┐
+│   RAG App   │────▶│  Prometheus   │────▶│   Grafana   │
+│  (Metrics)  │      │  (Storage)   │      │ (Visualize) │
+└─────────────┘      └──────────────┘      └─────────────┘
        │                    │                     │
        ▼                    ▼                     ▼
   Export Metrics      Scrape & Store         Dashboard

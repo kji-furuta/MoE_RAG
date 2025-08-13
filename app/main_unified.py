@@ -394,6 +394,35 @@ class RAGApplication:
         else:
             # JSON format
             return json.dumps(results, ensure_ascii=False, indent=2).encode("utf-8")
+    
+    def delete_search_history_item(self, result_id: str) -> bool:
+        """検索履歴の個別アイテムを削除"""
+        try:
+            # ファイルパスの安全性チェック
+            if ".." in result_id or "/" in result_id or "\\" in result_id:
+                logger.error(f"Invalid result_id: {result_id}")
+                return False
+            
+            file_path = self.search_history_dir / f"{result_id}.json"
+            
+            # ファイルが存在するか確認
+            if not file_path.exists():
+                logger.warning(f"Search history item not found: {result_id}")
+                return False
+            
+            # search_history_dir配下であることを確認
+            if not str(file_path.resolve()).startswith(str(self.search_history_dir.resolve())):
+                logger.error(f"Invalid file path: {file_path}")
+                return False
+            
+            # ファイルを削除
+            file_path.unlink()
+            logger.info(f"Deleted search history item: {result_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error deleting search history item {result_id}: {e}")
+            return False
 
 # RAGアプリケーションインスタンス
 rag_app = RAGApplication()
@@ -2152,6 +2181,66 @@ async def get_available_models():
         logger.error(f"モデル一覧取得エラー: {str(e)}")
         return {"finetuned_models": [], "ollama_models": [], "error": str(e)}
 
+@app.delete("/api/models/{model_name}")
+async def delete_model(model_name: str):
+    """ファインチューニング済みモデルを削除"""
+    import shutil
+    
+    try:
+        # パスの安全性チェック（ディレクトリトラバーサル対策）
+        # URLエンコードされたスラッシュも考慮
+        if ".." in model_name or "/" in model_name or "\\" in model_name or "%2F" in model_name or "%2f" in model_name:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "error": "Invalid model name"}
+            )
+        
+        # モデルディレクトリのパスを構築
+        model_path = Path("outputs") / model_name
+        
+        # モデルディレクトリの存在確認
+        if not model_path.exists():
+            return JSONResponse(
+                status_code=404,
+                content={"success": False, "error": f"Model '{model_name}' not found"}
+            )
+        
+        # モデルディレクトリかどうか確認
+        if not model_path.is_dir():
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "error": "Invalid model path"}
+            )
+        
+        # outputsディレクトリ配下であることを確認
+        outputs_dir = Path("outputs").resolve()
+        model_path_resolved = model_path.resolve()
+        if not str(model_path_resolved).startswith(str(outputs_dir)):
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "error": "Invalid model location"}
+            )
+        
+        # モデルディレクトリを削除
+        logger.info(f"Deleting model: {model_name}")
+        shutil.rmtree(model_path)
+        
+        logger.info(f"Model '{model_name}' deleted successfully")
+        return {"success": True, "message": f"Model '{model_name}' deleted successfully"}
+        
+    except PermissionError:
+        logger.error(f"Permission denied when deleting model: {model_name}")
+        return JSONResponse(
+            status_code=403,
+            content={"success": False, "error": "Permission denied"}
+        )
+    except Exception as e:
+        logger.error(f"Error deleting model '{model_name}': {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
 @app.post("/api/generate-stream")
 async def generate_text_stream(request: dict):
     """ストリーミング対応のテキスト生成"""
@@ -2909,6 +2998,32 @@ async def get_search_history(
         
     except Exception as e:
         logger.error(f"Failed to get search history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/rag/search-history/{result_id}")
+async def delete_search_history_item(result_id: str):
+    """検索履歴の個別アイテムを削除"""
+    try:
+        rag_app.check_initialized()
+        
+        # 削除を実行
+        success = rag_app.delete_search_history_item(result_id)
+        
+        if success:
+            return {
+                "status": "success",
+                "message": f"Search history item '{result_id}' deleted successfully"
+            }
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Search history item '{result_id}' not found"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete search history item: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/rag/search-result/{result_id}")

@@ -123,6 +123,10 @@
     background: #e74c3c;
 }
 
+.feature-badge.success {
+    background: #27ae60;
+}
+
 .warning-box {
     background: #fff3cd;
     border: 1px solid #ffeab5;
@@ -164,23 +168,35 @@
             <p><span class="emoji">💡</span>Dockerベースの統合Webインターフェースで、日本語大規模言語モデル（LLM）のファインチューニング、土木道路設計特化型RAGシステム、そしてEWCベースの継続学習を同一プラットフォームで実行できます。単一のポート（8050）で全機能にアクセス可能な革新的なツールキットです。</p>
         </div>
 
+        <h2>📢 最新の更新 (2025年1月13日)</h2>
+        
+        <div class="success-box">
+            <p><span class="emoji">✅</span><strong>全システム正常稼働確認済み</strong></p>
+            <ul>
+                <li><strong>ファインチューニング</strong>: cyberagent/calm3-22b-chatモデルで正常動作</li>
+                <li><strong>RAGシステム</strong>: Qdrantベクトルデータベース377件インデックス済み、Ollama統合による高速応答実現</li>
+                <li><strong>継続学習</strong>: EWCベース継続学習タスク管理システム正常稼働</li>
+                <li><strong>量子化モデル対応</strong>: Ollama（Llama 3.2 3B）による軽量・高速推論</li>
+            </ul>
+        </div>
+
         <h2>🌟 主要機能</h2>
         
         <h3>🌐 統合Webインターフェース（RAG + 継続学習統合済み）</h3>
         <ul>
             <li><strong>単一ポートアクセス</strong>: http://localhost:8050 で全機能利用可能</li>
-            <li><strong>ファインチューニング機能</strong>: http://localhost:8050/finetune</li>
-            <li><strong>RAG機能</strong>: http://localhost:8050/rag</li>
-            <li><strong>継続学習機能</strong>: http://localhost:8050/continual <span class="feature-badge new">NEW</span></li>
+            <li><strong>ファインチューニング機能</strong>: http://localhost:8050/finetune <span class="feature-badge success">✅ 正常稼働</span></li>
+            <li><strong>RAG機能</strong>: http://localhost:8050/rag <span class="feature-badge success">✅ 正常稼働</span></li>
+            <li><strong>継続学習機能</strong>: http://localhost:8050/continual <span class="feature-badge success">✅ 正常稼働</span></li>
             <li><strong>リアルタイム監視</strong>: ファインチューニング進捗の可視化</li>
             <li><strong>モデル管理</strong>: 学習済みモデルの一覧・選択・生成</li>
             <li><strong>データアップロード</strong>: JSONLファイル + PDF文書の簡単アップロード</li>
             <li><strong>システム情報</strong>: GPU使用状況とメモリ監視</li>
             <li><strong>プロフェッショナルデザイン</strong>: 株）テイコクロゴと洗練されたUI</li>
-            <li><strong>Ollama統合</strong>: Ollamaモデルの利用とダウンロード</li>
+            <li><strong>Ollama統合</strong>: Ollamaモデル（Llama 3.2 3B）による高速推論 <span class="feature-badge success">✅ 動作確認済み</span></li>
         </ul>
 
-        <h3>🏗️ 土木道路設計特化型RAGシステム <span class="feature-badge new">統合済み</span></h3>
+        <h3>🏗️ 土木道路設計特化型RAGシステム <span class="feature-badge new">NEW: 統合済み</span></h3>
         <ul>
             <li><strong>統合API</strong>: <code>/rag/*</code> エンドポイントで9つのRAG機能を提供</li>
             <li><strong>モデル選択UI</strong>: ファインチューニング済みモデルをRAGで使用可能 <span class="feature-badge new">NEW</span></li>
@@ -379,7 +395,6 @@ docker exec -d ai-ft-container python -m uvicorn app.main_unified:app --host 0.0
             <li><strong>統合ダッシュボード</strong>: <a href="http://localhost:8050/" target="_blank">http://localhost:8050/</a></li>
             <li><strong>ファインチューニング</strong>: <a href="http://localhost:8050/finetune" target="_blank">http://localhost:8050/finetune</a></li>
             <li><strong>RAGシステム</strong>: <a href="http://localhost:8050/rag" target="_blank">http://localhost:8050/rag</a></li>
-            <li><strong>継続学習</strong>: <a href="http://localhost:8050/continual" target="_blank">http://localhost:8050/continual</a></li>
             <li><strong>モデル管理</strong>: <a href="http://localhost:8050/models" target="_blank">http://localhost:8050/models</a></li>
         </ul>
 
@@ -396,7 +411,6 @@ docker exec -d ai-ft-container python -m uvicorn app.main_unified:app --host 0.0
                     <li>文書統計・メタデータ管理</li>
                 </ul>
             </li>
-            <li><strong>継続学習</strong>: EWCベースの継続学習 <span class="feature-badge new">NEW</span></li>
             <li><strong>テキスト生成</strong>: 学習済みモデルでの推論</li>
             <li><strong>モデル管理</strong>: 利用可能モデルと学習済みモデル一覧</li>
             <li><strong>マニュアル</strong>: <code>/manual</code> - 詳細な利用方法</li>
@@ -548,31 +562,6 @@ docker exec -d ai-ft-container python -m uvicorn app.main_unified:app --host 0.0
             </li>
         </ol>
 
-        <h4>🔄 <strong>継続学習</strong> (<code>/continual</code>) <span class="feature-badge new">NEW</span></h4>
-        <ol>
-            <li><strong>タスクの作成</strong>
-                <ul>
-                    <li>タスク名とデータセットを指定</li>
-                    <li>ベースモデルまたは既存のファインチューニング済みモデルを選択</li>
-                    <li>EWCパラメータ（λ値）の設定</li>
-                </ul>
-            </li>
-            <li><strong>学習の実行</strong>
-                <ul>
-                    <li>Fisher情報行列の計算</li>
-                    <li>重要パラメータの保護しながら新タスクを学習</li>
-                    <li>リアルタイムで進捗を監視</li>
-                </ul>
-            </li>
-            <li><strong>タスク管理</strong>
-                <ul>
-                    <li>実行中のタスクの状態確認</li>
-                    <li>完了したタスクの履歴表示</li>
-                    <li>モデルのダウンロードと管理</li>
-                </ul>
-            </li>
-        </ol>
-
         <h4>📊 <strong>モデル管理</strong> (<code>/models</code>)</h4>
         <ol>
             <li><strong>利用可能モデル</strong>
@@ -641,87 +630,220 @@ docker exec -d ai-ft-container python -m uvicorn app.main_unified:app --host 0.0
             </li>
         </ol>
 
-        <h2>🏗️ 土木道路設計特化型RAGシステム</h2>
+        <h2>📊 監視システム（Prometheus + Grafana）</h2>
         
-        <h3>📖 概要</h3>
-        <p>AI_FT_3には、土木道路設計分野に特化したRAG（Retrieval-Augmented Generation）システムが統合されています。このシステムは、道路構造令や設計基準書などの技術文書から正確な情報を検索し、引用情報付きの回答を生成します。</p>
+        <p>統合監視システムにより、アプリケーションのパフォーマンスとリソース使用状況をリアルタイムで監視できます。</p>
 
-        <h3>🎯 主要機能</h3>
+        <h3>監視システムの起動</h3>
         
-        <h4>1. 数値処理エンジン</h4>
-        <pre><code>from src.rag.specialized import NumericalProcessor, extract_numerical_values
+        <pre><code># 監視統合環境の起動（メインアプリケーション + 監視ツール）
+./scripts/start_monitoring_with_main.sh
 
-# テキストから数値を自動抽出
-text = "設計速度60km/h、最小曲線半径150m、縦断勾配5%とする。"
-processor = NumericalProcessor()
-result = processor.process_text(text)
+# または個別に起動
+./scripts/manage_services.sh start-all  # すべて起動
+./scripts/manage_services.sh start-app  # アプリケーションのみ
+./scripts/manage_services.sh start-monitor  # 監視ツールのみ</code></pre>
 
-print(f"抽出された数値: {len(result['numerical_values'])}個")
-for value in result['numerical_values']:
-    print(f"- {value['value']}{value['unit']} ({value['value_type']})")</code></pre>
+        <h3>アクセスURL</h3>
+        
+        <ul>
+            <li><strong>Grafana ダッシュボード</strong>: <a href="http://localhost:3000" target="_blank">http://localhost:3000</a>
+                <ul>
+                    <li>ログイン: admin/admin</li>
+                    <li>AI Fine-tuning Toolkit Dashboard で監視</li>
+                </ul>
+            </li>
+            <li><strong>Prometheus</strong>: <a href="http://localhost:9090" target="_blank">http://localhost:9090</a>
+                <ul>
+                    <li>メトリクス確認とクエリ実行</li>
+                </ul>
+            </li>
+            <li><strong>メトリクスエンドポイント</strong>: <a href="http://localhost:8050/metrics" target="_blank">http://localhost:8050/metrics</a>
+                <ul>
+                    <li>Prometheus形式のメトリクス出力</li>
+                </ul>
+            </li>
+        </ul>
 
-        <h4>2. 設計基準検証</h4>
-        <pre><code>from src.rag.specialized import check_design_standard
+        <h3>監視可能なメトリクス</h3>
+        
+        <h4>システムメトリクス</h4>
+        <ul>
+            <li><code>ai_ft_cpu_usage_percent</code>: CPU使用率</li>
+            <li><code>ai_ft_memory_usage_percent</code>: メモリ使用率</li>
+            <li><code>ai_ft_gpu_available</code>: GPU利用可能状態</li>
+            <li><code>ai_ft_gpu_count</code>: GPU数</li>
+            <li><code>ai_ft_gpu_memory_used_mb</code>: GPU メモリ使用量</li>
+        </ul>
 
-# 道路構造令に基づく適合性チェック
-result = check_design_standard(
-    value=135,  # 曲線半径135m
-    value_type='curve_radius',
-    unit='m',
-    context={'design_speed': 60}
-)
+        <h4>アプリケーションメトリクス</h4>
+        <ul>
+            <li><code>ai_ft_http_requests_total</code>: HTTPリクエスト数</li>
+            <li><code>ai_ft_rag_queries_total</code>: RAGクエリ数</li>
+            <li><code>ai_ft_training_tasks_total</code>: トレーニングタスク数</li>
+            <li><code>ai_ft_cache_hits_total</code>: キャッシュヒット数</li>
+        </ul>
 
-print(f"妥当性: {'○' if result.is_valid else '×'}")
-print(f"メッセージ: {result.message}")</code></pre>
+        <h3>Grafanaダッシュボードの設定</h3>
+        
+        <pre><code># ダッシュボードの自動設定
+./scripts/setup_grafana_dashboard.sh</code></pre>
 
-        <h4>3. バージョン管理</h4>
-        <pre><code>from src.rag.specialized import create_version_manager
+        <h3>サービス管理コマンド</h3>
+        
+        <pre><code># 状態確認
+./scripts/manage_services.sh status
 
-# 文書のバージョン管理
-manager = create_version_manager()
+# アプリケーション再起動
+./scripts/manage_services.sh restart-app
 
-# 新しいバージョンを作成
-version = manager.create_version(
-    document_id="road_standard_001",
-    title="道路設計基準書 v1.1",
-    content="設計速度は原則として60km/hとする...",
-    parent_version_id="previous_version_id"
-)
+# ログ確認
+./scripts/manage_services.sh logs-app      # アプリケーションログ
+./scripts/manage_services.sh logs-monitor  # 監視サービスログ
 
-# バージョン間の差分を検出
-diff = manager.compare_versions(version1_id, version2_id, content1, content2)
-print(f"変更されたセクション: {len(diff.modified_sections)}個")</code></pre>
+# 停止
+./scripts/manage_services.sh stop-all      # すべて停止</code></pre>
 
-        <h4>4. ハイブリッド検索エンジン</h4>
-        <pre><code>from src.rag.retrieval import HybridSearchEngine
-from src.rag.indexing import QdrantVectorStore, EmbeddingModelFactory
+        <h2>🔧 トラブルシューティング</h2>
 
-# ハイブリッド検索の設定
-vector_store = QdrantVectorStore(collection_name="road_documents")
-embedding_model = EmbeddingModelFactory.create("multilingual-e5-large")
+        <h3>Ollama接続エラーが発生する場合</h3>
+        <pre><code># Ollamaが起動しているか確認
+curl http://localhost:11434/api/tags
 
-search_engine = HybridSearchEngine(
-    vector_store=vector_store,
-    embedding_model=embedding_model,
-    vector_weight=0.7,
-    keyword_weight=0.3
-)
+# Ollamaを再起動
+killall ollama
+ollama serve</code></pre>
 
-# 検索実行
-from src.rag.retrieval import SearchQuery
-query = SearchQuery(text="設計速度60km/hの最小曲線半径は？")
-results = search_engine.search(query, top_k=5)</code></pre>
+        <h3>ロゴが表示されない場合</h3>
+        <pre><code># 静的ファイルの確認
+docker exec ai-ft-container ls -la /workspace/static/
 
-        <h4>5. 統合Web API インターフェース <span class="feature-badge new">NEW</span></h4>
-        <pre><code># 統合APIサーバーの起動（RAG + ファインチューニング）
-from app.main_unified import app
-import uvicorn
+# ロゴファイルの存在確認
+docker exec ai-ft-container curl -I http://localhost:8050/static/logo_teikoku.png</code></pre>
 
-# 単一ポートで全機能を提供
-uvicorn.run(app, host="0.0.0.0", port=8050)</code></pre>
+        <h3>Webインターフェースが起動しない場合</h3>
+        <pre><code># コンテナの状態確認
+docker ps -a
+
+# ログの確認
+docker logs ai-ft-container
+
+# 自動起動スクリプトの実行
+docker exec ai-ft-container bash /workspace/scripts/start_web_interface.sh
+
+# ファイル不足の確認
+docker exec ai-ft-container ls -la /workspace/app/
+
+# ファイルが不足している場合の対処法
+docker cp app/ ai-ft-container:/workspace/
+docker cp templates/ ai-ft-container:/workspace/
+docker cp src/ ai-ft-container:/workspace/
+
+# 手動起動
+docker exec -d ai-ft-container python -m uvicorn app.main_unified:app --host 0.0.0.0 --port 8050 --reload</code></pre>
+
+        <h3>モジュールエラーが発生する場合</h3>
+        <pre><code># モジュールのインポートテスト
+docker exec ai-ft-container python -c "import app.main_unified; print('Import successful')"
+
+# ファイル構造の確認
+docker exec ai-ft-container ls -la /workspace/app/
+docker exec ai-ft-container ls -la /workspace/src/
+
+# 必要に応じてファイルを再コピー
+docker cp app/ ai-ft-container:/workspace/
+docker cp templates/ ai-ft-container:/workspace/
+docker cp src/ ai-ft-container:/workspace/</code></pre>
+
+        <h3>RAGシステムが動作しない場合</h3>
+        <pre><code># 特化機能のテスト
+python3 scripts/simple_feature_test.py
+
+# RAGシステムの統合確認
+curl http://localhost:8050/rag/health
+
+# システム情報の確認
+curl http://localhost:8050/rag/system-info
+
+# ベクトル化エラーのテスト（v2.1.0で修正済み）
+docker exec ai-ft-container python test_vector_fix.py
+
+# 必要な依存関係の確認
+pip install qdrant-client sentence-transformers transformers</code></pre>
+
+        <h3>数値抽出・設計基準チェックのエラー</h3>
+        <pre><code># テキスト処理の確認
+python3 -c "
+from src.rag.specialized import extract_numerical_values
+values = extract_numerical_values('設計速度60km/h')
+print(f'抽出結果: {len(values)}個')
+"
+
+# 設計基準の確認
+python3 -c "
+from src.rag.specialized import check_design_standard
+result = check_design_standard(60, 'speed', 'km/h')
+print(f'検証結果: {result.is_valid}')
+"</code></pre>
+
+        <h2>🎯 今すぐ始める</h2>
+        
+        <pre><code># 1. クローン
+git clone https://github.com/kji-furuta/AI_FT_3.git
+cd AI_FT_3
+
+# 2. Ollamaをインストール・起動（新しいターミナルで）
+curl -fsSL https://ollama.com/install.sh | sh
+ollama serve
+
+# 3. 起動（元のターミナルで）
+cd docker && docker-compose up -d --build  # 初回のみ
+# 2回目以降は: docker-compose up -d
+
+# 4. Webサーバー開始
+docker exec ai-ft-container bash /workspace/scripts/start_web_interface.sh
+
+# 5. 起動確認
+# ポートの確認
+docker exec ai-ft-container netstat -tlnp | grep 8050
+
+# プロセスの確認
+docker exec ai-ft-container ps aux | grep uvicorn
+
+# ログの確認
+docker logs ai-ft-container --tail 20
+
+# 6. ブラウザでアクセス
+# http://localhost:8050 (メインシステム - RAG機能統合済み)
+# ※ ポート8051のRAG APIサーバーは不要（統合済み）</code></pre>
+
+        <h3>🚀 クイック操作ガイド</h3>
+        <ol>
+            <li><strong>メインダッシュボード</strong>: <a href="http://localhost:8050/" target="_blank">http://localhost:8050/</a>
+                <ul>
+                    <li>システム状況確認</li>
+                    <li>各機能へのナビゲーション</li>
+                </ul>
+            </li>
+            <li><strong>ファインチューニング</strong>: <a href="http://localhost:8050/finetune" target="_blank">http://localhost:8050/finetune</a>
+                <ul>
+                    <li>データアップロード → モデル選択 → 学習実行</li>
+                </ul>
+            </li>
+            <li><strong>RAGシステム</strong>: <a href="http://localhost:8050/rag" target="_blank">http://localhost:8050/rag</a>
+                <ul>
+                    <li>文書アップロード → 質問応答</li>
+                </ul>
+            </li>
+            <li><strong>モデル管理</strong>: <a href="http://localhost:8050/models" target="_blank">http://localhost:8050/models</a>
+                <ul>
+                    <li>学習済みモデルの確認・管理</li>
+                </ul>
+            </li>
+        </ol>
 
         <div class="success-box">
-            <p><span class="emoji">✅</span><strong>統合完了</strong>: RAGシステムは http://localhost:8050/rag でアクセス可能です。</p>
+            <p><span class="emoji">🚀</span><strong>5分でファインチューニング・RAG開始！</strong></p>
         </div>
 
         <h2>📞 サポート</h2>

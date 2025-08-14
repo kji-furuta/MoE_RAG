@@ -1,0 +1,2101 @@
+{
+  "id": "0b605c8c-6a43-460d-8370-622670619c54",
+  "query": "道路舗装材料の種別について解説してください。",
+  "answer": "道路舗装材料の種別について説明するには、以下に主要なタイプを紹介します。\n\n### 1. 半たわみ性舗装（Half-Asphalt Paving）\n\n半たわみ性舗装は、アスファルト混合物層の空隙に浸透用セメントミルクを浸透させたものです。このため、耐流動性、明色性、耐油性などの性能を有します。施工上は、特に浸透用セメントミルクの浸透作業を適切に行うように留意することが重要です。\n\n* 例: グースアスファルト舗装\n\n### 2. グースアスファルト舗装（Guase Asphalt Paving）\n\nグースアスファルト舗装は、流込み施工が可能な作業性を有した混合物であるグースアスファルト混合物を用いる舗装です。一般に鋼床版舗装の基層に使用されることが多いです。\n\n* 例: スティールベッド舗装\n\n### 3. ロールドアスファルト舗装（Rolled Asphalt Paving）\n\nロールドアスファルト舗装は、不連続粒度のロールドアスファルト混合物を敷きならした後、この上にプレコート砕石を散布・圧入して仕上げる舗装です。施工上は、プレコート砕石の散布・圧入を適切に行うよう留意することが重要です。\n\n* 例: ロールドアスファルト舗装\n\n### 4. セメントコンクリート舗装（Cement Concrete Paving）\n\nセメントコンクリート舗装は、混凝りや水を加えたコンクリート混合物を用いる舗装です。コンクリート床版及び舗装との接着性が良くないため、ほとんど使われていない。\n\n* 例: セメントコンクリート舗装\n\n### 5. 遅延分解性ポリマー（Delayed Degradation Polymer, DDP）舗装\n\n遅延分解性ポリマー舗装は、路面温度の上昇を抑制し、雨水の地下への浸透を防止することで期待される舗装です。施工上は、使用する材料の特徴を十分に理解して施工することが重要です。\n\n* 例: 遅延分解性ポリマー舗装\n\n### 6. 振動低減機能を有する舗装（Vibration-Reducing Pavement）\n\n振動低減機能を有する舗装は、路面の平坦性の確保や材料特性を利用した振動の発生、振動吸収材の使用などにより振動を低減しようとする舗装です。施工上は、使用する舗装の特徴を十分に理解して施工することが重要です。\n\n* 例: 振動低減機能を有する舗装\n\n### 7. 遮熱性ポリマー（Thermal Insulation Polymer, TIP）舗装\n\n遮熱性ポリマーポドは、路面温度の上昇を抑制し、道路の耐用性を高めることで期待される舗装です。施工上は、使用する材料の特徴を充分に理解して施工することが重要です。\n\n* 例: 遮熱性ポリマー舗装\n\n### 8. ホワイトトッピング舗装（White Topping Pavement）\n\nホワイトトッピング舗装は、既設アスファルト舗装の一部を切削し、表面処理した上に高強度コンクリート粘着膜を付着するもので、版の厚さは10cm程度とし、縦，横の目地間隔を1.2～1.8m程度として狭くします。施工上は、既設アスファルト舗装との接着力を確保するよう留意することが重要です。\n\n* 例: ホワイトトッピング舗装\n\n### 9. 振動低減機能を有する舗装（Vibration-Reducing Pavement）\n\n振動低減機能を有する舗装は、路面の平坦性の確保や材料特性を利用した振動の発生、振動吸収材の使用などにより振動を低減しようとする舗装です。施工上は、使用する舗装の特徴を十分に理解して施工することが重要です。\n\n* 例: 振動低減機能を有する舗装\n\n### 10. 遮熱性ポリマー（Thermal Insulation Polymer, TIP）舗装\n\n遮熱性ポリマーポドは、路面温度の上昇を抑制し、道路の耐用性を高めることで期待される舗装です。施工上は、使用する材料の特徴を充分に理解して施工することが重要です。\n\n* 例: 遮熱性ポリマー舗装\n\n**関連する法規や基準**\n\n* 道路構造の手引き（令和7年4月）\n* 道路構造の基準（令和7年4月）\n\n**実務での注意点とポイント**\n\n* 各種の舗装材料を使用する際には、 Road Structure Handbookなどの参考資料を参考に実践者が十分な理解を深めなければならない。\n* また、各種の舗装材料の特徴を充分に理解して施工することが重要であり、これには実務経験と知識が必要である。",
+  "citations": [
+    {
+      "id": 1,
+      "text": "(2)  材料別の分類\n(a)  半たわみ性舗装\n半たわみ性舗装は，開粒度タイプのアスファルト混合物層の空隙に，浸透用セメントミルクを浸透させたも\nので，耐流動性，明色性，耐油性等の性能を有する舗装である。施工上は，特に浸透用セメントミルクの浸透\n作業を適切に行うように留意する。\n４－45\n道路構造の手引き 令和 7 年 4 月\n(b)  グースアスフアルト舗装\nグースアスファルト舗装は，流込み施...",
+      "source": "20250811_202357_hosou562458",
+      "score": 0.7010790402
+    },
+    {
+      "id": 2,
+      "text": "3.14.7  舗装シート(参考)\n舗装のわだち及びクラックの抑制，防水，舗設直後の交通解放等を目的として，様々な舗装シートが開発されてお\nり，採用にあたっては，舗装場所，目的等，条件をよく検討し，維持管理課と相談するものとする。\n表 3.27 舗装シート\n種類\n概要\n用途\nアスファルト系\n防水シート\n合成繊維不織布に特殊アスファ\nルトを含浸させて成型したもの\n防水，わだち抑制，クラック抑制\nガラ...",
+      "source": "20250811_202357_hosou562458",
+      "score": 0.681703484
+    },
+    {
+      "id": 3,
+      "text": "2.  舗装の工種\n舗装工種はアスファルト舗装，セメントコンクリート舗装，特殊舗装等がある。\n舗装工種の採択は，道路の機能，地域的条件，施工性及び供用後の走行性，維持管理ならびに経済性等の諸条件に\nついて検討し決定する。特に交差点部等流動対策の必要な場合，またトンネル内等ではセメントコンクリート舗装及\nび半たわみ性舗装を検討することが望ましい。",
+      "source": "20250811_202357_hosou562458",
+      "score": 0.67762926
+    },
+    {
+      "id": 4,
+      "text": "果と赤外線反射による路面温度の上昇・抑制や雨水の地下への浸透などが期待できる舗装である。舗装材料に\nはブロック系と樹脂系基盤があり，それぞれ舗装材料の問隙に緑を配置することによるが，使用する材料の特\nはブロック系と樹脂系基盤があり，それぞれ舗装材料の問隙に緑を配置することによるが，使用する材料の特\n徴を十分理解して施工する。\n(s)  ホワイトトッピング舗装\nホワイトトッピング舗装は，既設アスファ...",
+      "source": "20250811_202357_hosou562458",
+      "score": 0.6747130698
+    },
+    {
+      "id": 5,
+      "text": "ーの一部を反射する遮熱性材料を舖装表面などに塗布して路面温度の上昇を抑制する「遮熱性舗装」などの路\n面温度上昇抑制舗装がある。使用する材料の特徴を充分に理解して施工する。\n面温度上昇抑制舗装がある。使用する材料の特徴を充分に理解して施工する。\n(m)  振動低減機能を有する舗装\n振動低減機能を有する舗装は，路面の平たん性の確保や材料特性を利用した振動の発生，振動吸収材の使用，\nまた，発生した振動を...",
+      "source": "20250811_202357_hosou562458",
+      "score": 0.672779107
+    }
+  ],
+  "sources": [
+    {
+      "id": "23cff18c-6f28-400b-a76f-434d7c97cdd9",
+      "text": "(2)  材料別の分類\n(a)  半たわみ性舗装\n半たわみ性舗装は，開粒度タイプのアスファルト混合物層の空隙に，浸透用セメントミルクを浸透させたも\nので，耐流動性，明色性，耐油性等の性能を有する舗装である。施工上は，特に浸透用セメントミルクの浸透\n作業を適切に行うように留意する。\n４－45\n道路構造の手引き 令和 7 年 4 月\n(b)  グースアスフアルト舗装\nグースアスファルト舗装は，流込み施工が可能な作業性を有した混合物であるグースアスファルト混合物を\n用いる舗装である。一般に鋼床版舗装の基層に用いることが多い。混合物の混練・運搬および敷きならしには，\n専用のアスフアルトクッカー車およびグースアスファルトフィニッシャを用いる。必要に応じて，表面にプレ\nコート砕石を散布・圧入することがある。施工上は，舗装面の清掃および乾燥に留意する。\n(c)  ロールドアスファルト舗装\nロールドアスファルト舗装は，不連続粒度のロールドアスファルト混合物を敷きならした後，この上にプレ\nコート砕石を散布・圧入して仕上げる舗装である。施工上は，プレコート砕石の散布・圧入を適切に行うよう\nに留意する。",
+      "metadata": {
+        "doc_id": "2f225c6b-fe2a-4ee8-8db2-e7b0705dacea",
+        "filename": "20250811_202357_hosou562458.pdf",
+        "file_path": "temp_uploads/20250811_202357_hosou562458.pdf",
+        "file_hash": "5696465d9bf5d2cba3c71fe77c64183e",
+        "processing_timestamp": null,
+        "document_type": "other",
+        "language": "ja",
+        "id": "48ff50cc-b99b-4c14-acd5-fb0078d5a770",
+        "title": "20250811_202357_hosou562458",
+        "category": "その他",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "section_level": 3,
+        "section_type": "item",
+        "section_title": "材料別の分類",
+        "section_number": "2",
+        "importance_score": 0.2,
+        "related_sections": [
+          {
+            "title": "アスファルト舗装",
+            "level": 1
+          },
+          {
+            "title": "基層",
+            "level": 3
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "45",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "45",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "45",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "45",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "材料別の分類",
+            "level": 3
+          },
+          {
+            "title": "アスファルト舗装",
+            "level": 3
+          }
+        ],
+        "related_tables": [
+          {
+            "id": "pdfplumber_p42_0",
+            "caption": "表 3.25 例)舗装厚=5cm計算結果",
+            "page": 42
+          },
+          {
+            "id": "pdfplumber_p23_0",
+            "caption": "表 3.5 乾燥密度と重量配合比",
+            "page": 23
+          },
+          {
+            "id": "pdfplumber_p25_0",
+            "caption": "参考としてサンドイッチ工法の標準舗装構成(設計期間10年の場合)を表 3.88に示す。",
+            "page": 25
+          },
+          {
+            "id": "pdfplumber_p24_0",
+            "caption": "表 3.7 CBR早見表(参考)",
+            "page": 24
+          },
+          {
+            "id": "pdfplumber_p27_2",
+            "caption": "(2) 各層の最小厚は，表3.10 によるものとする。",
+            "page": 27
+          },
+          {
+            "id": "pdfplumber_p35_0",
+            "caption": "置換え深さは，標高別・舗装種類別に，表3.20の値を適用するものとする。",
+            "page": 35
+          },
+          {
+            "id": "pdfplumber_p15_0",
+            "caption": "舗装構造の設計に用いる交通区分は，設計期間における平均の1日1方向あたりの大型車交通量をもとに，表3.2",
+            "page": 15
+          },
+          {
+            "id": "pdfplumber_p19_0",
+            "caption": "(3) 設計CBRは，区間のCBRから表3.3により求めるものとする。",
+            "page": 19
+          },
+          {
+            "id": "pdfplumber_p27_0",
+            "caption": "(2) 各層の最小厚は，表3.10 によるものとする。",
+            "page": 27
+          },
+          {
+            "id": "pdfplumber_p35_1",
+            "caption": "置換え深さは，標高別・舗装種類別に，表3.20の値を適用するものとする。",
+            "page": 35
+          },
+          {
+            "id": "pdfplumber_p38_1",
+            "caption": "表3.23に，アスファルト混合物の種類と適用層を示す。",
+            "page": 38
+          },
+          {
+            "id": "pdfplumber_p44_1",
+            "caption": "表 2",
+            "page": 44
+          },
+          {
+            "id": "pdfplumber_p51_0",
+            "caption": "表 3.27 舗装シート",
+            "page": 51
+          },
+          {
+            "id": "pdfplumber_p44_0",
+            "caption": "表 1",
+            "page": 44
+          },
+          {
+            "id": "pdfplumber_p63_0",
+            "caption": "迂回路の舗装構成は，迂回路の供用期間により下記の表 10.1に示す交通量区分を満足する舗装構成を目標とする",
+            "page": 63
+          },
+          {
+            "id": "pdfplumber_p28_1",
+            "caption": "表 3.14 等値換算係数",
+            "page": 28
+          },
+          {
+            "id": "pdfplumber_p29_0",
+            "caption": "表 3.16 等値換算係数",
+            "page": 29
+          },
+          {
+            "id": "pdfplumber_p9_0",
+            "caption": "アスファルト舗装及びセメントコンクリート舗装の特徴は，表2.1に示す通りであり，工種選定の参考とするもの",
+            "page": 9
+          },
+          {
+            "id": "pdfplumber_p23_1",
+            "caption": "表 3.5 乾燥密度と重量配合比",
+            "page": 23
+          },
+          {
+            "id": "pdfplumber_p31_0",
+            "caption": "愛知県下統一の標準舗装構成を次の表に示す。特に検討を要する場合以外は，表3.18によるものとする。",
+            "page": 31
+          },
+          {
+            "id": "pdfplumber_p32_0",
+            "caption": "表 3.19 標準舗装構成(鉄鋼スラグを使用する場合)",
+            "page": 32
+          },
+          {
+            "id": "pdfplumber_p26_0",
+            "caption": "(1) 舗装厚の設計は，設計交通区分と設計CBRに応じて，表3.9 から求まる等値換算厚(Ｔ )を下回らないよう",
+            "page": 26
+          },
+          {
+            "id": "pdfplumber_p37_0",
+            "caption": "表3.22に，適用箇所と交通量の区分及び舗装工事の種類の関係を示す。",
+            "page": 37
+          },
+          {
+            "id": "pdfplumber_p27_1",
+            "caption": "(2) 各層の最小厚は，表3.10 によるものとする。",
+            "page": 27
+          },
+          {
+            "id": "pdfplumber_p27_3",
+            "caption": "(2) 各層の最小厚は，表3.10 によるものとする。",
+            "page": 27
+          },
+          {
+            "id": "pdfplumber_p60_0",
+            "caption": "セメントコンクリート舗装あるいはアスファルト舗装とするが，使用区分は表7.1のとおりとする。",
+            "page": 60
+          },
+          {
+            "id": "pdfplumber_p38_0",
+            "caption": "表3.23に，アスファルト混合物の種類と適用層を示す。",
+            "page": 38
+          },
+          {
+            "id": "pdfplumber_p5_0",
+            "caption": "表 1.1 基準・指針類",
+            "page": 5
+          },
+          {
+            "id": "pdfplumber_p30_0",
+            "caption": "表 3.17 標準舗装構成",
+            "page": 30
+          },
+          {
+            "id": "pdfplumber_p61_0",
+            "caption": "乗入部の舗装構成は表7.2を標準とする。",
+            "page": 61
+          },
+          {
+            "id": "pdfplumber_p22_0",
+            "caption": "安定処理工法の設計上の使い分けは表3.4を標準とし，実施にあたり配合設計で検討を行い，必要に応じ安",
+            "page": 22
+          },
+          {
+            "id": "pdfplumber_p36_0",
+            "caption": "舗装工事に使用する材料は，表3.21及び，現地の実情等から決定するものとするものとする。",
+            "page": 36
+          },
+          {
+            "id": "pdfplumber_p7_0",
+            "caption": "表 1.2 舗装種別選定チェックシート",
+            "page": 7
+          },
+          {
+            "id": "table_p13_1",
+            "caption": "表 3.1 舗装の設計期間",
+            "page": 13
+          },
+          {
+            "id": "table_p14_1",
+            "caption": "表 1",
+            "page": 14
+          },
+          {
+            "id": "table_p28_1",
+            "caption": "表 3.14 等値換算係数",
+            "page": 28
+          },
+          {
+            "id": "table_p45_1",
+            "caption": "表3.26に，アスファルト混合物の種類と適用層を示す",
+            "page": 45
+          },
+          {
+            "id": "table_p56_1",
+            "caption": "表 1",
+            "page": 56
+          }
+        ],
+        "original_id": "2f225c6b-fe2a-4ee8-8db2-e7b0705dacea_122"
+      },
+      "vector_score": 0.87090564,
+      "keyword_score": 0,
+      "hybrid_score": 0.7010790402,
+      "rank": 1,
+      "score": 0,
+      "title": "20250811_202357_hosou562458"
+    },
+    {
+      "id": "bb84d8e9-f332-4439-89e1-00e50cfb50d8",
+      "text": "3.14.7  舗装シート(参考)\n舗装のわだち及びクラックの抑制，防水，舗設直後の交通解放等を目的として，様々な舗装シートが開発されてお\nり，採用にあたっては，舗装場所，目的等，条件をよく検討し，維持管理課と相談するものとする。\n表 3.27 舗装シート\n種類\n概要\n用途\nアスファルト系\n防水シート\n合成繊維不織布に特殊アスファ\nルトを含浸させて成型したもの\n防水，わだち抑制，クラック抑制\nガラス長繊維樹脂\n複合シート\nガラス長繊維樹脂の両面にアス\nファルトを塗工したもの\n防水，わだち抑制，クラック抑制\n合成ゴム系シート\n未加硫ゴムをシート状に圧延成\n型したもの\nコンクリート床版及び舗装との接着性が良\nくないため，ほとんど使われていない。\n４－48\n道路構造の手引き 令和 7 年 4 月",
+      "metadata": {
+        "doc_id": "2f225c6b-fe2a-4ee8-8db2-e7b0705dacea",
+        "filename": "20250811_202357_hosou562458.pdf",
+        "file_path": "temp_uploads/20250811_202357_hosou562458.pdf",
+        "file_hash": "5696465d9bf5d2cba3c71fe77c64183e",
+        "processing_timestamp": null,
+        "document_type": "other",
+        "language": "ja",
+        "id": "48ff50cc-b99b-4c14-acd5-fb0078d5a770",
+        "title": "20250811_202357_hosou562458",
+        "category": "その他",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "section_level": 1,
+        "section_type": "numbered_section",
+        "section_title": "14.7  舗装シート(参考)",
+        "section_number": "3",
+        "contains_references": true,
+        "importance_score": 0.4,
+        "related_sections": [
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "48",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "27",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "27",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "27",
+            "level": 1
+          },
+          {
+            "title": "48",
+            "level": 1
+          },
+          {
+            "title": "27",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "48",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "27",
+            "level": 1
+          },
+          {
+            "title": "14",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "48",
+            "level": 1
+          },
+          {
+            "title": "14",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "14",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "48",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "4",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "14",
+            "level": 1
+          },
+          {
+            "title": "27",
+            "level": 1
+          },
+          {
+            "title": "48",
+            "level": 1
+          },
+          {
+            "title": "14.7  舗装シート(参考)",
+            "level": 1
+          },
+          {
+            "title": "概要",
+            "level": 3
+          },
+          {
+            "title": "概要",
+            "level": 3
+          },
+          {
+            "title": "概要",
+            "level": 3
+          }
+        ],
+        "related_tables": [
+          {
+            "id": "pdfplumber_p42_0",
+            "caption": "表 3.25 例)舗装厚=5cm計算結果",
+            "page": 42
+          },
+          {
+            "id": "pdfplumber_p23_0",
+            "caption": "表 3.5 乾燥密度と重量配合比",
+            "page": 23
+          },
+          {
+            "id": "pdfplumber_p25_0",
+            "caption": "参考としてサンドイッチ工法の標準舗装構成(設計期間10年の場合)を表 3.88に示す。",
+            "page": 25
+          },
+          {
+            "id": "pdfplumber_p24_0",
+            "caption": "表 3.7 CBR早見表(参考)",
+            "page": 24
+          },
+          {
+            "id": "pdfplumber_p27_2",
+            "caption": "(2) 各層の最小厚は，表3.10 によるものとする。",
+            "page": 27
+          },
+          {
+            "id": "pdfplumber_p35_0",
+            "caption": "置換え深さは，標高別・舗装種類別に，表3.20の値を適用するものとする。",
+            "page": 35
+          },
+          {
+            "id": "pdfplumber_p15_0",
+            "caption": "舗装構造の設計に用いる交通区分は，設計期間における平均の1日1方向あたりの大型車交通量をもとに，表3.2",
+            "page": 15
+          },
+          {
+            "id": "pdfplumber_p19_0",
+            "caption": "(3) 設計CBRは，区間のCBRから表3.3により求めるものとする。",
+            "page": 19
+          },
+          {
+            "id": "pdfplumber_p27_0",
+            "caption": "(2) 各層の最小厚は，表3.10 によるものとする。",
+            "page": 27
+          },
+          {
+            "id": "pdfplumber_p35_1",
+            "caption": "置換え深さは，標高別・舗装種類別に，表3.20の値を適用するものとする。",
+            "page": 35
+          },
+          {
+            "id": "pdfplumber_p38_1",
+            "caption": "表3.23に，アスファルト混合物の種類と適用層を示す。",
+            "page": 38
+          },
+          {
+            "id": "pdfplumber_p44_1",
+            "caption": "表 2",
+            "page": 44
+          },
+          {
+            "id": "pdfplumber_p51_0",
+            "caption": "表 3.27 舗装シート",
+            "page": 51
+          },
+          {
+            "id": "pdfplumber_p44_0",
+            "caption": "表 1",
+            "page": 44
+          },
+          {
+            "id": "pdfplumber_p63_0",
+            "caption": "迂回路の舗装構成は，迂回路の供用期間により下記の表 10.1に示す交通量区分を満足する舗装構成を目標とする",
+            "page": 63
+          },
+          {
+            "id": "pdfplumber_p28_1",
+            "caption": "表 3.14 等値換算係数",
+            "page": 28
+          },
+          {
+            "id": "pdfplumber_p29_0",
+            "caption": "表 3.16 等値換算係数",
+            "page": 29
+          },
+          {
+            "id": "pdfplumber_p9_0",
+            "caption": "アスファルト舗装及びセメントコンクリート舗装の特徴は，表2.1に示す通りであり，工種選定の参考とするもの",
+            "page": 9
+          },
+          {
+            "id": "pdfplumber_p23_1",
+            "caption": "表 3.5 乾燥密度と重量配合比",
+            "page": 23
+          },
+          {
+            "id": "pdfplumber_p31_0",
+            "caption": "愛知県下統一の標準舗装構成を次の表に示す。特に検討を要する場合以外は，表3.18によるものとする。",
+            "page": 31
+          },
+          {
+            "id": "pdfplumber_p32_0",
+            "caption": "表 3.19 標準舗装構成(鉄鋼スラグを使用する場合)",
+            "page": 32
+          },
+          {
+            "id": "pdfplumber_p26_0",
+            "caption": "(1) 舗装厚の設計は，設計交通区分と設計CBRに応じて，表3.9 から求まる等値換算厚(Ｔ )を下回らないよう",
+            "page": 26
+          },
+          {
+            "id": "pdfplumber_p37_0",
+            "caption": "表3.22に，適用箇所と交通量の区分及び舗装工事の種類の関係を示す。",
+            "page": 37
+          },
+          {
+            "id": "pdfplumber_p27_1",
+            "caption": "(2) 各層の最小厚は，表3.10 によるものとする。",
+            "page": 27
+          },
+          {
+            "id": "pdfplumber_p27_3",
+            "caption": "(2) 各層の最小厚は，表3.10 によるものとする。",
+            "page": 27
+          },
+          {
+            "id": "pdfplumber_p60_0",
+            "caption": "セメントコンクリート舗装あるいはアスファルト舗装とするが，使用区分は表7.1のとおりとする。",
+            "page": 60
+          },
+          {
+            "id": "pdfplumber_p38_0",
+            "caption": "表3.23に，アスファルト混合物の種類と適用層を示す。",
+            "page": 38
+          },
+          {
+            "id": "pdfplumber_p5_0",
+            "caption": "表 1.1 基準・指針類",
+            "page": 5
+          },
+          {
+            "id": "pdfplumber_p30_0",
+            "caption": "表 3.17 標準舗装構成",
+            "page": 30
+          },
+          {
+            "id": "pdfplumber_p61_0",
+            "caption": "乗入部の舗装構成は表7.2を標準とする。",
+            "page": 61
+          },
+          {
+            "id": "pdfplumber_p22_0",
+            "caption": "安定処理工法の設計上の使い分けは表3.4を標準とし，実施にあたり配合設計で検討を行い，必要に応じ安",
+            "page": 22
+          },
+          {
+            "id": "pdfplumber_p36_0",
+            "caption": "舗装工事に使用する材料は，表3.21及び，現地の実情等から決定するものとするものとする。",
+            "page": 36
+          },
+          {
+            "id": "pdfplumber_p7_0",
+            "caption": "表 1.2 舗装種別選定チェックシート",
+            "page": 7
+          },
+          {
+            "id": "table_p13_1",
+            "caption": "表 3.1 舗装の設計期間",
+            "page": 13
+          },
+          {
+            "id": "table_p14_1",
+            "caption": "表 1",
+            "page": 14
+          },
+          {
+            "id": "table_p28_1",
+            "caption": "表 3.14 等値換算係数",
+            "page": 28
+          },
+          {
+            "id": "table_p45_1",
+            "caption": "表3.26に，アスファルト混合物の種類と適用層を示す",
+            "page": 45
+          },
+          {
+            "id": "table_p56_1",
+            "caption": "表 1",
+            "page": 56
+          }
+        ],
+        "original_id": "2f225c6b-fe2a-4ee8-8db2-e7b0705dacea_131"
+      },
+      "vector_score": 0.8853292,
+      "keyword_score": 0,
+      "hybrid_score": 0.681703484,
+      "rank": 2,
+      "score": 0,
+      "title": "20250811_202357_hosou562458"
+    },
+    {
+      "id": "beda3f4d-9e1b-47d9-b47f-d4c280db68cc",
+      "text": "2.  舗装の工種\n舗装工種はアスファルト舗装，セメントコンクリート舗装，特殊舗装等がある。\n舗装工種の採択は，道路の機能，地域的条件，施工性及び供用後の走行性，維持管理ならびに経済性等の諸条件に\nついて検討し決定する。特に交差点部等流動対策の必要な場合，またトンネル内等ではセメントコンクリート舗装及\nび半たわみ性舗装を検討することが望ましい。",
+      "metadata": {
+        "doc_id": "2f225c6b-fe2a-4ee8-8db2-e7b0705dacea",
+        "filename": "20250811_202357_hosou562458.pdf",
+        "file_path": "temp_uploads/20250811_202357_hosou562458.pdf",
+        "file_hash": "5696465d9bf5d2cba3c71fe77c64183e",
+        "processing_timestamp": null,
+        "document_type": "other",
+        "language": "ja",
+        "id": "48ff50cc-b99b-4c14-acd5-fb0078d5a770",
+        "title": "20250811_202357_hosou562458",
+        "category": "その他",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "section_level": 1,
+        "section_type": "numbered_section",
+        "section_title": "舗装の工種",
+        "section_number": "2",
+        "importance_score": 0,
+        "related_sections": [
+          {
+            "title": "舗装の工種",
+            "level": 1
+          },
+          {
+            "title": "アスファルト舗装",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "セメントコンクリート舗装",
+            "level": 1
+          },
+          {
+            "title": "アスファルト舗装",
+            "level": 3
+          }
+        ],
+        "original_id": "2f225c6b-fe2a-4ee8-8db2-e7b0705dacea_12"
+      },
+      "vector_score": 0.880038,
+      "keyword_score": 0,
+      "hybrid_score": 0.67762926,
+      "rank": 3,
+      "score": 0,
+      "title": "20250811_202357_hosou562458"
+    },
+    {
+      "id": "7af809be-9c55-44ad-b153-06cfed396443",
+      "text": "果と赤外線反射による路面温度の上昇・抑制や雨水の地下への浸透などが期待できる舗装である。舗装材料に\nはブロック系と樹脂系基盤があり，それぞれ舗装材料の問隙に緑を配置することによるが，使用する材料の特\nはブロック系と樹脂系基盤があり，それぞれ舗装材料の問隙に緑を配置することによるが，使用する材料の特\n徴を十分理解して施工する。\n(s)  ホワイトトッピング舗装\nホワイトトッピング舗装は，既設アスファルト舗装の一部を切削し，表面処理した上に高強度コンクリ一ト\nを付着オ一バーレイするもので，版の厚さは 10cm 程度とし，縦，横の目地間隔を 1.2～1.8m 程度と著しく狭\nくした舗装である。施工上は，既設アスファルト舗装との接着力を確保するよう留意する。\n(t)  振動低減機能を有する舗装\n振動低減機能を有する舗装は，路面の平たん性の確保や材料特性を利用した振動の発生，振動吸収材の使用，\nまた，発生した振動を伝搬しにくい材料の使用などにより振動を低減しようとする舖装である。使用する舗装\nの特徴を十分に理解して施工する。",
+      "metadata": {
+        "doc_id": "2f225c6b-fe2a-4ee8-8db2-e7b0705dacea",
+        "filename": "20250811_202357_hosou562458.pdf",
+        "file_path": "temp_uploads/20250811_202357_hosou562458.pdf",
+        "file_hash": "5696465d9bf5d2cba3c71fe77c64183e",
+        "processing_timestamp": null,
+        "document_type": "other",
+        "language": "ja",
+        "id": "48ff50cc-b99b-4c14-acd5-fb0078d5a770",
+        "title": "20250811_202357_hosou562458",
+        "category": "その他",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "section_level": 3,
+        "section_type": "item",
+        "section_title": "材料別の分類",
+        "section_number": "2",
+        "contains_numerical_data": true,
+        "importance_score": 0.5,
+        "related_sections": [
+          {
+            "title": "アスファルト舗装",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "10",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "目地間隔",
+            "level": 3
+          },
+          {
+            "title": "アスファルト舗装",
+            "level": 3
+          },
+          {
+            "title": "特徴",
+            "level": 3
+          },
+          {
+            "title": "特徴",
+            "level": 3
+          },
+          {
+            "title": "特徴",
+            "level": 3
+          }
+        ],
+        "related_tables": [
+          {
+            "id": "pdfplumber_p42_0",
+            "caption": "表 3.25 例)舗装厚=5cm計算結果",
+            "page": 42
+          },
+          {
+            "id": "pdfplumber_p23_0",
+            "caption": "表 3.5 乾燥密度と重量配合比",
+            "page": 23
+          },
+          {
+            "id": "pdfplumber_p25_0",
+            "caption": "参考としてサンドイッチ工法の標準舗装構成(設計期間10年の場合)を表 3.88に示す。",
+            "page": 25
+          },
+          {
+            "id": "pdfplumber_p24_0",
+            "caption": "表 3.7 CBR早見表(参考)",
+            "page": 24
+          },
+          {
+            "id": "pdfplumber_p27_2",
+            "caption": "(2) 各層の最小厚は，表3.10 によるものとする。",
+            "page": 27
+          },
+          {
+            "id": "pdfplumber_p35_0",
+            "caption": "置換え深さは，標高別・舗装種類別に，表3.20の値を適用するものとする。",
+            "page": 35
+          },
+          {
+            "id": "pdfplumber_p15_0",
+            "caption": "舗装構造の設計に用いる交通区分は，設計期間における平均の1日1方向あたりの大型車交通量をもとに，表3.2",
+            "page": 15
+          },
+          {
+            "id": "pdfplumber_p19_0",
+            "caption": "(3) 設計CBRは，区間のCBRから表3.3により求めるものとする。",
+            "page": 19
+          },
+          {
+            "id": "pdfplumber_p27_0",
+            "caption": "(2) 各層の最小厚は，表3.10 によるものとする。",
+            "page": 27
+          },
+          {
+            "id": "pdfplumber_p35_1",
+            "caption": "置換え深さは，標高別・舗装種類別に，表3.20の値を適用するものとする。",
+            "page": 35
+          },
+          {
+            "id": "pdfplumber_p38_1",
+            "caption": "表3.23に，アスファルト混合物の種類と適用層を示す。",
+            "page": 38
+          },
+          {
+            "id": "pdfplumber_p44_1",
+            "caption": "表 2",
+            "page": 44
+          },
+          {
+            "id": "pdfplumber_p51_0",
+            "caption": "表 3.27 舗装シート",
+            "page": 51
+          },
+          {
+            "id": "pdfplumber_p44_0",
+            "caption": "表 1",
+            "page": 44
+          },
+          {
+            "id": "pdfplumber_p63_0",
+            "caption": "迂回路の舗装構成は，迂回路の供用期間により下記の表 10.1に示す交通量区分を満足する舗装構成を目標とする",
+            "page": 63
+          },
+          {
+            "id": "pdfplumber_p28_1",
+            "caption": "表 3.14 等値換算係数",
+            "page": 28
+          },
+          {
+            "id": "pdfplumber_p29_0",
+            "caption": "表 3.16 等値換算係数",
+            "page": 29
+          },
+          {
+            "id": "pdfplumber_p9_0",
+            "caption": "アスファルト舗装及びセメントコンクリート舗装の特徴は，表2.1に示す通りであり，工種選定の参考とするもの",
+            "page": 9
+          },
+          {
+            "id": "pdfplumber_p23_1",
+            "caption": "表 3.5 乾燥密度と重量配合比",
+            "page": 23
+          },
+          {
+            "id": "pdfplumber_p31_0",
+            "caption": "愛知県下統一の標準舗装構成を次の表に示す。特に検討を要する場合以外は，表3.18によるものとする。",
+            "page": 31
+          },
+          {
+            "id": "pdfplumber_p32_0",
+            "caption": "表 3.19 標準舗装構成(鉄鋼スラグを使用する場合)",
+            "page": 32
+          },
+          {
+            "id": "pdfplumber_p26_0",
+            "caption": "(1) 舗装厚の設計は，設計交通区分と設計CBRに応じて，表3.9 から求まる等値換算厚(Ｔ )を下回らないよう",
+            "page": 26
+          },
+          {
+            "id": "pdfplumber_p37_0",
+            "caption": "表3.22に，適用箇所と交通量の区分及び舗装工事の種類の関係を示す。",
+            "page": 37
+          },
+          {
+            "id": "pdfplumber_p27_1",
+            "caption": "(2) 各層の最小厚は，表3.10 によるものとする。",
+            "page": 27
+          },
+          {
+            "id": "pdfplumber_p27_3",
+            "caption": "(2) 各層の最小厚は，表3.10 によるものとする。",
+            "page": 27
+          },
+          {
+            "id": "pdfplumber_p60_0",
+            "caption": "セメントコンクリート舗装あるいはアスファルト舗装とするが，使用区分は表7.1のとおりとする。",
+            "page": 60
+          },
+          {
+            "id": "pdfplumber_p38_0",
+            "caption": "表3.23に，アスファルト混合物の種類と適用層を示す。",
+            "page": 38
+          },
+          {
+            "id": "pdfplumber_p5_0",
+            "caption": "表 1.1 基準・指針類",
+            "page": 5
+          },
+          {
+            "id": "pdfplumber_p30_0",
+            "caption": "表 3.17 標準舗装構成",
+            "page": 30
+          },
+          {
+            "id": "pdfplumber_p61_0",
+            "caption": "乗入部の舗装構成は表7.2を標準とする。",
+            "page": 61
+          },
+          {
+            "id": "pdfplumber_p22_0",
+            "caption": "安定処理工法の設計上の使い分けは表3.4を標準とし，実施にあたり配合設計で検討を行い，必要に応じ安",
+            "page": 22
+          },
+          {
+            "id": "pdfplumber_p36_0",
+            "caption": "舗装工事に使用する材料は，表3.21及び，現地の実情等から決定するものとするものとする。",
+            "page": 36
+          },
+          {
+            "id": "pdfplumber_p7_0",
+            "caption": "表 1.2 舗装種別選定チェックシート",
+            "page": 7
+          },
+          {
+            "id": "table_p13_1",
+            "caption": "表 3.1 舗装の設計期間",
+            "page": 13
+          },
+          {
+            "id": "table_p14_1",
+            "caption": "表 1",
+            "page": 14
+          },
+          {
+            "id": "table_p28_1",
+            "caption": "表 3.14 等値換算係数",
+            "page": 28
+          },
+          {
+            "id": "table_p45_1",
+            "caption": "表3.26に，アスファルト混合物の種類と適用層を示す",
+            "page": 45
+          },
+          {
+            "id": "table_p56_1",
+            "caption": "表 1",
+            "page": 56
+          }
+        ],
+        "original_id": "2f225c6b-fe2a-4ee8-8db2-e7b0705dacea_129"
+      },
+      "vector_score": 0.87625074,
+      "keyword_score": 0,
+      "hybrid_score": 0.6747130698,
+      "rank": 4,
+      "score": 0,
+      "title": "20250811_202357_hosou562458"
+    },
+    {
+      "id": "cc3b5342-5f39-4c28-a0a0-ada0f612f05c",
+      "text": "ーの一部を反射する遮熱性材料を舖装表面などに塗布して路面温度の上昇を抑制する「遮熱性舗装」などの路\n面温度上昇抑制舗装がある。使用する材料の特徴を充分に理解して施工する。\n面温度上昇抑制舗装がある。使用する材料の特徴を充分に理解して施工する。\n(m)  振動低減機能を有する舗装\n振動低減機能を有する舗装は，路面の平たん性の確保や材料特性を利用した振動の発生，振動吸収材の使用，\nまた，発生した振動を伝搬しにくい材料の使用などにより振動を低減しようとする舖装である。使用する舗装\nの特徴を十分に理解して施工する。",
+      "metadata": {
+        "doc_id": "2f225c6b-fe2a-4ee8-8db2-e7b0705dacea",
+        "filename": "20250811_202357_hosou562458.pdf",
+        "file_path": "temp_uploads/20250811_202357_hosou562458.pdf",
+        "file_hash": "5696465d9bf5d2cba3c71fe77c64183e",
+        "processing_timestamp": null,
+        "document_type": "other",
+        "language": "ja",
+        "id": "48ff50cc-b99b-4c14-acd5-fb0078d5a770",
+        "title": "20250811_202357_hosou562458",
+        "category": "その他",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "section_level": 3,
+        "section_type": "item",
+        "section_title": "適用箇所別の分類",
+        "section_number": "1",
+        "importance_score": 0.2,
+        "related_sections": [
+          {
+            "title": "特徴",
+            "level": 3
+          },
+          {
+            "title": "特徴",
+            "level": 3
+          },
+          {
+            "title": "特徴",
+            "level": 3
+          }
+        ],
+        "related_tables": [
+          {
+            "id": "pdfplumber_p42_0",
+            "caption": "表 3.25 例)舗装厚=5cm計算結果",
+            "page": 42
+          },
+          {
+            "id": "pdfplumber_p23_0",
+            "caption": "表 3.5 乾燥密度と重量配合比",
+            "page": 23
+          },
+          {
+            "id": "pdfplumber_p25_0",
+            "caption": "参考としてサンドイッチ工法の標準舗装構成(設計期間10年の場合)を表 3.88に示す。",
+            "page": 25
+          },
+          {
+            "id": "pdfplumber_p24_0",
+            "caption": "表 3.7 CBR早見表(参考)",
+            "page": 24
+          },
+          {
+            "id": "pdfplumber_p27_2",
+            "caption": "(2) 各層の最小厚は，表3.10 によるものとする。",
+            "page": 27
+          },
+          {
+            "id": "pdfplumber_p35_0",
+            "caption": "置換え深さは，標高別・舗装種類別に，表3.20の値を適用するものとする。",
+            "page": 35
+          },
+          {
+            "id": "pdfplumber_p15_0",
+            "caption": "舗装構造の設計に用いる交通区分は，設計期間における平均の1日1方向あたりの大型車交通量をもとに，表3.2",
+            "page": 15
+          },
+          {
+            "id": "pdfplumber_p19_0",
+            "caption": "(3) 設計CBRは，区間のCBRから表3.3により求めるものとする。",
+            "page": 19
+          },
+          {
+            "id": "pdfplumber_p27_0",
+            "caption": "(2) 各層の最小厚は，表3.10 によるものとする。",
+            "page": 27
+          },
+          {
+            "id": "pdfplumber_p35_1",
+            "caption": "置換え深さは，標高別・舗装種類別に，表3.20の値を適用するものとする。",
+            "page": 35
+          },
+          {
+            "id": "pdfplumber_p38_1",
+            "caption": "表3.23に，アスファルト混合物の種類と適用層を示す。",
+            "page": 38
+          },
+          {
+            "id": "pdfplumber_p44_1",
+            "caption": "表 2",
+            "page": 44
+          },
+          {
+            "id": "pdfplumber_p51_0",
+            "caption": "表 3.27 舗装シート",
+            "page": 51
+          },
+          {
+            "id": "pdfplumber_p44_0",
+            "caption": "表 1",
+            "page": 44
+          },
+          {
+            "id": "pdfplumber_p63_0",
+            "caption": "迂回路の舗装構成は，迂回路の供用期間により下記の表 10.1に示す交通量区分を満足する舗装構成を目標とする",
+            "page": 63
+          },
+          {
+            "id": "pdfplumber_p28_1",
+            "caption": "表 3.14 等値換算係数",
+            "page": 28
+          },
+          {
+            "id": "pdfplumber_p29_0",
+            "caption": "表 3.16 等値換算係数",
+            "page": 29
+          },
+          {
+            "id": "pdfplumber_p9_0",
+            "caption": "アスファルト舗装及びセメントコンクリート舗装の特徴は，表2.1に示す通りであり，工種選定の参考とするもの",
+            "page": 9
+          },
+          {
+            "id": "pdfplumber_p23_1",
+            "caption": "表 3.5 乾燥密度と重量配合比",
+            "page": 23
+          },
+          {
+            "id": "pdfplumber_p31_0",
+            "caption": "愛知県下統一の標準舗装構成を次の表に示す。特に検討を要する場合以外は，表3.18によるものとする。",
+            "page": 31
+          },
+          {
+            "id": "pdfplumber_p32_0",
+            "caption": "表 3.19 標準舗装構成(鉄鋼スラグを使用する場合)",
+            "page": 32
+          },
+          {
+            "id": "pdfplumber_p26_0",
+            "caption": "(1) 舗装厚の設計は，設計交通区分と設計CBRに応じて，表3.9 から求まる等値換算厚(Ｔ )を下回らないよう",
+            "page": 26
+          },
+          {
+            "id": "pdfplumber_p37_0",
+            "caption": "表3.22に，適用箇所と交通量の区分及び舗装工事の種類の関係を示す。",
+            "page": 37
+          },
+          {
+            "id": "pdfplumber_p27_1",
+            "caption": "(2) 各層の最小厚は，表3.10 によるものとする。",
+            "page": 27
+          },
+          {
+            "id": "pdfplumber_p27_3",
+            "caption": "(2) 各層の最小厚は，表3.10 によるものとする。",
+            "page": 27
+          },
+          {
+            "id": "pdfplumber_p60_0",
+            "caption": "セメントコンクリート舗装あるいはアスファルト舗装とするが，使用区分は表7.1のとおりとする。",
+            "page": 60
+          },
+          {
+            "id": "pdfplumber_p38_0",
+            "caption": "表3.23に，アスファルト混合物の種類と適用層を示す。",
+            "page": 38
+          },
+          {
+            "id": "pdfplumber_p5_0",
+            "caption": "表 1.1 基準・指針類",
+            "page": 5
+          },
+          {
+            "id": "pdfplumber_p30_0",
+            "caption": "表 3.17 標準舗装構成",
+            "page": 30
+          },
+          {
+            "id": "pdfplumber_p61_0",
+            "caption": "乗入部の舗装構成は表7.2を標準とする。",
+            "page": 61
+          },
+          {
+            "id": "pdfplumber_p22_0",
+            "caption": "安定処理工法の設計上の使い分けは表3.4を標準とし，実施にあたり配合設計で検討を行い，必要に応じ安",
+            "page": 22
+          },
+          {
+            "id": "pdfplumber_p36_0",
+            "caption": "舗装工事に使用する材料は，表3.21及び，現地の実情等から決定するものとするものとする。",
+            "page": 36
+          },
+          {
+            "id": "pdfplumber_p7_0",
+            "caption": "表 1.2 舗装種別選定チェックシート",
+            "page": 7
+          },
+          {
+            "id": "table_p13_1",
+            "caption": "表 3.1 舗装の設計期間",
+            "page": 13
+          },
+          {
+            "id": "table_p14_1",
+            "caption": "表 1",
+            "page": 14
+          },
+          {
+            "id": "table_p28_1",
+            "caption": "表 3.14 等値換算係数",
+            "page": 28
+          },
+          {
+            "id": "table_p45_1",
+            "caption": "表3.26に，アスファルト混合物の種類と適用層を示す",
+            "page": 45
+          },
+          {
+            "id": "table_p56_1",
+            "caption": "表 1",
+            "page": 56
+          }
+        ],
+        "original_id": "2f225c6b-fe2a-4ee8-8db2-e7b0705dacea_121"
+      },
+      "vector_score": 0.8737391,
+      "keyword_score": 0,
+      "hybrid_score": 0.672779107,
+      "rank": 5,
+      "score": 0,
+      "title": "20250811_202357_hosou562458"
+    }
+  ],
+  "confidence_score": 0.8,
+  "search_type": "hybrid",
+  "top_k": 5,
+  "saved_at": "2025-08-14T10:50:25.476318+09:00",
+  "metadata": {
+    "name": "道路舗装材料_2",
+    "tags": [],
+    "processing_time": 16.103922367095947
+  }
+}

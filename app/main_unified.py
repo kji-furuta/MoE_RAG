@@ -1157,6 +1157,88 @@ async def get_training_status(task_id: str):
     
     return training_tasks[task_id]
 
+@app.post("/api/monitoring/start")
+async def start_monitoring():
+    """監視システムを起動"""
+    try:
+        import subprocess
+        import os
+        
+        # docker-compose-monitoring.yml のパスを確認
+        docker_dir = Path(__file__).parent.parent / "docker"
+        compose_file = docker_dir / "docker-compose-monitoring.yml"
+        
+        if not compose_file.exists():
+            return JSONResponse(
+                content={"status": "error", "message": "監視設定ファイルが見つかりません"},
+                status_code=404
+            )
+        
+        # 監視システムを起動
+        result = subprocess.run(
+            ["docker-compose", "-f", str(compose_file), "up", "-d"],
+            capture_output=True,
+            text=True,
+            cwd=str(docker_dir)
+        )
+        
+        if result.returncode == 0:
+            return JSONResponse(content={
+                "status": "success",
+                "message": "監視システムを起動しました",
+                "services": {
+                    "grafana": "http://localhost:3000",
+                    "prometheus": "http://localhost:9090"
+                }
+            })
+        else:
+            return JSONResponse(
+                content={"status": "error", "message": f"起動エラー: {result.stderr}"},
+                status_code=500
+            )
+    except Exception as e:
+        logger.error(f"監視システム起動エラー: {str(e)}")
+        return JSONResponse(
+            content={"status": "error", "message": str(e)},
+            status_code=500
+        )
+
+@app.get("/api/monitoring/status")
+async def monitoring_status():
+    """監視システムの状態を確認"""
+    try:
+        import subprocess
+        
+        docker_dir = Path(__file__).parent.parent / "docker"
+        compose_file = docker_dir / "docker-compose-monitoring.yml"
+        
+        result = subprocess.run(
+            ["docker-compose", "-f", str(compose_file), "ps", "--format", "json"],
+            capture_output=True,
+            text=True,
+            cwd=str(docker_dir)
+        )
+        
+        if result.returncode == 0:
+            services_running = "grafana" in result.stdout.lower()
+            return JSONResponse(content={
+                "status": "success",
+                "running": services_running,
+                "message": "監視システムは稼働中" if services_running else "監視システムは停止中"
+            })
+        else:
+            return JSONResponse(content={
+                "status": "success",
+                "running": False,
+                "message": "監視システムは停止中"
+            })
+    except Exception as e:
+        return JSONResponse(content={
+            "status": "error",
+            "running": False,
+            "message": str(e)
+        })
+
 @app.post("/api/generate")
 async def generate_text(request: GenerationRequest):
     """実際のファインチューニング済みモデルを使用したテキスト生成"""

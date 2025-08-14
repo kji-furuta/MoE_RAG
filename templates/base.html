@@ -383,6 +383,25 @@
             
             <div class="system-info">
                 <div class="info-item">
+                    <h3>Monitoring System</h3>
+                    <div id="monitoring-status">
+                        <span class="status-indicator" id="monitoring-indicator"></span>
+                        <span id="monitoring-text">Checking...</span>
+                    </div>
+                    <button id="monitoring-toggle" class="btn btn-primary btn-sm mt-2" style="width: 100%;">
+                        <i class="fas fa-chart-line"></i> Start Monitoring
+                    </button>
+                    <div id="monitoring-links" style="display: none; margin-top: 10px;">
+                        <a href="http://localhost:3000" target="_blank" class="btn btn-success btn-sm" style="width: 48%; margin-right: 4%;">
+                            <i class="fas fa-tachometer-alt"></i> Grafana
+                        </a>
+                        <a href="http://localhost:9090" target="_blank" class="btn btn-info btn-sm" style="width: 48%;">
+                            <i class="fas fa-database"></i> Prometheus
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="info-item">
                     <h3>GPU Status</h3>
                     <div id="gpu-list">
                         <div>Loading...</div>
@@ -438,6 +457,73 @@
     </div>
     
     <script>
+        // Monitoring system functions
+        let monitoringRunning = false;
+        
+        async function checkMonitoringStatus() {
+            try {
+                const response = await fetch('/api/monitoring/status');
+                const data = await response.json();
+                
+                const indicator = document.getElementById('monitoring-indicator');
+                const text = document.getElementById('monitoring-text');
+                const button = document.getElementById('monitoring-toggle');
+                const links = document.getElementById('monitoring-links');
+                
+                monitoringRunning = data.running;
+                
+                if (monitoringRunning) {
+                    indicator.className = 'status-indicator status-online';
+                    text.textContent = 'Running';
+                    button.innerHTML = '<i class="fas fa-stop"></i> Stop Monitoring';
+                    button.className = 'btn btn-danger btn-sm mt-2';
+                    links.style.display = 'block';
+                } else {
+                    indicator.className = 'status-indicator status-offline';
+                    text.textContent = 'Stopped';
+                    button.innerHTML = '<i class="fas fa-chart-line"></i> Start Monitoring';
+                    button.className = 'btn btn-primary btn-sm mt-2';
+                    links.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Failed to check monitoring status:', error);
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const monitoringToggle = document.getElementById('monitoring-toggle');
+            if (monitoringToggle) {
+                monitoringToggle.addEventListener('click', async function() {
+                    const button = this;
+                    button.disabled = true;
+                    
+                    try {
+                        if (!monitoringRunning) {
+                            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+                            const response = await fetch('/api/monitoring/start', { method: 'POST' });
+                            const data = await response.json();
+                            
+                            if (data.status === 'success') {
+                                alert('監視システムを起動しました。\n\nGrafana: http://localhost:3000\nPrometheus: http://localhost:9090');
+                                await checkMonitoringStatus();
+                            } else {
+                                alert('起動に失敗しました: ' + data.message);
+                            }
+                        } else {
+                            alert('監視システムを停止するには、ターミナルで以下のコマンドを実行してください:\n\ncd docker\ndocker-compose -f docker-compose-monitoring.yml down');
+                        }
+                    } catch (error) {
+                        alert('エラーが発生しました: ' + error.message);
+                    } finally {
+                        button.disabled = false;
+                    }
+                });
+            }
+            
+            // Check monitoring status on page load
+            checkMonitoringStatus();
+        });
+        
         // システム情報を定期的に更新
         async function updateSystemInfo() {
             try {

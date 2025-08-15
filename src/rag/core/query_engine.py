@@ -48,7 +48,7 @@ class QueryResult:
 
 
 class LLMGenerator:
-    """LLM生成器"""
+    """LLM生成器（継続学習モデル対応版）"""
     
     def __init__(self, config: RAGConfig, load_model: bool = True):
         """
@@ -62,6 +62,24 @@ class LLMGenerator:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.use_ollama_fallback = True  # デフォルトでOllamaを使用
         self.ollama = None
+        
+        # 継続学習モデルマネージャーの初期化
+        self.continual_manager = None
+        self.use_continual = False
+        self.current_continual_task = None
+        
+        # 継続学習設定のチェック
+        if hasattr(config, 'continual_learning') and config.continual_learning.enabled:
+            try:
+                from .continual_model_manager import ContinualModelManager
+                self.continual_manager = ContinualModelManager(
+                    base_path=Path(config.continual_learning.model_base_path)
+                )
+                self.use_continual = True
+                logger.info(f"Continual learning enabled with {len(self.continual_manager.get_available_tasks())} tasks")
+            except Exception as e:
+                logger.warning(f"Failed to initialize continual learning manager: {e}")
+                self.use_continual = False
         
         # Ollamaモードを優先的に初期化
         self._enable_ollama_fallback()
@@ -315,9 +333,37 @@ class LLMGenerator:
     def generate(self, 
                 prompt: str, 
                 context: str,
-                max_new_tokens: Optional[int] = None) -> str:
-        """テキストを生成"""
+                max_new_tokens: Optional[int] = None,
+                query_text: Optional[str] = None) -> str:
+        """テキストを生成（継続学習モデル対応）"""
         
+        # 継続学習モデルの選択チェック
+        if self.use_continual and self.continual_manager and query_text:
+            should_use, task_name = self.continual_manager.should_use_continual_model(query_text)
+            if should_use and task_name:
+                logger.info(f"Using continual learning model for task: {task_name}")
+                model, tokenizer = self.continual_manager.load_model_for_task(task_name, str(self.device))
+                if model and tokenizer:
+                    # 継続学習モデルを一時的に使用
+                    original_model = self.model
+                    original_tokenizer = self.tokenizer
+                    self.model = model
+                    self.tokenizer = tokenizer
+                    self.current_continual_task = task_name
+                    try:
+                        # 継続学習モデルで生成
+                        result = self._generate_with_model(prompt, context, max_new_tokens)
+                        # 元のモデルに戻す（メモリ節約のため）
+                        self.model = original_model
+                        self.tokenizer = original_tokenizer
+                        return result
+                    except Exception as e:
+                        logger.error(f"Failed to generate with continual model: {e}")
+                        # エラー時は元のモデルに戻す
+                        self.model = original_model
+                        self.tokenizer = original_tokenizer
+        
+        # 通常のモデル選択ロジック
         # モデルが未ロードの場合、オンデマンドでロード
         if not self.model and not self.use_ollama_fallback:
             logger.info("Model not loaded, attempting on-demand loading...")
@@ -387,6 +433,65 @@ class LLMGenerator:
         except Exception as e:
             logger.error(f"Generation failed: {e}")
             return self._ollama_generation(prompt, context)
+
+    def _generate_with_model(self, prompt: str, context: str, max_new_tokens: Optional[int] = None) -> str:
+        """モデルを使用してテキストを生成（継続学習・通常モデル共通）"""
+        llm_config = self.config.llm
+        max_tokens = max_new_tokens or llm_config.max_new_tokens
+        
+        # プロンプトを構築
+        full_prompt = self._build_prompt(prompt, context)
+        
+        try:
+            # トークナイズ
+            inputs = self.tokenizer(
+                full_prompt,
+                return_tensors="pt",
+                truncation=True,
+                max_length=4096 - max_tokens,
+                padding=True
+            )
+            
+            # モデルがロードされているデバイスに送る
+            if hasattr(self.model, 'device'):
+                inputs = inputs.to(self.model.device)
+            else:
+                inputs = inputs.to(self.device)
+            
+            # 生成実行
+            logger.info(f"Generating with {'continual' if self.current_continual_task else 'standard'} model, max_tokens={max_tokens}")
+            
+            # 生成パラメータを調整
+            generation_kwargs = {
+                'max_new_tokens': min(max_tokens, 512),
+                'temperature': llm_config.temperature,
+                'top_p': llm_config.top_p,
+                'do_sample': llm_config.temperature > 0,
+                'repetition_penalty': 1.15,
+                'pad_token_id': self.tokenizer.pad_token_id,
+                'eos_token_id': self.tokenizer.eos_token_id,
+            }
+            
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    **generation_kwargs
+                )
+            
+            # デコード
+            generated_text = self.tokenizer.decode(
+                outputs[0][inputs['input_ids'].shape[1]:],
+                skip_special_tokens=True
+            )
+            
+            if self.current_continual_task:
+                logger.info(f"Generated {len(generated_text)} chars using continual model: {self.current_continual_task}")
+            
+            return generated_text.strip()
+            
+        except Exception as e:
+            logger.error(f"Generation error: {e}")
+            return self._fallback_generation(prompt, context)
     
     def _ollama_generation(self, prompt: str, context: str) -> str:
         """メモリ不足時のOllamaフォールバック生成"""

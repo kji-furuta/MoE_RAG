@@ -416,7 +416,11 @@ class CitationQueryEngine:
         if self.llm_generator:
             logger.info(f"Using LLM generator for query: {query_text[:50]}...")
             logger.info(f"Context length: {len(context_text)} characters")
-            llm_response = self.llm_generator.generate(query_text, context_text)
+            llm_response = self.llm_generator.generate(
+                prompt=query_text,
+                context=context_text,
+                query_text=query_text  # 継続学習モデル選択用にquery_textを渡す
+            )
             logger.info(f"LLM response length: {len(llm_response)} characters")
         else:
             logger.warning("No LLM generator available, using fallback response")

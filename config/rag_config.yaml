@@ -1,0 +1,122 @@
+# RAG System Configuration
+system_name: "Sï-RAG·¹Æà"
+version: "1.0.0"
+language: "ja"
+
+# Embedding Model Settings
+embedding:
+  model_name: "intfloat/multilingual-e5-large"
+  device: "cuda"  # cuda, cpu, or auto
+  batch_size: 32
+  normalize_embeddings: true
+
+# Vector Store Settings
+vector_store:
+  collection_name: "road_design_docs"
+  path: "./vector_store"
+  # Qdrant server settings (optional)
+  url: null  # e.g., "http://localhost:6333"
+  prefer_grpc: false
+  
+# Retrieval Settings
+retrieval:
+  top_k: 10
+  vector_weight: 0.7
+  keyword_weight: 0.3
+  reranking_enabled: true
+  reranker_model: "cross-encoder/ms-marco-multilingual-MiniLM-L12-v2"
+  
+# LLM Settings
+llm:
+  use_finetuned: false
+  base_model: "cyberagent/calm2-7b-chat"
+  finetuned_model_path: "./outputs/finetuned_model"
+  model_name: null  # Override model path if specified
+  model_path: null  # Alternative model path
+  
+  # Generation parameters
+  max_new_tokens: 512
+  temperature: 0.7
+  top_p: 0.9
+  repetition_penalty: 1.1
+  
+  # Memory optimization
+  load_in_8bit: false
+  load_in_4bit: false
+  device_map: "auto"
+  max_memory: null
+  
+  # Quantization settings
+  quantization_config:
+    load_in_4bit: true
+    bnb_4bit_compute_dtype: "float16"
+    bnb_4bit_use_double_quant: true
+    bnb_4bit_quant_type: "nf4"
+
+# Continual Learning Settings (NEW)
+continual_learning:
+  enabled: false  # Set to true to enable continual learning support
+  model_base_path: "./outputs"  # Base path for continual learning models
+  ewc_data_path: "./outputs/ewc_data"  # Path to EWC data and task history
+  
+  # Task selection settings
+  task_selection:
+    method: "keyword"  # keyword, embedding, or manual
+    confidence_threshold: 0.7  # Minimum confidence to use continual model
+    default_task: null  # Default task to use if no match found
+  
+  # Model caching settings
+  cache:
+    enabled: true
+    max_models: 3  # Maximum number of models to keep in cache
+    ttl_seconds: 3600  # Cache time-to-live in seconds
+  
+  # Performance settings
+  performance:
+    use_quantization: true  # Use quantization for continual models
+    offload_to_cpu: true  # Offload unused models to CPU
+    mixed_precision: true  # Use mixed precision training
+
+# Citation Settings
+citation:
+  include_sources: true
+  max_citations: 10
+  citation_style: "detailed"  # simple, detailed, or academic
+  
+# Indexing Settings
+indexing:
+  chunk_size: 512
+  chunk_overlap: 128
+  max_chunks_per_document: 1000
+  
+# Document Processing
+document_processing:
+  ocr_enabled: true
+  table_extraction_enabled: true
+  figure_extraction_enabled: false
+  
+# System Settings
+system:
+  log_level: "INFO"
+  cache_dir: "./cache"
+  temp_dir: "./temp"
+  
+# API Settings
+api:
+  timeout: 300  # seconds
+  max_retries: 3
+  retry_delay: 1  # seconds
+
+# Specialized Features
+specialized:
+  numerical_processing_enabled: true
+  design_standard_validation_enabled: true
+  cross_reference_enabled: true
+
+# Fallback Settings
+fallback:
+  use_ollama: true
+  ollama_model: "llama3.2:3b"
+  ollama_temperature: 0.7
+  ollama_top_p: 0.9
+  ollama_max_tokens: 2048

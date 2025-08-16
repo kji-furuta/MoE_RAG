@@ -959,7 +959,8 @@ function displayHistoryList(data) {
         html += `<td><span class="badge bg-info">${(result.confidence_score * 100).toFixed(1)}%</span></td>`;
         html += `<td><small>${new Date(result.saved_at).toLocaleString('ja-JP')}</small></td>`;
         html += `<td>`;
-        html += `<button class="btn btn-sm btn-info" onclick="viewSavedResultInTab('${result.id}')">表示</button>`;
+        html += `<button class="btn btn-sm btn-info me-1" onclick="viewSavedResultInTab('${result.id}')">表示</button>`;
+        html += `<button class="btn btn-sm btn-danger" onclick="deleteSearchHistoryItem('${result.id}')">削除</button>`;
         html += `</td>`;
         html += '</tr>';
     });
@@ -1016,6 +1017,62 @@ async function viewSavedResultInTab(resultId) {
         
     } catch (error) {
         alert(`エラー: ${error.message}`);
+    }
+}
+
+async function deleteSearchHistoryItem(resultId) {
+    if (!confirm('この検索履歴を削除してもよろしいですか？')) {
+        return;
+    }
+    
+    try {
+        // まず現在の履歴を確認
+        const checkResponse = await fetch('/rag/search-history?limit=100');
+        const historyData = await checkResponse.json();
+        const exists = historyData.results.some(item => item.id === resultId);
+        
+        if (!exists) {
+            // アイテムが存在しない場合は、リストを更新して終了
+            alert('この履歴項目は既に削除されているか、存在しません。\nリストを更新します。');
+            await loadSearchHistory();
+            return;
+        }
+        
+        const response = await fetch(`/rag/search-history/${resultId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Delete failed');
+        }
+        
+        const result = await response.json();
+        
+        // 成功メッセージを表示
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-success alert-dismissible fade show';
+        alertDiv.innerHTML = `
+            <strong>削除成功:</strong> 検索履歴が削除されました
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const historyDiv = document.getElementById('searchHistory');
+        historyDiv.parentElement.insertBefore(alertDiv, historyDiv);
+        
+        // 3秒後にアラートを自動的に閉じる
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 3000);
+        
+        // 履歴を再読み込み
+        await loadSearchHistory();
+        
+    } catch (error) {
+        alert(`削除に失敗しました: ${error.message}`);
     }
 }
 

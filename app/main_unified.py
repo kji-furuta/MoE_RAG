@@ -326,6 +326,10 @@ class RAGApplication:
                 with open(json_file, "r", encoding="utf-8") as f:
                     result_data = json.load(f)
                     
+                # ファイル名からIDを確実に設定
+                file_id = json_file.stem  # .jsonを除いたファイル名
+                result_data["id"] = file_id
+                    
                 # タグフィルタリング
                 if tag and tag not in result_data.get("metadata", {}).get("tags", []):
                     continue
@@ -360,6 +364,8 @@ class RAGApplication:
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 result_data = json.load(f)
+                # ファイル名からIDを確実に設定
+                result_data["id"] = result_id
                 return SavedSearchResult(**result_data)
         except Exception as e:
             logger.error(f"Error loading search result {result_id}: {e}")

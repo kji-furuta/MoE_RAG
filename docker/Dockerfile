@@ -41,6 +41,12 @@ RUN apt-get update && apt-get install -y \
     tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Ollama
+RUN curl -fsSL https://ollama.com/install.sh -o install-ollama.sh && \
+    chmod +x install-ollama.sh && \
+    ./install-ollama.sh && \
+    rm install-ollama.sh
+
 # 高速パッケージ管理ツールuvをインストール
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 # uvのパスを環境変数PATHに追加

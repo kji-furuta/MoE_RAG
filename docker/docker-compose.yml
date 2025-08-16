@@ -26,6 +26,7 @@ services:
       - HF_TOKEN=${HF_TOKEN:-}
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - OLLAMA_HOST=ollama:11434
     
     # Port mappings
     ports:
@@ -126,6 +127,26 @@ services:
     environment:
       - QDRANT__TELEMETRY_DISABLED=true
     restart: unless-stopped
+  
+  # Ollama Service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai-ft-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_NUM_PARALLEL=2
+      - OLLAMA_MAX_LOADED_MODELS=2
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
 
 # Networks
 networks:
@@ -143,4 +164,6 @@ volumes:
   ai_ft_rag_metadata:
     driver: local
   ai_ft_rag_processed:
+    driver: local
+  ollama_data:
     driver: local

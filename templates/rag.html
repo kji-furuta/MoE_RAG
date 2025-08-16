@@ -293,8 +293,15 @@
                 <div class="card-body">
                     <h3>📋 検索履歴</h3>
                     <div class="mb-3">
-                        <button class="btn btn-primary" onclick="loadSearchHistory()">履歴を更新</button>
-                        <button class="btn btn-success" onclick="exportAllHistory()">全履歴をエクスポート</button>
+                        <button class="btn btn-primary" onclick="loadSearchHistory()">
+                            <i class="bi bi-arrow-clockwise"></i> 履歴を更新
+                        </button>
+                        <button class="btn btn-success" onclick="exportAllHistory()">
+                            <i class="bi bi-download"></i> 全履歴をエクスポート
+                        </button>
+                        <button class="btn btn-danger float-end" onclick="clearAllSearchHistory()">
+                            <i class="bi bi-trash"></i> 全履歴を削除
+                        </button>
                     </div>
                     
                     <div class="mb-3">
@@ -960,7 +967,9 @@ function displayHistoryList(data) {
         html += `<td><small>${new Date(result.saved_at).toLocaleString('ja-JP')}</small></td>`;
         html += `<td>`;
         html += `<button class="btn btn-sm btn-info me-1" onclick="viewSavedResultInTab('${result.id}')">表示</button>`;
-        html += `<button class="btn btn-sm btn-danger" onclick="deleteSearchHistoryItem('${result.id}')">削除</button>`;
+        html += `<button class="btn btn-sm btn-danger" onclick="deleteSearchResult('${result.id}')" title="削除">`;
+        html += `<i class="bi bi-trash"></i>`;
+        html += `</button>`;
         html += `</td>`;
         html += '</tr>';
     });
@@ -1020,62 +1029,6 @@ async function viewSavedResultInTab(resultId) {
     }
 }
 
-async function deleteSearchHistoryItem(resultId) {
-    if (!confirm('この検索履歴を削除してもよろしいですか？')) {
-        return;
-    }
-    
-    try {
-        // まず現在の履歴を確認
-        const checkResponse = await fetch('/rag/search-history?limit=100');
-        const historyData = await checkResponse.json();
-        const exists = historyData.results.some(item => item.id === resultId);
-        
-        if (!exists) {
-            // アイテムが存在しない場合は、リストを更新して終了
-            alert('この履歴項目は既に削除されているか、存在しません。\nリストを更新します。');
-            await loadSearchHistory();
-            return;
-        }
-        
-        const response = await fetch(`/rag/search-history/${resultId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Delete failed');
-        }
-        
-        const result = await response.json();
-        
-        // 成功メッセージを表示
-        const alertDiv = document.createElement('div');
-        alertDiv.className = 'alert alert-success alert-dismissible fade show';
-        alertDiv.innerHTML = `
-            <strong>削除成功:</strong> 検索履歴が削除されました
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        
-        const historyDiv = document.getElementById('searchHistory');
-        historyDiv.parentElement.insertBefore(alertDiv, historyDiv);
-        
-        // 3秒後にアラートを自動的に閉じる
-        setTimeout(() => {
-            alertDiv.remove();
-        }, 3000);
-        
-        // 履歴を再読み込み
-        await loadSearchHistory();
-        
-    } catch (error) {
-        alert(`削除に失敗しました: ${error.message}`);
-    }
-}
-
 async function exportAllHistory() {
     try {
         const response = await fetch('/rag/search-history?limit=1000');
@@ -1104,6 +1057,71 @@ async function exportAllHistory() {
     } catch (error) {
         alert(`エクスポートに失敗しました: ${error.message}`);
     }
+}
+
+// 検索結果を削除
+async function deleteSearchResult(resultId) {
+    if (!confirm('この検索結果を削除しますか？')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/rag/search-history/${resultId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            // 履歴リストをリロード
+            loadSearchHistory(currentHistoryPage, currentTagFilter);
+            showNotification('検索結果を削除しました', 'success');
+        } else {
+            const data = await response.json();
+            console.error('Delete error response:', data);
+            throw new Error(data.detail || '削除に失敗しました');
+        }
+    } catch (error) {
+        console.error('Delete error:', error);
+        showNotification(`削除エラー: ${error.message}`, 'danger');
+    }
+}
+
+// 全ての検索履歴を削除
+async function clearAllSearchHistory() {
+    if (!confirm('すべての検索履歴を削除しますか？この操作は取り消せません。')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/rag/search-history/clear', {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            loadSearchHistory(1, '');
+            showNotification('すべての検索履歴を削除しました', 'success');
+        } else {
+            const data = await response.json();
+            throw new Error(data.detail || '削除に失敗しました');
+        }
+    } catch (error) {
+        showNotification(`削除エラー: ${error.message}`, 'danger');
+    }
+}
+
+// 通知を表示
+function showNotification(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
 }
 
 // ページ読み込み時に実行

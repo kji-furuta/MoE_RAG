@@ -41,11 +41,8 @@ RUN apt-get update && apt-get install -y \
     tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Ollama
-RUN curl -fsSL https://ollama.com/install.sh -o install-ollama.sh && \
-    chmod +x install-ollama.sh && \
-    ./install-ollama.sh && \
-    rm install-ollama.sh
+# Ollamaをインストール
+RUN curl -fsSL https://ollama.com/install.sh | sh
 
 # 高速パッケージ管理ツールuvをインストール
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -108,22 +105,25 @@ RUN useradd -m -s /bin/bash -u 1000 ai-user
 COPY src/ /workspace/src/
 COPY config/ /workspace/config/
 COPY scripts/ /workspace/scripts/
-COPY notebooks/ /workspace/notebooks/
-COPY tests/ /workspace/tests/
+# COPY notebooks/ /workspace/notebooks/  # Optional directory
+# COPY tests/ /workspace/tests/  # Optional directory
 COPY app/ /workspace/app/
 COPY templates/ /workspace/templates/
-COPY docs/ /workspace/docs/
-COPY examples/ /workspace/examples/
+# COPY docs/ /workspace/docs/  # Optional directory
+# COPY examples/ /workspace/examples/  # Optional directory
 COPY *.py /workspace/
 COPY *.json /workspace/
 COPY *.md /workspace/
 COPY *.sh /workspace/
 COPY *.bat /workspace/
 
-# 権限を設定（所有者変更を最適化）
-RUN chown -R ai-user:ai-user /workspace && \
-    chmod -R 755 /workspace && \
-    chmod -R 777 /workspace/data/uploaded /workspace/logs /workspace/models /workspace/data /workspace/metadata /workspace/outputs/rag_index
+# 権限設定スクリプトをコピー
+COPY scripts/setup_permissions.sh /workspace/scripts/
+
+# 権限を包括的に設定
+RUN chmod +x /workspace/scripts/setup_permissions.sh && \
+    /workspace/scripts/setup_permissions.sh && \
+    chown -R ai-user:ai-user /workspace
 
 # JupyterLabの設定
 RUN jupyter lab --generate-config && \

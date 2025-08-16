@@ -5,13 +5,47 @@
 
 echo "🚀 AI_FT_3 統合Webインターフェースを起動中..."
 
+# Ollamaサービスを起動（存在する場合）
+if command -v ollama &> /dev/null; then
+    echo "🤖 Ollamaサービスを起動中..."
+    nohup ollama serve > /dev/null 2>&1 &
+    sleep 3
+    echo "✅ Ollamaサービスを起動しました (port 11434)"
+    
+    # Ollamaモデルの確認と自動ダウンロード
+    echo "📦 Ollamaモデルを確認中..."
+    if ! ollama list | grep -q "llama3.2:3b"; then
+        echo "📥 llama3.2:3bモデルをダウンロード中..."
+        ollama pull llama3.2:3b
+        echo "✅ モデルのダウンロードが完了しました"
+    else
+        echo "✅ llama3.2:3bモデルが利用可能です"
+    fi
+fi
+
 # 作業ディレクトリを設定
 cd /workspace
 
-# 必要なディレクトリを作成
-mkdir -p /workspace/outputs
-mkdir -p /workspace/data/continual_learning
-mkdir -p /workspace/logs
+# パーミッションをチェック・修正
+echo "🔐 パーミッションをチェック中..."
+if [ -f /workspace/scripts/setup_permissions.sh ]; then
+    /workspace/scripts/setup_permissions.sh --check
+    if [ $? -ne 0 ]; then
+        echo "🔧 パーミッションを修正中..."
+        if [ "$EUID" -eq 0 ]; then
+            /workspace/scripts/setup_permissions.sh
+        else
+            sudo /workspace/scripts/setup_permissions.sh 2>/dev/null || /workspace/scripts/setup_permissions.sh
+        fi
+    fi
+else
+    echo "⚠️ パーミッション設定スクリプトが見つかりません"
+    # フォールバック: 基本的なディレクトリ作成
+    mkdir -p /workspace/outputs
+    mkdir -p /workspace/data/continual_learning
+    mkdir -p /workspace/logs
+    mkdir -p /workspace/temp_uploads
+fi
 
 # 継続学習管理システムの初期化
 echo "📋 継続学習管理システムを初期化中..."

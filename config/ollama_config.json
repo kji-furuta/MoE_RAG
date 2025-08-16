@@ -1,0 +1,16 @@
+{
+  "ollama_integration": {
+    "enabled": true,
+    "base_url": "http://localhost:11434",
+    "fallback_on_oom": true,
+    "models": {
+      "primary": "llama3.2:3b",
+      "fallback": "llama3.2:3b",
+      "custom": [
+        "japanese-assistant"
+      ]
+    },
+    "memory_threshold_gb": 8,
+    "auto_select": true
+  }
+}

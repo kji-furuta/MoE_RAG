@@ -1170,40 +1170,118 @@ async def start_monitoring():
         import subprocess
         import os
         
-        # docker-compose-monitoring.yml のパスを確認
-        docker_dir = Path(__file__).parent.parent / "docker"
-        compose_file = docker_dir / "docker-compose-monitoring.yml"
+        # Web用の監視制御スクリプトを使用
+        script_path = Path("/workspace/scripts/web_monitoring_controller.sh")
         
-        if not compose_file.exists():
-            return JSONResponse(
-                content={"status": "error", "message": "監視設定ファイルが見つかりません"},
-                status_code=404
-            )
+        if not script_path.exists():
+            # スクリプトがない場合は作成
+            script_content = '''#!/bin/bash
+# 監視システムをコンテナ内から起動するスクリプト
+echo "🚀 Grafana監視システムを起動中..."
+
+# Grafanaが起動しているか確認
+if curl -s http://ai-ft-grafana:3000/api/health > /dev/null 2>&1; then
+    echo "✅ Grafana: 既に起動しています"
+    exit 0
+else
+    echo "⚠️ Grafana: ホスト側でdocker-compose -f docker/docker-compose-monitoring.yml up -d を実行してください"
+    exit 1
+fi
+'''
+            script_path.write_text(script_content)
+            os.chmod(script_path, 0o755)
         
-        # 監視システムを起動
+        # スクリプトを実行
         result = subprocess.run(
-            ["docker-compose", "-f", str(compose_file), "up", "-d"],
+            [str(script_path), "start"],
             capture_output=True,
-            text=True,
-            cwd=str(docker_dir)
+            text=True
         )
         
-        if result.returncode == 0:
+        # Grafanaの状態を直接確認
+        import requests
+        grafana_running = False
+        prometheus_running = False
+        
+        try:
+            # Grafana確認（コンテナ間通信）
+            resp = requests.get("http://ai-ft-grafana:3000/api/health", timeout=2)
+            grafana_running = resp.status_code == 200
+        except:
+            pass
+            
+        try:
+            # Prometheus確認（コンテナ間通信）
+            resp = requests.get("http://ai-ft-prometheus:9090/-/healthy", timeout=2)
+            prometheus_running = resp.status_code == 200
+        except:
+            pass
+        
+        if grafana_running or prometheus_running:
             return JSONResponse(content={
                 "status": "success",
-                "message": "監視システムを起動しました",
+                "message": "監視システムが利用可能です",
                 "services": {
-                    "grafana": "http://localhost:3000",
-                    "prometheus": "http://localhost:9090"
-                }
+                    "grafana": "http://localhost:3000" if grafana_running else None,
+                    "prometheus": "http://localhost:9090" if prometheus_running else None
+                },
+                "note": "既に起動済みか、ホスト側で起動されています"
             })
         else:
             return JSONResponse(
-                content={"status": "error", "message": f"起動エラー: {result.stderr}"},
-                status_code=500
+                content={
+                    "status": "error", 
+                    "message": "監視システムが起動していません。ホスト側で以下のコマンドを実行してください:\ndocker-compose -f docker/docker-compose-monitoring.yml up -d",
+                    "command": "docker-compose -f docker/docker-compose-monitoring.yml up -d"
+                },
+                status_code=503
             )
     except Exception as e:
         logger.error(f"監視システム起動エラー: {str(e)}")
+        return JSONResponse(
+            content={"status": "error", "message": str(e)},
+            status_code=500
+        )
+
+@app.post("/api/monitoring/stop")
+async def stop_monitoring():
+    """監視システムを停止"""
+    try:
+        import subprocess
+        import requests
+        
+        # 現在の状態を確認
+        grafana_running = False
+        prometheus_running = False
+        
+        try:
+            resp = requests.get("http://ai-ft-grafana:3000/api/health", timeout=2)
+            grafana_running = resp.status_code == 200
+        except:
+            pass
+            
+        try:
+            resp = requests.get("http://ai-ft-prometheus:9090/-/healthy", timeout=2)
+            prometheus_running = resp.status_code == 200
+        except:
+            pass
+        
+        if not grafana_running and not prometheus_running:
+            return JSONResponse(content={
+                "status": "success",
+                "message": "監視システムは既に停止しています"
+            })
+        
+        # コンテナ内から停止コマンドを実行できないため、手順を案内
+        return JSONResponse(content={
+            "status": "info",
+            "message": "監視システムを停止するには、ホスト側で以下のコマンドを実行してください",
+            "command": "docker stop ai-ft-grafana ai-ft-prometheus ai-ft-redis",
+            "alternative": "または: docker-compose -f docker/docker-compose-monitoring.yml down"
+        })
+        
+    except Exception as e:
+        logger.error(f"監視システム停止エラー: {str(e)}")
         return JSONResponse(
             content={"status": "error", "message": str(e)},
             status_code=500
@@ -3112,6 +3190,24 @@ async def delete_search_history_item(result_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to delete search history item: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/rag/search-history/clear")
+async def clear_all_search_history():
+    """全ての検索履歴を削除"""
+    try:
+        rag_app.check_initialized()
+        
+        # 全履歴をクリア
+        rag_app.search_history = []
+        
+        return {
+            "status": "success",
+            "message": "All search history cleared successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to clear all search history: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/rag/search-result/{result_id}")

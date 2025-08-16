@@ -13,7 +13,7 @@ echo -e "${BLUE}  AI-FT 監視システム統合起動スクリプト${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
-cd /home/kjifuruta/AI_FT/AI_FT_3
+cd /workspace
 
 # 既存のコンテナを停止
 echo -e "${YELLOW}🛑 既存のサービスを停止します...${NC}"

@@ -1,0 +1,193 @@
+# MoE-RAG統合設定ファイル
+
+# MoEモデル設定
+moe:
+  model_path: "outputs/moe_model_latest.pt"  # 保存済みモデルのパス
+  device: "cuda"  # cuda or cpu
+  num_experts: 8
+  num_experts_per_tok: 2
+  expert_capacity_factor: 1.25
+  
+  # エキスパートタイプ
+  expert_types:
+    - "構造設計"
+    - "道路設計"
+    - "地盤工学"
+    - "水理・排水"
+    - "材料工学"
+    - "施工管理"
+    - "法規・基準"
+    - "環境・維持管理"
+  
+  # 推論設定
+  inference:
+    max_length: 512
+    temperature: 0.7
+    top_p: 0.9
+    batch_size: 4
+
+# RAGシステム設定
+rag:
+  config_path: "src/rag/config/rag_config.yaml"
+  
+  # ベクトルストア
+  vector_store:
+    type: "qdrant"
+    host: "localhost"
+    port: 6333
+    collection_name: "civil_engineering_docs"
+  
+  # 埋め込みモデル
+  embedding:
+    model_name: "intfloat/multilingual-e5-large"
+    dimension: 1024
+    batch_size: 32
+  
+  # 検索設定
+  search:
+    top_k: 10
+    hybrid_weight: 0.7  # ベクトル検索の重み
+    use_reranking: true
+    reranker_model: "cross-encoder/ms-marco-MiniLM-L-12-v2"
+
+# ハイブリッド統合設定
+integration:
+  # 重み設定
+  weights:
+    moe: 0.4
+    rag: 0.6
+  
+  # ルーティング設定
+  routing:
+    strategy: "adaptive"  # adaptive, static, dynamic
+    confidence_threshold: 0.3
+    fallback_experts: ["道路設計", "構造設計"]
+  
+  # 融合設定
+  fusion:
+    strategy: "adaptive"  # adaptive, weighted, hierarchical
+    quality_threshold: 0.5
+    max_response_length: 2000
+    
+    # テンプレート選択
+    templates:
+      technical_query: "technical"
+      factual_query: "concise"
+      comprehensive_query: "comprehensive"
+      default: "balanced"
+  
+  # キャッシュ設定
+  cache:
+    enabled: true
+    ttl: 3600  # 秒
+    max_size: 1000  # エントリ数
+
+# API設定
+api:
+  host: "0.0.0.0"
+  port: 8050
+  
+  # エンドポイント
+  endpoints:
+    query: "/api/moe-rag/query"
+    stream: "/api/moe-rag/stream"
+    expert_info: "/api/moe-rag/experts"
+    system_info: "/api/moe-rag/info"
+  
+  # レート制限
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+    burst: 10
+  
+  # タイムアウト
+  timeout:
+    query: 30  # 秒
+    stream: 60
+    upload: 120
+
+# ロギング設定
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # ログファイル
+  file:
+    enabled: true
+    path: "logs/moe_rag_integration.log"
+    max_size: "100MB"
+    backup_count: 5
+  
+  # メトリクス
+  metrics:
+    enabled: true
+    export_interval: 60  # 秒
+    prometheus_port: 9090
+
+# パフォーマンス設定
+performance:
+  # 並列処理
+  parallel:
+    enabled: true
+    max_workers: 4
+  
+  # バッチ処理
+  batch:
+    enabled: true
+    size: 8
+    timeout: 5  # 秒
+  
+  # GPU最適化
+  gpu:
+    memory_fraction: 0.8
+    allow_growth: true
+    mixed_precision: false
+
+# セキュリティ設定
+security:
+  # 入力検証
+  input_validation:
+    max_query_length: 1000
+    blocked_patterns: []
+    sanitize_html: true
+  
+  # 認証（オプション）
+  auth:
+    enabled: false
+    type: "api_key"  # api_key, jwt, oauth2
+    
+# モニタリング設定
+monitoring:
+  # ヘルスチェック
+  health_check:
+    enabled: true
+    interval: 30  # 秒
+    endpoint: "/health"
+  
+  # アラート
+  alerts:
+    enabled: false
+    webhook_url: ""
+    thresholds:
+      error_rate: 0.05
+      latency_p95: 2000  # ms
+      memory_usage: 0.9  # 90%
+
+# 実験的機能
+experimental:
+  # 動的エキスパート選択
+  dynamic_expert_selection: false
+  
+  # 継続学習
+  continual_learning:
+    enabled: false
+    update_interval: 86400  # 1日
+    
+  # A/Bテスト
+  ab_testing:
+    enabled: false
+    variants:
+      - name: "baseline"
+        weight: 0.5
+      - name: "optimized"
+        weight: 0.5

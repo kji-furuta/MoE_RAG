@@ -57,6 +57,29 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* MoE埋め込みUI用のスタイル */
+#embedded-moe-ui {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from { 
+        opacity: 0; 
+        max-height: 0;
+        transform: translateY(-20px);
+    }
+    to { 
+        opacity: 1; 
+        max-height: 700px;
+        transform: translateY(0);
+    }
+}
+
+#moe-ui-iframe {
+    transition: opacity 0.3s;
+    opacity: 1;
+}
+
 /* セクションスタイル */
 .text-generation {
     background: #f0f8f0;
@@ -166,6 +189,9 @@
             </div>
             <div class="main-tab" onclick="switchMainTab('continual')">
                 <span class="main-tab-icon">🔄</span>継続学習
+            </div>
+            <div class="main-tab" onclick="switchMainTab('moe-rag')">
+                <span class="main-tab-icon">🤖</span>MoE-RAG
             </div>
             <div class="main-tab" onclick="switchMainTab('tools')">
                 <span class="main-tab-icon">🛠️</span>その他ツール
@@ -299,6 +325,107 @@
                     <p>履歴を読み込み中...</p>
                 </div>
             </div>
+            </div>
+        </div>
+        
+        <!-- MoE-RAGセクション -->
+        <div id="moe-rag-section" class="main-section">
+            <div class="section" style="background: #f5f0ff; border-left: 4px solid #9b59b6;">
+                <h2>🤖 MoE-RAG ハイブリッド検索システム</h2>
+                <p>土木工学専門のMixture of ExpertsとRAGを統合した高精度検索システム</p>
+                
+                <!-- UIコントロールボタン -->
+                <div style="margin: 20px 0;">
+                    <button onclick="toggleMoEUI()" class="btn btn-primary" id="moe-ui-toggle-btn" style="background: #9b59b6; border-color: #8e44ad;">
+                        <i class="fas fa-expand"></i> MoE-RAG Web UIを展開
+                    </button>
+                    <button onclick="openMoETraining()" class="btn btn-outline-primary" style="color: #9b59b6; border-color: #9b59b6;">
+                        <i class="fas fa-graduation-cap"></i> トレーニング管理
+                    </button>
+                </div>
+                
+                <!-- 埋め込みMoE-RAG UI (初期は非表示) -->
+                <div id="embedded-moe-ui" style="display: none; margin: 20px 0;">
+                    <div style="border: 2px solid #9b59b6; border-radius: 8px; padding: 0; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <div style="background: #9b59b6; color: white; padding: 10px; border-radius: 6px 6px 0 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h3 style="margin: 0;" id="moe-ui-title">🌐 MoE-RAG検索インターフェース</h3>
+                                <div>
+                                    <button onclick="switchMoEView('search')" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 10px; margin-right: 5px; border-radius: 4px; cursor: pointer;">
+                                        <i class="fas fa-search"></i> 検索
+                                    </button>
+                                    <button onclick="switchMoEView('training')" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 10px; margin-right: 10px; border-radius: 4px; cursor: pointer;">
+                                        <i class="fas fa-graduation-cap"></i> トレーニング
+                                    </button>
+                                    <button onclick="toggleMoEUI()" style="background: none; border: none; color: white; cursor: pointer; font-size: 20px;">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <iframe id="moe-ui-iframe" 
+                                src="/static/moe_rag_ui.html" 
+                                style="width: 100%; height: 600px; border: none; border-radius: 0 0 6px 6px;">
+                        </iframe>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                    <!-- 機能説明 -->
+                    <div style="border: 2px solid #9b59b6; border-radius: 8px; padding: 20px; background: white;">
+                        <h3>🚀 主要機能</h3>
+                        <p>高度な検索と分析機能</p>
+                        <ul style="text-align: left; margin: 10px 0;">
+                            <li>8つの専門エキスパート</li>
+                            <li>ハイブリッド検索</li>
+                            <li>信頼度スコア表示</li>
+                            <li>リアルタイム回答生成</li>
+                        </ul>
+                        <div style="margin-top: 15px; padding: 10px; background: #f0f0f0; border-radius: 5px;">
+                            <small><i class="fas fa-info-circle"></i> 上部の「Web UIを展開」ボタンでインターフェースを表示</small>
+                        </div>
+                    </div>
+                    
+                    <!-- エキスパート情報 -->
+                    <div style="border: 2px solid #3498db; border-radius: 8px; padding: 20px; background: white;">
+                        <h3>📊 専門エキスパート</h3>
+                        <div id="expert-list" style="text-align: left; margin-top: 10px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+                                <div>• 構造設計</div>
+                                <div>• 道路設計</div>
+                                <div>• 地盤工学</div>
+                                <div>• 水理・排水</div>
+                                <div>• 材料工学</div>
+                                <div>• 施工管理</div>
+                                <div>• 法規・基準</div>
+                                <div>• 環境・維持管理</div>
+                            </div>
+                        </div>
+                        <button type="button" onclick="loadMoEStatus()" class="btn btn-secondary" style="margin-top: 15px;">
+                            <i class="fas fa-sync"></i> ステータス確認
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- クイック検索 -->
+                <div style="margin-top: 30px; padding: 20px; background: white; border-radius: 8px;">
+                    <h3>🔍 クイック検索</h3>
+                    <form onsubmit="analyzeMoEQuery(event); return false;">
+                        <div class="form-group">
+                            <input type="text" id="moe-query" class="form-control" 
+                                   placeholder="例: 設計速度80km/hの道路における最小曲線半径は？"
+                                   style="padding: 12px; font-size: 16px;">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="background: #9b59b6; border-color: #8e44ad;">
+                            <i class="fas fa-search"></i> クエリ分析
+                        </button>
+                    </form>
+                    <div id="moe-analysis-result" style="margin-top: 20px;"></div>
+                </div>
+                
+                <!-- システムステータス -->
+                <div id="moe-status" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; display: none;">
+                </div>
             </div>
         </div>
         
@@ -596,6 +723,11 @@ function switchMainTab(tabName) {
         loadContinualTasks();
         refreshContinualModels();
     }
+    
+    // MoE-RAGタブが選択された場合、ステータスを自動読み込み
+    if (tabName === 'moe-rag') {
+        loadMoEStatus();
+    }
 }
 
 // 継続学習関連の関数
@@ -829,5 +961,240 @@ async function loadContinualHistory() {
         console.error('Error loading history:', error);
         document.getElementById('taskHistory').innerHTML = '<p>履歴の読み込みに失敗しました</p>';
     }
+}
+
+// MoE-RAG関連の関数
+async function loadMoEStatus() {
+    console.log('Loading MoE-RAG status...');
+    const statusDiv = document.getElementById('moe-status');
+    
+    try {
+        // ステータス取得
+        const statusResponse = await fetch('/api/moe-rag/status');
+        const statusData = await statusResponse.json();
+        
+        // エキスパート情報取得
+        let expertsData = null;
+        if (statusData.available && statusData.initialized) {
+            try {
+                const expertsResponse = await fetch('/api/moe-rag/experts');
+                expertsData = await expertsResponse.json();
+            } catch (e) {
+                console.error('Error loading experts:', e);
+            }
+        }
+        
+        statusDiv.style.display = 'block';
+        
+        if (statusData.available && statusData.initialized) {
+            let html = `
+                <div style="padding: 15px; background: #e8f5e9; border-radius: 8px; border: 1px solid #4caf50;">
+                    <div style="color: green; font-weight: bold; margin-bottom: 10px;">
+                        <i class="fas fa-check-circle"></i> MoE-RAGシステム: 稼働中
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <h5 style="margin-top: 10px;">システムコンポーネント</h5>
+                            <div style="font-size: 14px;">
+                                <div>エキスパートルーター: ${statusData.components.expert_router ? '✅ 有効' : '❌ 無効'}</div>
+                                <div>レスポンス融合: ${statusData.components.response_fusion ? '✅ 有効' : '❌ 無効'}</div>
+                                <div>最終更新: ${new Date(statusData.timestamp).toLocaleTimeString('ja-JP')}</div>
+                            </div>
+                        </div>
+            `;
+            
+            if (expertsData && expertsData.experts) {
+                html += `
+                        <div>
+                            <h5 style="margin-top: 10px;">利用可能エキスパート (${expertsData.total})</h5>
+                            <div style="font-size: 12px; max-height: 150px; overflow-y: auto;">
+                `;
+                
+                expertsData.experts.forEach(expert => {
+                    html += `
+                        <div style="margin: 2px 0; padding: 3px 8px; background: #f0f0f0; border-radius: 4px; 
+                                    border-left: 3px solid ${expert.color || '#999'};">
+                            ${expert.icon || '•'} <strong>${expert.name}</strong>: ${expert.description}
+                        </div>
+                    `;
+                });
+                
+                html += `
+                            </div>
+                        </div>
+                `;
+            }
+            
+            html += `
+                    </div>
+                </div>
+            `;
+            
+            statusDiv.innerHTML = html;
+        } else {
+            statusDiv.innerHTML = `
+                <div style="padding: 15px; background: #fff3e0; border-radius: 8px; border: 1px solid #ff9800;">
+                    <div style="color: orange;">
+                        <i class="fas fa-exclamation-triangle"></i> MoE-RAGシステム: 初期化中...
+                    </div>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading MoE status:', error);
+        statusDiv.style.display = 'block';
+        statusDiv.innerHTML = `
+            <div style="padding: 15px; background: #ffebee; border-radius: 8px; border: 1px solid #f44336;">
+                <div style="color: red;">
+                    <i class="fas fa-times-circle"></i> MoE-RAGシステム: エラー
+                    <div style="font-size: 12px; margin-top: 5px;">${error.message}</div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// MoE UI展開/折りたたみ機能
+function toggleMoEUI() {
+    const embeddedUI = document.getElementById('embedded-moe-ui');
+    const toggleBtn = document.getElementById('moe-ui-toggle-btn');
+    
+    if (embeddedUI.style.display === 'none' || embeddedUI.style.display === '') {
+        // 展開
+        embeddedUI.style.display = 'block';
+        toggleBtn.innerHTML = '<i class="fas fa-compress"></i> MoE-RAG Web UIを折りたたむ';
+        
+        // iframe再読み込み（必要に応じて）
+        const iframe = document.getElementById('moe-ui-iframe');
+        if (!iframe.src) {
+            iframe.src = '/static/moe_rag_ui.html';
+        }
+        
+        // スムーズスクロール
+        embeddedUI.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+        // 折りたたみ
+        embeddedUI.style.display = 'none';
+        toggleBtn.innerHTML = '<i class="fas fa-expand"></i> MoE-RAG Web UIを展開';
+    }
+}
+
+// トレーニング管理画面を開く
+function openMoETraining() {
+    switchMoEView('training');
+}
+
+// MoE UI内のビューを切り替え
+function switchMoEView(view) {
+    const embeddedUI = document.getElementById('embedded-moe-ui');
+    const iframe = document.getElementById('moe-ui-iframe');
+    const toggleBtn = document.getElementById('moe-ui-toggle-btn');
+    const titleElement = document.getElementById('moe-ui-title');
+    
+    // UIを展開
+    embeddedUI.style.display = 'block';
+    toggleBtn.innerHTML = '<i class="fas fa-compress"></i> MoE-RAG Web UIを折りたたむ';
+    
+    // ビューに応じてiframeのソースとタイトルを変更
+    if (view === 'training') {
+        iframe.src = '/static/moe_training.html';
+        titleElement.innerHTML = '🎓 MoEトレーニング管理';
+    } else {
+        iframe.src = '/static/moe_rag_ui.html';
+        titleElement.innerHTML = '🌐 MoE-RAG検索インターフェース';
+    }
+    
+    // スムーズスクロール
+    embeddedUI.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function analyzeMoEQuery(event) {
+    event.preventDefault();
+    
+    const query = document.getElementById('moe-query').value;
+    if (!query) {
+        alert('クエリを入力してください');
+        return;
+    }
+    
+    const resultDiv = document.getElementById('moe-analysis-result');
+    resultDiv.innerHTML = '<div class="loading">分析中...</div>';
+    
+    try {
+        const response = await fetch(`/api/moe-rag/analyze?query=${encodeURIComponent(query)}`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        let html = `
+            <div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd;">
+                <h4>クエリ分析結果</h4>
+                <div style="margin-top: 15px;">
+                    <strong>選択されたエキスパート:</strong>
+                    <div style="margin-top: 5px;">
+        `;
+        
+        data.primary_experts.forEach(expert => {
+            html += `<span style="display: inline-block; padding: 5px 10px; margin: 5px; 
+                            background: #9b59b6; color: white; border-radius: 5px;">
+                        ${expert}
+                    </span>`;
+        });
+        
+        html += `
+                    </div>
+                </div>
+                <div style="margin-top: 15px;">
+                    <strong>ルーティング戦略:</strong> ${data.routing_strategy}
+                </div>
+                <div style="margin-top: 15px;">
+                    <strong>信頼度:</strong> 
+                    <div style="display: inline-block; width: 200px; height: 20px; 
+                                background: #e0e0e0; border-radius: 10px; overflow: hidden;">
+                        <div style="width: ${data.confidence * 100}%; height: 100%; 
+                                    background: linear-gradient(90deg, #f39c12, #27ae60);"></div>
+                    </div>
+                    ${(data.confidence * 100).toFixed(1)}%
+                </div>
+                <div style="margin-top: 15px;">
+                    <strong>クエリ複雑度:</strong> ${(data.complexity.complexity_score * 100).toFixed(1)}%
+                </div>
+                <div style="margin-top: 15px;">
+                    <button onclick="executeQueryInEmbedded('${encodeURIComponent(query)}')" 
+                       class="btn btn-primary" 
+                       style="background: #9b59b6; border-color: #8e44ad;">
+                        <i class="fas fa-search"></i> 詳細検索を実行
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        resultDiv.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error analyzing query:', error);
+        resultDiv.innerHTML = `
+            <div style="color: red; padding: 15px; background: #fee; border-radius: 8px;">
+                <i class="fas fa-times-circle"></i> エラー: ${error.message}
+            </div>
+        `;
+    }
+}
+
+// 埋め込みUIでクエリを実行
+function executeQueryInEmbedded(encodedQuery) {
+    const embeddedUI = document.getElementById('embedded-moe-ui');
+    const iframe = document.getElementById('moe-ui-iframe');
+    const toggleBtn = document.getElementById('moe-ui-toggle-btn');
+    
+    // UIを展開
+    embeddedUI.style.display = 'block';
+    toggleBtn.innerHTML = '<i class="fas fa-compress"></i> MoE-RAG Web UIを折りたたむ';
+    
+    // クエリ付きでUIを読み込み
+    iframe.src = `/static/moe_rag_ui.html?query=${encodedQuery}`;
+    
+    // スムーズスクロール
+    embeddedUI.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 {% endblock %} 

@@ -1,0 +1,19 @@
+# Minimal Dockerfile for MoE WebUI
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# 最小限の依存関係のみ
+RUN pip install --no-cache-dir \
+    flask==2.3.0 \
+    numpy==1.24.0
+
+# アプリケーションファイルのコピー
+COPY app/moe_simple_ui.py /app/
+COPY src/moe/__init__.py /app/src/moe/
+
+# ポート設定
+EXPOSE 5000
+
+# 起動コマンド
+CMD ["python", "moe_simple_ui.py"]

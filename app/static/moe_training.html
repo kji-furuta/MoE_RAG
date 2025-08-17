@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoE トレーニング管理</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #9b59b6;
+            --secondary-color: #8e44ad;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Noto Sans JP', sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .training-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .expert-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .expert-card {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        .expert-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .expert-card.selected {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: var(--secondary-color);
+        }
+
+        .training-progress {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .progress-bar-animated {
+            animation: progress-animation 2s ease-in-out infinite;
+        }
+
+        @keyframes progress-animation {
+            0% { background-position: 0 0; }
+            100% { background-position: 40px 0; }
+        }
+
+        .config-section {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            border-color: var(--secondary-color);
+        }
+
+        .btn-primary:hover {
+            background: var(--secondary-color);
+            border-color: var(--primary-color);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .status-running { background: #fff3cd; color: #856404; }
+        .status-completed { background: #d4edda; color: #155724; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+        .status-pending { background: #d1ecf1; color: #0c5460; }
+
+        .log-viewer {
+            background: #2c3e50;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .metric-label {
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- ヘッダー -->
+        <div class="header-card">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="fas fa-graduation-cap"></i> MoE トレーニング管理</h1>
+                    <p class="text-muted mb-0">Mixture of Experts モデルのトレーニングと管理</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-outline-primary" onclick="checkGPUStatus()">
+                        <i class="fas fa-microchip"></i> GPU状態
+                    </button>
+                    <a href="/static/moe_rag_ui.html" class="btn btn-outline-secondary">
+                        <i class="fas fa-search"></i> 検索UI
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- トレーニング設定 -->
+        <div class="training-card">
+            <h3><i class="fas fa-cog"></i> トレーニング設定</h3>
+            
+            <div class="config-section">
+                <h5>基本設定</h5>
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="form-label">トレーニングタイプ</label>
+                        <select id="training-type" class="form-select">
+                            <option value="demo">デモ（軽量）</option>
+                            <option value="full">フルトレーニング</option>
+                            <option value="lora">LoRA（効率的）</option>
+                            <option value="continual">継続学習</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">エポック数</label>
+                        <input type="number" id="epochs" class="form-control" value="3" min="1" max="100">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">バッチサイズ</label>
+                        <input type="number" id="batch-size" class="form-control" value="4" min="1" max="32">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <label class="form-label">学習率</label>
+                        <input type="number" id="learning-rate" class="form-control" value="0.0001" step="0.00001">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">ウォームアップステップ</label>
+                        <input type="number" id="warmup-steps" class="form-control" value="100" min="0">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">保存間隔（ステップ）</label>
+                        <input type="number" id="save-steps" class="form-control" value="500" min="100">
+                    </div>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <h5>エキスパート選択</h5>
+                <p class="text-muted">トレーニングする専門エキスパートを選択してください（複数選択可）</p>
+                <div class="expert-selector">
+                    <div class="expert-card" data-expert="structural" onclick="toggleExpert(this)">
+                        <div class="text-center">
+                            <div style="font-size: 2rem;">🏗️</div>
+                            <strong>構造設計</strong>
+                            <div class="small text-muted">構造計算・耐震設計</div>
+                        </div>
+                    </div>
+                    <div class="expert-card" data-expert="road" onclick="toggleExpert(this)">
+                        <div class="text-center">
+                            <div style="font-size: 2rem;">🛣️</div>
+                            <strong>道路設計</strong>
+                            <div class="small text-muted">線形設計・視距</div>
+                        </div>
+                    </div>
+                    <div class="expert-card" data-expert="geotech" onclick="toggleExpert(this)">
+                        <div class="text-center">
+                            <div style="font-size: 2rem;">⛰️</div>
+                            <strong>地盤工学</strong>
+                            <div class="small text-muted">土質調査・支持力</div>
+                        </div>
+                    </div>
+                    <div class="expert-card" data-expert="hydraulics" onclick="toggleExpert(this)">
+                        <div class="text-center">
+                            <div style="font-size: 2rem;">💧</div>
+                            <strong>水理・排水</strong>
+                            <div class="small text-muted">流量計算・排水計画</div>
+                        </div>
+                    </div>
+                    <div class="expert-card" data-expert="materials" onclick="toggleExpert(this)">
+                        <div class="text-center">
+                            <div style="font-size: 2rem;">🧱</div>
+                            <strong>材料工学</strong>
+                            <div class="small text-muted">コンクリート・鋼材</div>
+                        </div>
+                    </div>
+                    <div class="expert-card" data-expert="construction" onclick="toggleExpert(this)">
+                        <div class="text-center">
+                            <div style="font-size: 2rem;">👷</div>
+                            <strong>施工管理</strong>
+                            <div class="small text-muted">工程・品質管理</div>
+                        </div>
+                    </div>
+                    <div class="expert-card" data-expert="regulations" onclick="toggleExpert(this)">
+                        <div class="text-center">
+                            <div style="font-size: 2rem;">📋</div>
+                            <strong>法規・基準</strong>
+                            <div class="small text-muted">道路構造令・仕様書</div>
+                        </div>
+                    </div>
+                    <div class="expert-card" data-expert="environmental" onclick="toggleExpert(this)">
+                        <div class="text-center">
+                            <div style="font-size: 2rem;">🌿</div>
+                            <strong>環境・維持管理</strong>
+                            <div class="small text-muted">環境影響・劣化診断</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <h5>データセット</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">トレーニングデータ</label>
+                        <select id="dataset" class="form-select">
+                            <option value="demo">デモデータセット（100サンプル）</option>
+                            <option value="civil_engineering">土木工学データセット</option>
+                            <option value="road_design">道路設計データセット</option>
+                            <option value="custom">カスタムデータセット</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">カスタムデータアップロード</label>
+                        <input type="file" id="custom-data" class="form-control" accept=".json,.jsonl,.csv">
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <button class="btn btn-primary btn-lg" onclick="startTraining()">
+                    <i class="fas fa-play"></i> トレーニング開始
+                </button>
+                <button class="btn btn-secondary btn-lg ms-2" onclick="stopTraining()" id="stop-btn" style="display: none;">
+                    <i class="fas fa-stop"></i> 停止
+                </button>
+            </div>
+        </div>
+
+        <!-- トレーニング進捗 -->
+        <div class="training-progress" id="training-progress">
+            <h3><i class="fas fa-chart-line"></i> トレーニング進捗</h3>
+            
+            <div class="row mt-3">
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-value" id="current-epoch">0/0</div>
+                        <div class="metric-label">エポック</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-value" id="current-loss">0.000</div>
+                        <div class="metric-label">損失</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-value" id="gpu-usage">0%</div>
+                        <div class="metric-label">GPU使用率</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-value" id="time-elapsed">00:00</div>
+                        <div class="metric-label">経過時間</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <h5>進捗バー</h5>
+                <div class="progress" style="height: 30px;">
+                    <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 0%; background: linear-gradient(90deg, #667eea, #764ba2);">
+                        0%
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <h5>トレーニングログ</h5>
+                <div class="log-viewer" id="log-viewer">
+                    トレーニングログがここに表示されます...
+                </div>
+            </div>
+        </div>
+
+        <!-- トレーニング履歴 -->
+        <div class="training-card">
+            <h3><i class="fas fa-history"></i> トレーニング履歴</h3>
+            <div class="table-responsive mt-3">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>開始時刻</th>
+                            <th>タイプ</th>
+                            <th>エキスパート</th>
+                            <th>エポック</th>
+                            <th>最終損失</th>
+                            <th>状態</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="training-history">
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">履歴がありません</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- GPU状態モーダル -->
+        <div class="modal fade" id="gpuModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-microchip"></i> GPU状態</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" id="gpu-status-content">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status"></div>
+                            <p class="mt-2">GPU情報を取得中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedExperts = [];
+        let trainingInterval = null;
+        let startTime = null;
+        let isTraining = false;
+        let currentTaskId = null;
+        let monitoringInterval = null;
+
+        // エキスパート選択
+        function toggleExpert(element) {
+            element.classList.toggle('selected');
+            const expert = element.dataset.expert;
+            
+            if (element.classList.contains('selected')) {
+                if (!selectedExperts.includes(expert)) {
+                    selectedExperts.push(expert);
+                }
+            } else {
+                selectedExperts = selectedExperts.filter(e => e !== expert);
+            }
+            
+            console.log('Selected experts:', selectedExperts);
+        }
+
+        // トレーニング開始
+        async function startTraining() {
+            if (selectedExperts.length === 0) {
+                alert('少なくとも1つのエキスパートを選択してください');
+                return;
+            }
+
+            const config = {
+                training_type: document.getElementById('training-type').value,
+                epochs: parseInt(document.getElementById('epochs').value),
+                batch_size: parseInt(document.getElementById('batch-size').value),
+                learning_rate: parseFloat(document.getElementById('learning-rate').value),
+                warmup_steps: parseInt(document.getElementById('warmup-steps').value),
+                save_steps: parseInt(document.getElementById('save-steps').value),
+                dataset: document.getElementById('dataset').value,
+                experts: selectedExperts
+            };
+
+            console.log('Training config:', config);
+
+            // UIの更新
+            document.getElementById('training-progress').style.display = 'block';
+            document.getElementById('stop-btn').style.display = 'inline-block';
+            isTraining = true;
+            startTime = new Date();
+
+            // ログに開始メッセージ
+            addLog('🚀 トレーニングを開始しました...');
+            addLog(`設定: ${config.training_type} モード, ${config.epochs} エポック`);
+            addLog(`選択エキスパート: ${selectedExperts.join(', ')}`);
+
+            // 実際のトレーニング実行
+            try {
+                const response = await fetch('/api/moe/training/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    currentTaskId = result.task_id;
+                    addLog(`✅ トレーニングタスクID: ${result.task_id}`);
+                    
+                    // 進捗モニタリング開始
+                    monitorTraining(result.task_id);
+                } else {
+                    const error = await response.text();
+                    addLog(`❌ エラー: ${error}`);
+                    isTraining = false;
+                    document.getElementById('stop-btn').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Training error:', error);
+                addLog(`❌ トレーニング開始エラー: ${error.message}`);
+                isTraining = false;
+                document.getElementById('stop-btn').style.display = 'none';
+            }
+        }
+
+        // トレーニング進捗のモニタリング
+        async function monitorTraining(taskId) {
+            // 定期的にステータスを確認
+            monitoringInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/moe/training/status/${taskId}`);
+                    if (response.ok) {
+                        const status = await response.json();
+                        
+                        // 進捗バー更新
+                        updateProgressBar(status.progress);
+                        
+                        // メトリクス更新
+                        if (status.current_epoch > 0) {
+                            document.getElementById('current-epoch').textContent = 
+                                `${status.current_epoch}/${status.config.epochs}`;
+                        }
+                        if (status.current_loss > 0) {
+                            document.getElementById('current-loss').textContent = 
+                                status.current_loss.toFixed(3);
+                        }
+                        
+                        // 新しいログを追加
+                        if (status.logs && status.logs.length > 0) {
+                            const logViewer = document.getElementById('log-viewer');
+                            const currentLogCount = logViewer.innerHTML.split('\n').length - 1;
+                            if (status.logs.length > currentLogCount) {
+                                const newLogs = status.logs.slice(currentLogCount);
+                                newLogs.forEach(log => addLogDirect(log));
+                            }
+                        }
+                        
+                        // ステータスチェック
+                        if (status.status === 'completed') {
+                            clearInterval(monitoringInterval);
+                            completeTraining();
+                        } else if (status.status === 'failed') {
+                            clearInterval(monitoringInterval);
+                            addLog(`❌ トレーニング失敗: ${status.error}`);
+                            isTraining = false;
+                            document.getElementById('stop-btn').style.display = 'none';
+                        }
+                    }
+                } catch (error) {
+                    console.error('Monitoring error:', error);
+                }
+            }, 2000); // 2秒ごとに更新
+            
+            // 経過時間の更新
+            trainingInterval = setInterval(updateElapsedTime, 1000);
+        }
+        
+        // ログ直接追加（タイムスタンプなし）
+        function addLogDirect(message) {
+            const viewer = document.getElementById('log-viewer');
+            viewer.innerHTML += message + '\n';
+            viewer.scrollTop = viewer.scrollHeight;
+        }
+
+        // トレーニング停止
+        async function stopTraining() {
+            if (confirm('トレーニングを停止しますか？')) {
+                if (currentTaskId) {
+                    try {
+                        const response = await fetch(`/api/moe/training/stop/${currentTaskId}`, {
+                            method: 'POST'
+                        });
+                        if (response.ok) {
+                            addLog('⏹️ トレーニングを停止しました');
+                        }
+                    } catch (error) {
+                        console.error('Failed to stop training:', error);
+                    }
+                }
+                
+                isTraining = false;
+                clearInterval(trainingInterval);
+                clearInterval(monitoringInterval);
+                document.getElementById('stop-btn').style.display = 'none';
+            }
+        }
+
+        // 経過時間更新
+        function updateElapsedTime() {
+            if (!isTraining || !startTime) return;
+
+            const elapsed = new Date() - startTime;
+            const minutes = Math.floor(elapsed / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            document.getElementById('time-elapsed').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // GPU使用率更新
+        async function updateGPUUsage() {
+            try {
+                const response = await fetch('/api/moe/training/gpu-status');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.gpus && data.gpus.length > 0) {
+                        const avgLoad = data.gpus.reduce((sum, gpu) => sum + gpu.gpu_load, 0) / data.gpus.length;
+                        document.getElementById('gpu-usage').textContent = `${avgLoad.toFixed(0)}%`;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to get GPU status:', error);
+            }
+        }
+
+        // プログレスバー更新
+        function updateProgressBar(percent) {
+            const bar = document.getElementById('progress-bar');
+            bar.style.width = percent + '%';
+            bar.textContent = Math.round(percent) + '%';
+        }
+
+        // ログ追加
+        function addLog(message) {
+            const viewer = document.getElementById('log-viewer');
+            const timestamp = new Date().toLocaleTimeString('ja-JP');
+            viewer.innerHTML += `[${timestamp}] ${message}\n`;
+            viewer.scrollTop = viewer.scrollHeight;
+        }
+
+        // トレーニング完了
+        function completeTraining() {
+            isTraining = false;
+            clearInterval(trainingInterval);
+            clearInterval(monitoringInterval);
+            document.getElementById('stop-btn').style.display = 'none';
+            addLog('✅ トレーニングが完了しました！');
+            updateProgressBar(100);
+            
+            // 履歴を再読み込み
+            loadHistory();
+        }
+
+        // トレーニング履歴に追加
+        function addToHistory(entry) {
+            const tbody = document.getElementById('training-history');
+            if (tbody.querySelector('td[colspan="7"]')) {
+                tbody.innerHTML = '';
+            }
+
+            const row = tbody.insertRow(0);
+            row.innerHTML = `
+                <td>${entry.start_time}</td>
+                <td>${entry.type}</td>
+                <td>${entry.experts}</td>
+                <td>${entry.epochs}</td>
+                <td>${entry.loss}</td>
+                <td><span class="status-badge status-${entry.status}">${entry.status}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewDetails('${entry.start_time}')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-success" onclick="deployModel('${entry.start_time}')">
+                        <i class="fas fa-rocket"></i>
+                    </button>
+                </td>
+            `;
+        }
+
+        // GPU状態確認
+        async function checkGPUStatus() {
+            const modal = new bootstrap.Modal(document.getElementById('gpuModal'));
+            modal.show();
+
+            try {
+                const response = await fetch('/api/moe/training/gpu-status');
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    let gpuHtml = '<div class="row">';
+                    
+                    if (data.gpus && data.gpus.length > 0) {
+                        data.gpus.forEach((gpu, index) => {
+                            const memoryPercent = gpu.memory_percent.toFixed(0);
+                            const memoryUsedGB = (gpu.memory_used / 1024).toFixed(1);
+                            const memoryTotalGB = (gpu.memory_total / 1024).toFixed(1);
+                            
+                            gpuHtml += `
+                                <div class="col-md-6 mb-3">
+                                    <h6>GPU ${gpu.id}: ${gpu.name}</h6>
+                                    <div class="progress mb-2">
+                                        <div class="progress-bar ${memoryPercent < 50 ? 'bg-success' : memoryPercent < 80 ? 'bg-warning' : 'bg-danger'}" 
+                                             style="width: ${memoryPercent}%">
+                                            Memory: ${memoryUsedGB}GB / ${memoryTotalGB}GB
+                                        </div>
+                                    </div>
+                                    <small>
+                                        Temperature: ${gpu.temperature}°C | 
+                                        GPU Load: ${gpu.gpu_load.toFixed(0)}%
+                                    </small>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        gpuHtml += '<div class="col-12"><p>GPU情報が利用できません</p></div>';
+                    }
+                    
+                    gpuHtml += '</div>';
+                    
+                    if (data.cpu) {
+                        gpuHtml += `
+                            <hr>
+                            <h6>システム情報</h6>
+                            <p>CPU使用率: ${data.cpu.percent.toFixed(1)}% (${data.cpu.cores}コア)</p>
+                        `;
+                    }
+                    
+                    if (data.memory) {
+                        const memUsedGB = (data.memory.used / (1024**3)).toFixed(1);
+                        const memTotalGB = (data.memory.total / (1024**3)).toFixed(1);
+                        gpuHtml += `<p>メモリ: ${memUsedGB}GB / ${memTotalGB}GB (${data.memory.percent.toFixed(1)}%)</p>`;
+                    }
+                    
+                    document.getElementById('gpu-status-content').innerHTML = gpuHtml;
+                } else {
+                    throw new Error('Failed to fetch GPU status');
+                }
+            } catch (error) {
+                document.getElementById('gpu-status-content').innerHTML = 
+                    '<div class="alert alert-danger">GPU情報の取得に失敗しました: ' + error.message + '</div>';
+            }
+        }
+
+        // 詳細表示
+        function viewDetails(timestamp) {
+            alert(`トレーニング詳細: ${timestamp}`);
+        }
+
+        // モデルデプロイ
+        async function deployModel(taskId) {
+            if (confirm('このモデルをデプロイしますか？')) {
+                try {
+                    const response = await fetch(`/api/moe/training/deploy/${taskId}`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        alert(`✅ モデルが正常にデプロイされました\nパス: ${result.model_path}`);
+                    } else {
+                        const error = await response.text();
+                        alert(`❌ デプロイエラー: ${error}`);
+                    }
+                } catch (error) {
+                    alert(`❌ デプロイ失敗: ${error.message}`);
+                }
+            }
+        }
+
+        // 履歴の読み込み
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/moe/training/history?limit=20');
+                if (response.ok) {
+                    const data = await response.json();
+                    const tbody = document.getElementById('training-history');
+                    
+                    if (data.history.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">履歴がありません</td></tr>';
+                    } else {
+                        tbody.innerHTML = '';
+                        data.history.forEach(task => {
+                            const startTime = task.start_time ? new Date(task.start_time).toLocaleString('ja-JP') : 'N/A';
+                            const row = tbody.insertRow();
+                            row.innerHTML = `
+                                <td>${startTime}</td>
+                                <td>${task.config.training_type}</td>
+                                <td>${task.config.experts.join(', ')}</td>
+                                <td>${task.config.epochs}</td>
+                                <td>${task.current_loss ? task.current_loss.toFixed(3) : 'N/A'}</td>
+                                <td><span class="status-badge status-${task.status}">${task.status}</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="viewTaskDetails('${task.task_id}')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    ${task.status === 'completed' ? `
+                                    <button class="btn btn-sm btn-outline-success" onclick="deployModel('${task.task_id}')">
+                                        <i class="fas fa-rocket"></i>
+                                    </button>` : ''}
+                                </td>
+                            `;
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load history:', error);
+            }
+        }
+        
+        // タスク詳細表示
+        async function viewTaskDetails(taskId) {
+            try {
+                const response = await fetch(`/api/moe/training/logs/${taskId}?tail=50`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const logsText = data.logs.join('\n');
+                    
+                    // 詳細モーダルを作成（簡易版）
+                    const modal = document.createElement('div');
+                    modal.innerHTML = `
+                        <div class="modal fade" id="taskDetailsModal" tabindex="-1">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">タスク詳細: ${taskId}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <pre style="max-height: 400px; overflow-y: auto; background: #f5f5f5; padding: 10px;">${logsText}</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                    const bsModal = new bootstrap.Modal(document.getElementById('taskDetailsModal'));
+                    bsModal.show();
+                    
+                    // モーダルが閉じられたら削除
+                    document.getElementById('taskDetailsModal').addEventListener('hidden.bs.modal', function() {
+                        this.remove();
+                    });
+                }
+            } catch (error) {
+                alert('詳細の取得に失敗しました: ' + error.message);
+            }
+        }
+
+        // ページ読み込み時
+        document.addEventListener('DOMContentLoaded', () => {
+            loadHistory();
+        });
+    </script>
+</body>
+</html>

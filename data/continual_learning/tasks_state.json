@@ -466,5 +466,41 @@
       },
       "task_history": "task_12"
     }
+  },
+  "34e46987-645e-420b-aaf3-5155d13dcb58": {
+    "task_id": "34e46987-645e-420b-aaf3-5155d13dcb58",
+    "task_name": "task_001",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-08-17T06:57:21.337573+09:00",
+    "config": {
+      "base_model": "outputs/フルファインチューニング_20250817_060610",
+      "task_name": "task_001",
+      "use_previous_tasks": false,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/727909b2-313a-4ac4-826e-b008abcee334_conc_data.jsonl",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-08-17T06:57:38.160659+09:00",
+    "output_path": "outputs/continual_task_001_20250817_065738",
+    "model_info": {
+      "name": "continual_task_001",
+      "path": "outputs/continual_task_001_20250817_065738",
+      "base_model": "outputs/フルファインチューニング_20250817_060610",
+      "training_method": "continual_ewc",
+      "created_at": "2025-08-17T06:57:38.161684+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 5000,
+        "use_previous_tasks": false
+      },
+      "task_history": "task_001"
+    }
   }
 }

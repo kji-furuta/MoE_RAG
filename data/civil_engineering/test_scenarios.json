@@ -1,0 +1,41 @@
+[
+  {
+    "scenario": "橋梁設計プロジェクト",
+    "questions": [
+      "橋梁の設計荷重をどのように決定しますか？",
+      "橋脚の基礎設計における留意点は？",
+      "耐震設計における照査項目を教えてください。"
+    ],
+    "expected_experts": [
+      "structural_design",
+      "geotechnical",
+      "regulations"
+    ]
+  },
+  {
+    "scenario": "道路建設プロジェクト",
+    "questions": [
+      "設計速度60km/hの道路の幾何構造設計について",
+      "路床の支持力確保のための対策は？",
+      "雨水排水施設の設計手順を説明してください。"
+    ],
+    "expected_experts": [
+      "road_design",
+      "geotechnical",
+      "hydraulics"
+    ]
+  },
+  {
+    "scenario": "建築物建設プロジェクト",
+    "questions": [
+      "RC造建物の構造計算の流れは？",
+      "基礎の沈下対策について教えてください。",
+      "建築確認申請の必要書類は？"
+    ],
+    "expected_experts": [
+      "structural_design",
+      "geotechnical",
+      "regulations"
+    ]
+  }
+]

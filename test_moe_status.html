@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>MoE-RAG ステータステスト</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .status-box { padding: 20px; margin: 10px; border: 1px solid #ddd; border-radius: 8px; }
+        .success { background: #e8f5e9; border-color: #4caf50; }
+        .error { background: #ffebee; border-color: #f44336; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        .expert-item { margin: 5px 0; padding: 5px 10px; background: #f5f5f5; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>MoE-RAG ステータス確認テスト</h1>
+    
+    <button onclick="checkStatus()">ステータス確認</button>
+    <button onclick="checkExperts()">エキスパート情報</button>
+    <button onclick="analyzeQuery()">クエリ分析テスト</button>
+    
+    <div id="result"></div>
+    
+    <script>
+        async function checkStatus() {
+            const resultDiv = document.getElementById('result');
+            try {
+                const response = await fetch('http://localhost:8050/api/moe-rag/status');
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="status-box success">
+                        <h3>✅ MoE-RAGシステムステータス</h3>
+                        <p>利用可能: ${data.available ? 'はい' : 'いいえ'}</p>
+                        <p>初期化済み: ${data.initialized ? 'はい' : 'いいえ'}</p>
+                        <p>エキスパートルーター: ${data.components.expert_router ? '✅' : '❌'}</p>
+                        <p>レスポンス融合: ${data.components.response_fusion ? '✅' : '❌'}</p>
+                        <p>タイムスタンプ: ${new Date(data.timestamp).toLocaleString('ja-JP')}</p>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="status-box error">
+                        <h3>❌ エラー</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function checkExperts() {
+            const resultDiv = document.getElementById('result');
+            try {
+                const response = await fetch('http://localhost:8050/api/moe-rag/experts');
+                const data = await response.json();
+                
+                let html = `
+                    <div class="status-box success">
+                        <h3>👥 専門エキスパート (${data.total}名)</h3>
+                `;
+                
+                data.experts.forEach(expert => {
+                    html += `
+                        <div class="expert-item" style="border-left: 3px solid ${expert.color};">
+                            ${expert.icon} <strong>${expert.name}</strong>
+                            <br>
+                            <small>${expert.description}</small>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                resultDiv.innerHTML = html;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="status-box error">
+                        <h3>❌ エラー</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function analyzeQuery() {
+            const query = prompt('分析するクエリを入力してください:', '設計速度80km/hの道路における最小曲線半径は？');
+            if (!query) return;
+            
+            const resultDiv = document.getElementById('result');
+            try {
+                const response = await fetch(`http://localhost:8050/api/moe-rag/analyze?query=${encodeURIComponent(query)}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="status-box success">
+                        <h3>🔍 クエリ分析結果</h3>
+                        <p><strong>クエリ:</strong> ${data.query}</p>
+                        <p><strong>主要エキスパート:</strong> ${data.primary_experts.join(', ')}</p>
+                        <p><strong>戦略:</strong> ${data.routing_strategy}</p>
+                        <p><strong>信頼度:</strong> ${(data.confidence * 100).toFixed(1)}%</p>
+                        <p><strong>複雑度:</strong> ${(data.complexity.complexity_score * 100).toFixed(1)}%</p>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="status-box error">
+                        <h3>❌ エラー</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // ページ読み込み時に自動実行
+        window.onload = () => {
+            checkStatus();
+        };
+    </script>
+</body>
+</html>

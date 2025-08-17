@@ -87,6 +87,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# MoE-RAGエンドポイントのインポートと登録
+try:
+    from app.moe_rag_endpoints import router as moe_rag_router
+    app.include_router(moe_rag_router)
+    logger.info("MoE-RAG endpoints loaded successfully")
+except ImportError as e:
+    logger.warning(f"MoE-RAG endpoints not available: {e}")
+
+# MoEトレーニングエンドポイントのインポートと登録
+try:
+    from app.moe_training_endpoints import router as moe_training_router
+    app.include_router(moe_training_router)
+    logger.info("MoE Training endpoints loaded successfully")
+except ImportError as e:
+    logger.warning(f"MoE Training endpoints not available: {e}")
+
 # 静的ファイルディレクトリの動的検出
 def find_static_directory():
     """静的ファイルディレクトリを検索"""

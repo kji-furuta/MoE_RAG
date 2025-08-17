@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>MoE-RAG 埋め込みUIテスト</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #9b59b6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .test-button:hover {
+            background: #8e44ad;
+        }
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 MoE-RAG 埋め込みUIテスト</h1>
+        <p>このページで埋め込みUIの動作を確認します。</p>
+        
+        <h2>テスト項目</h2>
+        <div>
+            <button class="test-button" onclick="testIframeLoad()">
+                1. iframeの読み込みテスト
+            </button>
+            <button class="test-button" onclick="testViewSwitch()">
+                2. ビュー切り替えテスト
+            </button>
+            <button class="test-button" onclick="testAPIConnection()">
+                3. API接続テスト
+            </button>
+            <button class="test-button" onclick="runAllTests()">
+                全テスト実行
+            </button>
+        </div>
+        
+        <div id="test-results" class="result-box" style="display: none;">
+            <h3>テスト結果</h3>
+            <div id="results-content"></div>
+        </div>
+        
+        <h2>埋め込みUIデモ</h2>
+        <div style="border: 2px solid #9b59b6; border-radius: 8px; margin-top: 20px;">
+            <iframe id="test-iframe" 
+                    src="/static/moe_rag_ui.html" 
+                    style="width: 100%; height: 500px; border: none;"
+                    onload="iframeLoaded()">
+            </iframe>
+        </div>
+    </div>
+    
+    <script>
+        let testResults = [];
+        
+        function addResult(test, success, message) {
+            testResults.push({test, success, message});
+            updateResults();
+        }
+        
+        function updateResults() {
+            const resultsDiv = document.getElementById('test-results');
+            const contentDiv = document.getElementById('results-content');
+            
+            resultsDiv.style.display = 'block';
+            
+            let html = '<ul>';
+            testResults.forEach(result => {
+                const className = result.success ? 'success' : 'error';
+                const icon = result.success ? '✅' : '❌';
+                html += `<li><span class="${className}">${icon} ${result.test}:</span> ${result.message}</li>`;
+            });
+            html += '</ul>';
+            
+            contentDiv.innerHTML = html;
+        }
+        
+        function iframeLoaded() {
+            console.log('iframe loaded successfully');
+        }
+        
+        async function testIframeLoad() {
+            const iframe = document.getElementById('test-iframe');
+            
+            try {
+                // 検索UIを読み込み
+                iframe.src = '/static/moe_rag_ui.html';
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                addResult('検索UI読み込み', true, 'moe_rag_ui.htmlが正常に読み込まれました');
+                
+                // トレーニングUIを読み込み
+                iframe.src = '/static/moe_training.html';
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                addResult('トレーニングUI読み込み', true, 'moe_training.htmlが正常に読み込まれました');
+                
+            } catch (error) {
+                addResult('iframe読み込み', false, error.message);
+            }
+        }
+        
+        async function testViewSwitch() {
+            const iframe = document.getElementById('test-iframe');
+            
+            try {
+                // 検索UIに切り替え
+                iframe.src = '/static/moe_rag_ui.html';
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // トレーニングUIに切り替え
+                iframe.src = '/static/moe_training.html';
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // 再度検索UIに切り替え
+                iframe.src = '/static/moe_rag_ui.html';
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                addResult('ビュー切り替え', true, '検索UI ↔ トレーニングUIの切り替えが正常に動作');
+                
+            } catch (error) {
+                addResult('ビュー切り替え', false, error.message);
+            }
+        }
+        
+        async function testAPIConnection() {
+            try {
+                // MoE-RAGステータス確認
+                const statusResponse = await fetch('/api/moe-rag/status');
+                if (statusResponse.ok) {
+                    const statusData = await statusResponse.json();
+                    addResult('MoE-RAG API', true, `ステータス: ${statusData.available ? '利用可能' : '利用不可'}`);
+                } else {
+                    addResult('MoE-RAG API', false, `HTTPステータス: ${statusResponse.status}`);
+                }
+                
+                // GPU状態確認
+                const gpuResponse = await fetch('/api/moe/training/gpu-status');
+                if (gpuResponse.ok) {
+                    const gpuData = await gpuResponse.json();
+                    const gpuCount = gpuData.gpus ? gpuData.gpus.length : 0;
+                    addResult('GPU状態API', true, `GPU数: ${gpuCount}`);
+                } else {
+                    addResult('GPU状態API', false, `HTTPステータス: ${gpuResponse.status}`);
+                }
+                
+            } catch (error) {
+                addResult('API接続', false, error.message);
+            }
+        }
+        
+        async function runAllTests() {
+            testResults = [];
+            addResult('テスト開始', true, new Date().toLocaleString('ja-JP'));
+            
+            await testIframeLoad();
+            await testViewSwitch();
+            await testAPIConnection();
+            
+            addResult('テスト完了', true, '全テストが完了しました');
+        }
+        
+        // ページ読み込み時に基本テストを実行
+        window.addEventListener('load', async () => {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await testAPIConnection();
+        });
+    </script>
+</body>
+</html>

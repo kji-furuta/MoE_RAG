@@ -1,0 +1,3614 @@
+{
+  "id": "241c49ce-14f5-4d25-a826-422fb058588d",
+  "query": "道路安全対策の種別について解説してください。",
+  "answer": "道路安全対策は、車両が走行する際に生じる危険性や損傷を最小限に抑えるために設置される防護施設や設計要件です。この回答では、道路安全対策の種別について詳細な説明を行います。\n\n### 路上障害物の接近\n\n路上障害物の接近は、車両が路面上の障害物に当たりする危険性を最小限に抑えるために設置されます。日本道路交通会議（JTC）規定では、このような施設は以下の2つの種類に分類します。\n\n1.  **安全地帯**：車両が進入してから、安全な距離まで走行できる広い部分を示す。安全地帯の位置は、道路管理者によって決定されます。\n2.  **路上障害物の接近**：車道内や端に橋脚、橋台、擁壁、安全島などが存在する箇所全てに設置される。車道幅員の変化する箇所にもこれらの障害物がある箇所にも設置することがallowedです。\n\n### 導流帯\n\n導流帯は、対向や同方向の車両を分離して走行させるために設置されます。日本道路交通会議（JTC）規定では、これらの施設は以下の5つの種類に分類します。\n\n1.  **複雑な交差点**：各方向の通行路を示す必要がある場合、縁石による導流施設を設けるスペースがないとき。また、縁石による施設では衝突のおそれがある場合。\n2.  **道路の区間**：対向や同方向の車両を分離する必要がある場合（中央分離帯として用いる場合）。\n3.  **車道幅員が変化する**：交差点において車両の進行路を特に示す必要があります。\n4.  **細道路がスキューに交差する場合**：右折車が多い場合。交差点が変形又は広過ぎるため中心点を示し右折車両を誘導する必要がある場合。\n\n### 路上駐車場\n\n路上駐車場は、道路管理者が設置または管理する路上駐車場に道路標識（117-A）と共に設置されます。このような施設は以下の2つの種類に分類します。\n\n1.  **路側帯**：駐停車禁止路側帯で設置される。 \n2.  **歩行者用路側帯**：駐停車禁止路側帯で設置される。\n\n### 道路分類と道路安全対策\n\n日本道路交通会議（JTC）規定では、道路の種別を以下の4つの区分に分類しています。\n\n1.  **高速自動車国道**：\n    *   設計速度：80km/h以上\n    *   道路安全対策：防護柵の種類はＡ，Ａｍ，ＳＢ，ＳＢｍ，ＳＳで指定される。\n2.  **自動車専用道路**：\n    *   設計速度：80km/h以上\n    *   道路安全対策：防護柵の種類はＡ，Ａｍ，ＳＢ，ＳＢｍ，ＳＳで指定される。\n3.  **主要幹線道路**：\n    *   設計速度：60km/h以上\n    *   道路安全対策：防護柵の種類はＣ，Ｃｍ，Ｃｐで指定される。\n4.  **その他の道路**：\n    *   設計速度：60km/h以上\n    *   道路安全対策：防護柵の種類はＢ，Ｂｍ，Ｂｐで指定される。\n\n### 道路管理者側負担と申請者負担\n\n日本道路交通会議（JTC）規定では、道路管理者側負担と申請者負担を以下の表に示します。\n\n|   | 道路管理者側負担     | 申請者負担     |\n|---|-----------------------------|--------------------|\n| A | 全額                    |                  |\n| B | 一部（指定区間外）    |                |\n| C | 一部（指定区間内）    |                  |\n\n### 実務での注意点とポイント\n\n*   道路安全対策の設置は、道路管理者や交通事故が発生するリスクを最小限に抑えるために行う必要があります。\n*   道路安全対策の種類は、道路の種別や設計速度によって異なります。特定の区間では、より厳格な制約が適用される場合もあります。\n*   道路管理者側負担と申請者負担の分担は、道路管理者の責任と交通事故が発生するリスクを最小限に抑えるために行う必要があります。\n\n### 関連する法規や基準\n\n日本道路交通会議（JTC）規定が主な関連する法規や基準です。",
+  "citations": [
+    {
+      "id": 1,
+      "text": "7    路上障害物\\nの接近（106）                車道における路上障害物の接近を示\\nす必要がある場所  安全地帯又は\\n路上障害物の接近\\n（208）                         安全地帯又は路上障害物に接近し\\nつつあること\n8         導流帯\\n（107）                車両の安全かつ円滑な走行を誘導す\\nる必要がある場所  ...",
+      "source": "20250817_062802_anzen567646",
+      "score": 0.662711434
+    },
+    {
+      "id": 2,
+      "text": "種類                     路側帯           駐停車禁止路側帯   歩行者用路側帯\n0           番号                 （108-4）            （108-5）   （108-6）\n0           番号                 （108-4）            （108-5）   （108-6）\n1       ...",
+      "source": "20250817_062802_anzen567646",
+      "score": 0.6612819598
+    },
+    {
+      "id": 3,
+      "text": "種類番号\n設置要領\n路上障害物の\n接近\n（106）\n1）車道内および車道端に橋脚，橋台，擁壁，安全島\n等の障害物がある箇所全てに設置する。\n2）車道幅員の変化する箇所にも（105）にかえて設置\nするものとする。\n3）すりつけ長は「車道幅員の変更」2）に準ずる。\n3）すりつけ長は「車道幅員の変更」2）に準ずる。\n片側に避ける場合\n両側に避ける場合\n（色彩＝白）\n導流帯\n（107）\n1）複雑，変形交差...",
+      "source": "20250817_062802_anzen567646",
+      "score": 0.658629818
+    },
+    {
+      "id": 4,
+      "text": "--- テーブル情報 ---\n表 95ページ: 表 6.3 道路分類と道路種別との対応\n道路の種別 道路の機能分類   一般国道     県道  None     市道\n0          None  指定区間外  主要地方道  一般県道  主要な市道\n0          None  指定区間外  主要地方道  一般県道  主要な市道\n1        主要幹線道路      ●      ○...",
+      "source": "20250817_062802_anzen567646",
+      "score": 0.654693655
+    },
+    {
+      "id": 5,
+      "text": "5.2.2  防護柵の種別の適用\n表 5.2 防護柵の種別の適用\n道路の区分\n設計速度\n一般区間\n重大な被害が発生す\nるおそれのある区間\n新幹線などと交差ま\nたは近接する区問\n高速自動車国道\n自動車専用道路\n80km/h 以上\nＡ，Ａｍ\nＳＢ，ＳＢｍ\nＳＳ\n60km/h 以上\nＳＣ，ＳＣｍ\nＳＡ\nその他の道路\n60km/h 以上\nＢ，Ｂｍ，Ｂｐ\nＡ，Ａｍ，Ａｐ\nＳＢ，ＳＢｐ\n50km/h 以上\nＣ...",
+      "source": "20250817_062802_anzen567646",
+      "score": 0.6544187342
+    }
+  ],
+  "sources": [
+    {
+      "id": "c298a953-57f6-4f1e-8438-7319c5afe480",
+      "text": "7    路上障害物\\nの接近（106）                車道における路上障害物の接近を示\\nす必要がある場所  安全地帯又は\\n路上障害物の接近\\n（208）                         安全地帯又は路上障害物に接近し\\nつつあること\n8         導流帯\\n（107）                車両の安全かつ円滑な走行を誘導す\\nる必要がある場所             導流帯\\n（208の2）            車両の安全かつ円滑な走行を誘導\\nするために設けられた場所である\\nこと\n9       路上駐車場\\n（108）                   路上駐車場の外縁（歩道に接するも\\nのを除く）                      NaN                                             NaN\n--- テーブル情報 ---\n表 79ページ: 表 5.1 防護柵の種別と性能\n列    種別 強度(kJ) 最大進入行程(ｍ)    None 衝突加速度(m/s2/10ms)  None_1 None_2",
+      "metadata": {
+        "doc_id": "f6bb92e2-98c5-40c4-b485-46e552110ea4",
+        "filename": "20250817_062802_anzen567646.pdf",
+        "file_path": "temp_uploads/20250817_062802_anzen567646.pdf",
+        "file_hash": "4805bb181648284fee31808520655f54",
+        "processing_timestamp": null,
+        "document_type": "other",
+        "language": "ja",
+        "id": "97d542fa-b476-4bc1-9935-68fbd6599288",
+        "title": "20250817_062802_anzen567646",
+        "category": "その他",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "section_level": 1,
+        "section_type": "numbered_section",
+        "section_title": "6  サイクルスポーツや観光を主眼に置いた整備",
+        "section_number": "12",
+        "contains_references": true,
+        "importance_score": 0.5,
+        "related_sections": [
+          {
+            "title": "歩道",
+            "level": 3
+          },
+          {
+            "title": "0m",
+            "level": 1
+          },
+          {
+            "title": "0m",
+            "level": 1
+          },
+          {
+            "title": "防護柵",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "9",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "9",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "（108）",
+            "level": 3
+          }
+        ],
+        "related_tables": [
+          {
+            "id": "pdfplumber_p97_0",
+            "caption": "表 6.6 標識板の寸法",
+            "page": 97
+          },
+          {
+            "id": "pdfplumber_p131_0",
+            "caption": "(a) 当該道路が１車線である道路において，視距が表 10.1に示す値以下の場所",
+            "page": 131
+          },
+          {
+            "id": "pdfplumber_p131_1",
+            "caption": "(a) 当該道路が１車線である道路において，視距が表 10.1に示す値以下の場所",
+            "page": 131
+          },
+          {
+            "id": "pdfplumber_p77_0",
+            "caption": "バス停車帯の長さの決定にあたっては表4.1の値を参考にし，本線交通量，利用回数，沿道の状況等を勘案",
+            "page": 77
+          },
+          {
+            "id": "pdfplumber_p138_0",
+            "caption": "表 11.1 すりつけ率の標準値",
+            "page": 138
+          },
+          {
+            "id": "pdfplumber_p119_1",
+            "caption": "表 7.2 区画線の設置要領（1）",
+            "page": 119
+          },
+          {
+            "id": "pdfplumber_p7_0",
+            "caption": "表 1.1 基準・指針類",
+            "page": 7
+          },
+          {
+            "id": "pdfplumber_p13_0",
+            "caption": "歩道の横断勾配は表 1.3を標準とする。",
+            "page": 13
+          },
+          {
+            "id": "pdfplumber_p51_0",
+            "caption": "表 3.1 横断歩道橋の幅員",
+            "page": 51
+          },
+          {
+            "id": "pdfplumber_p52_0",
+            "caption": "表 3.2 階段",
+            "page": 52
+          },
+          {
+            "id": "pdfplumber_p75_0",
+            "caption": "表 1",
+            "page": 75
+          },
+          {
+            "id": "pdfplumber_p87_0",
+            "caption": "表 5.4 種別毎の設計強度",
+            "page": 87
+          },
+          {
+            "id": "pdfplumber_p91_4",
+            "caption": "表 5",
+            "page": 91
+          },
+          {
+            "id": "pdfplumber_p100_0",
+            "caption": "表 6.9 道路を示す線の太さ",
+            "page": 100
+          },
+          {
+            "id": "pdfplumber_p102_0",
+            "caption": "地点案内は表6.10のように分類される。",
+            "page": 102
+          },
+          {
+            "id": "pdfplumber_p107_0",
+            "caption": "での高さ。上部曲柱の場合は路面から曲部下端までの高さ）は表6.13のとおりとするものとする。",
+            "page": 107
+          },
+          {
+            "id": "pdfplumber_p130_0",
+            "caption": "２方向２車線道路の曲線部に設置する防護柵に取り付ける視線誘導標の設置間隔は表 9.2による。",
+            "page": 130
+          },
+          {
+            "id": "pdfplumber_p137_0",
+            "caption": "(a) 支柱の諸元は鏡面形状および鏡面の大きさ等に応じて表 10.9により設定することが望ましい。",
+            "page": 137
+          },
+          {
+            "id": "pdfplumber_p136_0",
+            "caption": "鏡面の厚さは，鏡面形状，鏡面の大きさおよび材料に応じて表 10.8より選定することが望ましい。",
+            "page": 136
+          },
+          {
+            "id": "pdfplumber_p119_0",
+            "caption": "表 7.2 区画線の設置要領（1）",
+            "page": 119
+          },
+          {
+            "id": "pdfplumber_p120_0",
+            "caption": "表 7.3 区画線の設置要領（2）",
+            "page": 120
+          },
+          {
+            "id": "pdfplumber_p132_0",
+            "caption": "θを変えた場合の大型車（Ｌ＝12ｍ，Ｗ＝2.5ｍ）及び小型車（Ｌ＝4.5ｍ，Ｗ＝1.7ｍ）の計算結果を，表10.3，",
+            "page": 132
+          },
+          {
+            "id": "pdfplumber_p94_0",
+            "caption": "会の表-2.2.4～6を参照するものとする。",
+            "page": 94
+          },
+          {
+            "id": "pdfplumber_p124_0",
+            "caption": "平均路面輝度は，道路分類及び外部条件に応じて表 8.1 の上段の値を標準とする。また，中央帯に対向車",
+            "page": 124
+          },
+          {
+            "id": "pdfplumber_p126_0",
+            "caption": "表 8.3 ポール基礎（ポール主柱形状が可変型の場合）",
+            "page": 126
+          },
+          {
+            "id": "pdfplumber_p118_0",
+            "caption": "区画線は道路交通法の規定の適用にあたっては道路標示とみなされており，区画線と道路標示との関係は表 7.1",
+            "page": 118
+          },
+          {
+            "id": "pdfplumber_p79_0",
+            "caption": "表 5.1 防護柵の種別と性能",
+            "page": 79
+          },
+          {
+            "id": "pdfplumber_p52_1",
+            "caption": "表 3.2 階段",
+            "page": 52
+          },
+          {
+            "id": "pdfplumber_p96_0",
+            "caption": "表 6.4 道路標識の設置者の区分",
+            "page": 96
+          },
+          {
+            "id": "pdfplumber_p121_0",
+            "caption": "表 7.4 路側帯のまとめ",
+            "page": 121
+          },
+          {
+            "id": "pdfplumber_p80_0",
+            "caption": "表 5.2 防護柵の種別の適用",
+            "page": 80
+          },
+          {
+            "id": "pdfplumber_p95_0",
+            "caption": "表 6.3 道路分類と道路種別との対応",
+            "page": 95
+          },
+          {
+            "id": "pdfplumber_p36_0",
+            "caption": "表 1.5 乗入口の設置に伴う費用負担",
+            "page": 36
+          },
+          {
+            "id": "pdfplumber_p91_3",
+            "caption": "表 4",
+            "page": 91
+          },
+          {
+            "id": "pdfplumber_p105_1",
+            "caption": "警戒標識の種類は表6.11のとおりである。",
+            "page": 105
+          },
+          {
+            "id": "pdfplumber_p31_0",
+            "caption": "(3) 乗入口の設置幅乗入口の設置幅は表 1.4を原則とする。",
+            "page": 31
+          },
+          {
+            "id": "pdfplumber_p111_0",
+            "caption": "表 6.16 表示地名一覧【23:愛知県】",
+            "page": 111
+          },
+          {
+            "id": "pdfplumber_p112_0",
+            "caption": "表 6.18 表示地名一覧【21:岐阜県】",
+            "page": 112
+          },
+          {
+            "id": "pdfplumber_p112_1",
+            "caption": "表 6.18 表示地名一覧【21:岐阜県】",
+            "page": 112
+          },
+          {
+            "id": "pdfplumber_p112_2",
+            "caption": "表 6.18 表示地名一覧【21:岐阜県】",
+            "page": 112
+          },
+          {
+            "id": "pdfplumber_p134_1",
+            "caption": "鏡面の大きさは表 10.6のとおりとする。",
+            "page": 134
+          },
+          {
+            "id": "pdfplumber_p105_0",
+            "caption": "警戒標識の種類は表6.11のとおりである。",
+            "page": 105
+          },
+          {
+            "id": "pdfplumber_p134_0",
+            "caption": "鏡面の大きさは表 10.6のとおりとする。",
+            "page": 134
+          },
+          {
+            "id": "pdfplumber_p32_0",
+            "caption": "表 1",
+            "page": 32
+          },
+          {
+            "id": "pdfplumber_p33_0",
+            "caption": "表 1",
+            "page": 33
+          },
+          {
+            "id": "pdfplumber_p96_1",
+            "caption": "表 6.4 道路標識の設置者の区分",
+            "page": 96
+          },
+          {
+            "id": "pdfplumber_p111_1",
+            "caption": "表 6.16 表示地名一覧【23:愛知県】",
+            "page": 111
+          },
+          {
+            "id": "pdfplumber_p114_0",
+            "caption": "表 6.21 案内標識（1）",
+            "page": 114
+          },
+          {
+            "id": "pdfplumber_p115_0",
+            "caption": "表 6.22 案内標識（2）",
+            "page": 115
+          },
+          {
+            "id": "pdfplumber_p125_0",
+            "caption": "視機能低下グレアは，相対閾値増加を原則として表 8.2の値とするものとする。",
+            "page": 125
+          },
+          {
+            "id": "pdfplumber_p137_1",
+            "caption": "(a) 支柱の諸元は鏡面形状および鏡面の大きさ等に応じて表 10.9により設定することが望ましい。",
+            "page": 137
+          },
+          {
+            "id": "pdfplumber_p91_1",
+            "caption": "表 2",
+            "page": 91
+          },
+          {
+            "id": "pdfplumber_p91_0",
+            "caption": "表 1",
+            "page": 91
+          },
+          {
+            "id": "pdfplumber_p80_1",
+            "caption": "表 5.2 防護柵の種別の適用",
+            "page": 80
+          },
+          {
+            "id": "pdfplumber_p35_2",
+            "caption": "注）自動車の種類は,表1.4を参照することとする。",
+            "page": 35
+          },
+          {
+            "id": "pdfplumber_p98_0",
+            "caption": "表 6.8 交差点の予告案内及び交差点案内の使用区分",
+            "page": 98
+          },
+          {
+            "id": "pdfplumber_p93_0",
+            "caption": "表 6.1 道路標識の分類及び機能",
+            "page": 93
+          },
+          {
+            "id": "pdfplumber_p77_1",
+            "caption": "バス停車帯の長さの決定にあたっては表4.1の値を参考にし，本線交通量，利用回数，沿道の状況等を勘案",
+            "page": 77
+          },
+          {
+            "id": "pdfplumber_p9_0",
+            "caption": "歩道等の有効幅員は，図1-3を参照とし，建築限界は表 1.2を参照することとする。",
+            "page": 9
+          },
+          {
+            "id": "pdfplumber_p88_0",
+            "caption": "表 5.5 一般的な歩行者用自転車用柵の支柱埋込み例",
+            "page": 88
+          },
+          {
+            "id": "table_p16_1",
+            "caption": "表 1",
+            "page": 16
+          },
+          {
+            "id": "table_p17_1",
+            "caption": "表 1",
+            "page": 17
+          },
+          {
+            "id": "table_p21_1",
+            "caption": "表 1",
+            "page": 21
+          },
+          {
+            "id": "table_p26_1",
+            "caption": "表 1",
+            "page": 26
+          },
+          {
+            "id": "table_p27_1",
+            "caption": "表 1",
+            "page": 27
+          },
+          {
+            "id": "table_p32_3",
+            "caption": "表 3",
+            "page": 32
+          },
+          {
+            "id": "table_p33_3",
+            "caption": "表 3",
+            "page": 33
+          },
+          {
+            "id": "table_p35_2",
+            "caption": "注）自動車の種類は,表1.4を参照することとする。",
+            "page": 35
+          },
+          {
+            "id": "table_p38_2",
+            "caption": "表 2",
+            "page": 38
+          },
+          {
+            "id": "table_p41_1",
+            "caption": "表 1",
+            "page": 41
+          },
+          {
+            "id": "table_p44_1",
+            "caption": "表 1",
+            "page": 44
+          },
+          {
+            "id": "table_p65_1",
+            "caption": "表 1",
+            "page": 65
+          },
+          {
+            "id": "table_p83_1",
+            "caption": "表 1",
+            "page": 83
+          },
+          {
+            "id": "table_p92_1",
+            "caption": "表 1",
+            "page": 92
+          },
+          {
+            "id": "table_p115_2",
+            "caption": "表 6.22 案内標識（2）",
+            "page": 115
+          },
+          {
+            "id": "table_p116_1",
+            "caption": "表 6.24 警戒標識 表 6.25 指示標識",
+            "page": 116
+          },
+          {
+            "id": "table_p116_3",
+            "caption": "表 6.24 警戒標識 表 6.25 指示標識",
+            "page": 116
+          },
+          {
+            "id": "table_p129_1",
+            "caption": "表 9.1 標準設置間隔",
+            "page": 129
+          },
+          {
+            "id": "table_p133_1",
+            "caption": "このため，鏡面の曲率半径は表 10.5を標準とするものとする。",
+            "page": 133
+          },
+          {
+            "id": "table_p148_1",
+            "caption": "表 1",
+            "page": 148
+          }
+        ],
+        "original_id": "f6bb92e2-98c5-40c4-b485-46e552110ea4_366"
+      },
+      "vector_score": 0.8606642,
+      "keyword_score": 0,
+      "hybrid_score": 0.662711434,
+      "rank": 1,
+      "score": 0,
+      "title": "20250817_062802_anzen567646"
+    },
+    {
+      "id": "e5177dd0-92e9-4585-a5c3-9c225fedc9da",
+      "text": "種類                     路側帯           駐停車禁止路側帯   歩行者用路側帯\n0           番号                 （108-4）            （108-5）   （108-6）\n0           番号                 （108-4）            （108-5）   （108-6）\n1          設置者              道路管理者（外側線）              公安委員会     公安委員会\n2           意味  歩行者の通行を妨げない\\nようにして駐停車可  軽車両を除いた車両の駐\\n停車禁止  車両の駐停車禁止\n3  センターライン\\n法肩                     NaN                NaN       NaN\n--- テーブル情報 ---\n表 80ページ: 表 5.2 防護柵の種別の適用\n道路の区分      設計速度     一般区間 重大な被害が発生す るおそれのある区間 新幹線などと交差ま たは近接する区問",
+      "metadata": {
+        "doc_id": "f6bb92e2-98c5-40c4-b485-46e552110ea4",
+        "filename": "20250817_062802_anzen567646.pdf",
+        "file_path": "temp_uploads/20250817_062802_anzen567646.pdf",
+        "file_hash": "4805bb181648284fee31808520655f54",
+        "processing_timestamp": null,
+        "document_type": "other",
+        "language": "ja",
+        "id": "97d542fa-b476-4bc1-9935-68fbd6599288",
+        "title": "20250817_062802_anzen567646",
+        "category": "その他",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "section_level": 1,
+        "section_type": "numbered_section",
+        "section_title": "6  サイクルスポーツや観光を主眼に置いた整備",
+        "section_number": "12",
+        "contains_references": true,
+        "importance_score": 0.5,
+        "related_sections": [
+          {
+            "title": "種類",
+            "level": 3
+          },
+          {
+            "title": "防護柵",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          }
+        ],
+        "related_tables": [
+          {
+            "id": "pdfplumber_p97_0",
+            "caption": "表 6.6 標識板の寸法",
+            "page": 97
+          },
+          {
+            "id": "pdfplumber_p131_0",
+            "caption": "(a) 当該道路が１車線である道路において，視距が表 10.1に示す値以下の場所",
+            "page": 131
+          },
+          {
+            "id": "pdfplumber_p131_1",
+            "caption": "(a) 当該道路が１車線である道路において，視距が表 10.1に示す値以下の場所",
+            "page": 131
+          },
+          {
+            "id": "pdfplumber_p77_0",
+            "caption": "バス停車帯の長さの決定にあたっては表4.1の値を参考にし，本線交通量，利用回数，沿道の状況等を勘案",
+            "page": 77
+          },
+          {
+            "id": "pdfplumber_p138_0",
+            "caption": "表 11.1 すりつけ率の標準値",
+            "page": 138
+          },
+          {
+            "id": "pdfplumber_p119_1",
+            "caption": "表 7.2 区画線の設置要領（1）",
+            "page": 119
+          },
+          {
+            "id": "pdfplumber_p7_0",
+            "caption": "表 1.1 基準・指針類",
+            "page": 7
+          },
+          {
+            "id": "pdfplumber_p13_0",
+            "caption": "歩道の横断勾配は表 1.3を標準とする。",
+            "page": 13
+          },
+          {
+            "id": "pdfplumber_p51_0",
+            "caption": "表 3.1 横断歩道橋の幅員",
+            "page": 51
+          },
+          {
+            "id": "pdfplumber_p52_0",
+            "caption": "表 3.2 階段",
+            "page": 52
+          },
+          {
+            "id": "pdfplumber_p75_0",
+            "caption": "表 1",
+            "page": 75
+          },
+          {
+            "id": "pdfplumber_p87_0",
+            "caption": "表 5.4 種別毎の設計強度",
+            "page": 87
+          },
+          {
+            "id": "pdfplumber_p91_4",
+            "caption": "表 5",
+            "page": 91
+          },
+          {
+            "id": "pdfplumber_p100_0",
+            "caption": "表 6.9 道路を示す線の太さ",
+            "page": 100
+          },
+          {
+            "id": "pdfplumber_p102_0",
+            "caption": "地点案内は表6.10のように分類される。",
+            "page": 102
+          },
+          {
+            "id": "pdfplumber_p107_0",
+            "caption": "での高さ。上部曲柱の場合は路面から曲部下端までの高さ）は表6.13のとおりとするものとする。",
+            "page": 107
+          },
+          {
+            "id": "pdfplumber_p130_0",
+            "caption": "２方向２車線道路の曲線部に設置する防護柵に取り付ける視線誘導標の設置間隔は表 9.2による。",
+            "page": 130
+          },
+          {
+            "id": "pdfplumber_p137_0",
+            "caption": "(a) 支柱の諸元は鏡面形状および鏡面の大きさ等に応じて表 10.9により設定することが望ましい。",
+            "page": 137
+          },
+          {
+            "id": "pdfplumber_p136_0",
+            "caption": "鏡面の厚さは，鏡面形状，鏡面の大きさおよび材料に応じて表 10.8より選定することが望ましい。",
+            "page": 136
+          },
+          {
+            "id": "pdfplumber_p119_0",
+            "caption": "表 7.2 区画線の設置要領（1）",
+            "page": 119
+          },
+          {
+            "id": "pdfplumber_p120_0",
+            "caption": "表 7.3 区画線の設置要領（2）",
+            "page": 120
+          },
+          {
+            "id": "pdfplumber_p132_0",
+            "caption": "θを変えた場合の大型車（Ｌ＝12ｍ，Ｗ＝2.5ｍ）及び小型車（Ｌ＝4.5ｍ，Ｗ＝1.7ｍ）の計算結果を，表10.3，",
+            "page": 132
+          },
+          {
+            "id": "pdfplumber_p94_0",
+            "caption": "会の表-2.2.4～6を参照するものとする。",
+            "page": 94
+          },
+          {
+            "id": "pdfplumber_p124_0",
+            "caption": "平均路面輝度は，道路分類及び外部条件に応じて表 8.1 の上段の値を標準とする。また，中央帯に対向車",
+            "page": 124
+          },
+          {
+            "id": "pdfplumber_p126_0",
+            "caption": "表 8.3 ポール基礎（ポール主柱形状が可変型の場合）",
+            "page": 126
+          },
+          {
+            "id": "pdfplumber_p118_0",
+            "caption": "区画線は道路交通法の規定の適用にあたっては道路標示とみなされており，区画線と道路標示との関係は表 7.1",
+            "page": 118
+          },
+          {
+            "id": "pdfplumber_p79_0",
+            "caption": "表 5.1 防護柵の種別と性能",
+            "page": 79
+          },
+          {
+            "id": "pdfplumber_p52_1",
+            "caption": "表 3.2 階段",
+            "page": 52
+          },
+          {
+            "id": "pdfplumber_p96_0",
+            "caption": "表 6.4 道路標識の設置者の区分",
+            "page": 96
+          },
+          {
+            "id": "pdfplumber_p121_0",
+            "caption": "表 7.4 路側帯のまとめ",
+            "page": 121
+          },
+          {
+            "id": "pdfplumber_p80_0",
+            "caption": "表 5.2 防護柵の種別の適用",
+            "page": 80
+          },
+          {
+            "id": "pdfplumber_p95_0",
+            "caption": "表 6.3 道路分類と道路種別との対応",
+            "page": 95
+          },
+          {
+            "id": "pdfplumber_p36_0",
+            "caption": "表 1.5 乗入口の設置に伴う費用負担",
+            "page": 36
+          },
+          {
+            "id": "pdfplumber_p91_3",
+            "caption": "表 4",
+            "page": 91
+          },
+          {
+            "id": "pdfplumber_p105_1",
+            "caption": "警戒標識の種類は表6.11のとおりである。",
+            "page": 105
+          },
+          {
+            "id": "pdfplumber_p31_0",
+            "caption": "(3) 乗入口の設置幅乗入口の設置幅は表 1.4を原則とする。",
+            "page": 31
+          },
+          {
+            "id": "pdfplumber_p111_0",
+            "caption": "表 6.16 表示地名一覧【23:愛知県】",
+            "page": 111
+          },
+          {
+            "id": "pdfplumber_p112_0",
+            "caption": "表 6.18 表示地名一覧【21:岐阜県】",
+            "page": 112
+          },
+          {
+            "id": "pdfplumber_p112_1",
+            "caption": "表 6.18 表示地名一覧【21:岐阜県】",
+            "page": 112
+          },
+          {
+            "id": "pdfplumber_p112_2",
+            "caption": "表 6.18 表示地名一覧【21:岐阜県】",
+            "page": 112
+          },
+          {
+            "id": "pdfplumber_p134_1",
+            "caption": "鏡面の大きさは表 10.6のとおりとする。",
+            "page": 134
+          },
+          {
+            "id": "pdfplumber_p105_0",
+            "caption": "警戒標識の種類は表6.11のとおりである。",
+            "page": 105
+          },
+          {
+            "id": "pdfplumber_p134_0",
+            "caption": "鏡面の大きさは表 10.6のとおりとする。",
+            "page": 134
+          },
+          {
+            "id": "pdfplumber_p32_0",
+            "caption": "表 1",
+            "page": 32
+          },
+          {
+            "id": "pdfplumber_p33_0",
+            "caption": "表 1",
+            "page": 33
+          },
+          {
+            "id": "pdfplumber_p96_1",
+            "caption": "表 6.4 道路標識の設置者の区分",
+            "page": 96
+          },
+          {
+            "id": "pdfplumber_p111_1",
+            "caption": "表 6.16 表示地名一覧【23:愛知県】",
+            "page": 111
+          },
+          {
+            "id": "pdfplumber_p114_0",
+            "caption": "表 6.21 案内標識（1）",
+            "page": 114
+          },
+          {
+            "id": "pdfplumber_p115_0",
+            "caption": "表 6.22 案内標識（2）",
+            "page": 115
+          },
+          {
+            "id": "pdfplumber_p125_0",
+            "caption": "視機能低下グレアは，相対閾値増加を原則として表 8.2の値とするものとする。",
+            "page": 125
+          },
+          {
+            "id": "pdfplumber_p137_1",
+            "caption": "(a) 支柱の諸元は鏡面形状および鏡面の大きさ等に応じて表 10.9により設定することが望ましい。",
+            "page": 137
+          },
+          {
+            "id": "pdfplumber_p91_1",
+            "caption": "表 2",
+            "page": 91
+          },
+          {
+            "id": "pdfplumber_p91_0",
+            "caption": "表 1",
+            "page": 91
+          },
+          {
+            "id": "pdfplumber_p80_1",
+            "caption": "表 5.2 防護柵の種別の適用",
+            "page": 80
+          },
+          {
+            "id": "pdfplumber_p35_2",
+            "caption": "注）自動車の種類は,表1.4を参照することとする。",
+            "page": 35
+          },
+          {
+            "id": "pdfplumber_p98_0",
+            "caption": "表 6.8 交差点の予告案内及び交差点案内の使用区分",
+            "page": 98
+          },
+          {
+            "id": "pdfplumber_p93_0",
+            "caption": "表 6.1 道路標識の分類及び機能",
+            "page": 93
+          },
+          {
+            "id": "pdfplumber_p77_1",
+            "caption": "バス停車帯の長さの決定にあたっては表4.1の値を参考にし，本線交通量，利用回数，沿道の状況等を勘案",
+            "page": 77
+          },
+          {
+            "id": "pdfplumber_p9_0",
+            "caption": "歩道等の有効幅員は，図1-3を参照とし，建築限界は表 1.2を参照することとする。",
+            "page": 9
+          },
+          {
+            "id": "pdfplumber_p88_0",
+            "caption": "表 5.5 一般的な歩行者用自転車用柵の支柱埋込み例",
+            "page": 88
+          },
+          {
+            "id": "table_p16_1",
+            "caption": "表 1",
+            "page": 16
+          },
+          {
+            "id": "table_p17_1",
+            "caption": "表 1",
+            "page": 17
+          },
+          {
+            "id": "table_p21_1",
+            "caption": "表 1",
+            "page": 21
+          },
+          {
+            "id": "table_p26_1",
+            "caption": "表 1",
+            "page": 26
+          },
+          {
+            "id": "table_p27_1",
+            "caption": "表 1",
+            "page": 27
+          },
+          {
+            "id": "table_p32_3",
+            "caption": "表 3",
+            "page": 32
+          },
+          {
+            "id": "table_p33_3",
+            "caption": "表 3",
+            "page": 33
+          },
+          {
+            "id": "table_p35_2",
+            "caption": "注）自動車の種類は,表1.4を参照することとする。",
+            "page": 35
+          },
+          {
+            "id": "table_p38_2",
+            "caption": "表 2",
+            "page": 38
+          },
+          {
+            "id": "table_p41_1",
+            "caption": "表 1",
+            "page": 41
+          },
+          {
+            "id": "table_p44_1",
+            "caption": "表 1",
+            "page": 44
+          },
+          {
+            "id": "table_p65_1",
+            "caption": "表 1",
+            "page": 65
+          },
+          {
+            "id": "table_p83_1",
+            "caption": "表 1",
+            "page": 83
+          },
+          {
+            "id": "table_p92_1",
+            "caption": "表 1",
+            "page": 92
+          },
+          {
+            "id": "table_p115_2",
+            "caption": "表 6.22 案内標識（2）",
+            "page": 115
+          },
+          {
+            "id": "table_p116_1",
+            "caption": "表 6.24 警戒標識 表 6.25 指示標識",
+            "page": 116
+          },
+          {
+            "id": "table_p116_3",
+            "caption": "表 6.24 警戒標識 表 6.25 指示標識",
+            "page": 116
+          },
+          {
+            "id": "table_p129_1",
+            "caption": "表 9.1 標準設置間隔",
+            "page": 129
+          },
+          {
+            "id": "table_p133_1",
+            "caption": "このため，鏡面の曲率半径は表 10.5を標準とするものとする。",
+            "page": 133
+          },
+          {
+            "id": "table_p148_1",
+            "caption": "表 1",
+            "page": 148
+          }
+        ],
+        "original_id": "f6bb92e2-98c5-40c4-b485-46e552110ea4_376"
+      },
+      "vector_score": 0.85880774,
+      "keyword_score": 0,
+      "hybrid_score": 0.6612819598,
+      "rank": 2,
+      "score": 0,
+      "title": "20250817_062802_anzen567646"
+    },
+    {
+      "id": "aa5f2cef-82e2-4b2f-a5ec-61c39eb95722",
+      "text": "種類番号\n設置要領\n路上障害物の\n接近\n（106）\n1）車道内および車道端に橋脚，橋台，擁壁，安全島\n等の障害物がある箇所全てに設置する。\n2）車道幅員の変化する箇所にも（105）にかえて設置\nするものとする。\n3）すりつけ長は「車道幅員の変更」2）に準ずる。\n3）すりつけ長は「車道幅員の変更」2）に準ずる。\n片側に避ける場合\n両側に避ける場合\n（色彩＝白）\n導流帯\n（107）\n1）複雑，変形交差点において各方向の通行路を示す\n必要がある場合で，縁石による導流施設を設けるスペ\nースがないとき，又は縁石による施設では衝突のおそ\nれのある場合。\n2）道路の区間において対向又は同方向の流れを分離\nする必要がある場合（中央分離帯として用いる場合）。\n3）車道幅員が変化する場合。\n4）交差点において車両の進行路を特に示す必要があ\nる場合。\n・細道路がスキューに交差する場合。\n・右折車が多い場合。\n5）交差点が変形又は広過ぎるため中心点を示し右折\n車両を誘導する必要がある場合。\n（色彩＝白）\n路上駐車場\n（108）\n道路管理者が設置または管理する路上駐車場に道路\n標識（117-A）と共に設置する。\n（色彩＝白）",
+      "metadata": {
+        "doc_id": "f6bb92e2-98c5-40c4-b485-46e552110ea4",
+        "filename": "20250817_062802_anzen567646.pdf",
+        "file_path": "temp_uploads/20250817_062802_anzen567646.pdf",
+        "file_hash": "4805bb181648284fee31808520655f54",
+        "processing_timestamp": null,
+        "document_type": "other",
+        "language": "ja",
+        "id": "97d542fa-b476-4bc1-9935-68fbd6599288",
+        "title": "20250817_062802_anzen567646",
+        "category": "その他",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "section_level": 1,
+        "section_type": "numbered_section",
+        "section_title": "5m 以上の道路に設置する。",
+        "section_number": "5",
+        "importance_score": 0.2,
+        "related_sections": [
+          {
+            "title": "種類",
+            "level": 3
+          },
+          {
+            "title": "色彩",
+            "level": 3
+          },
+          {
+            "title": "中央分離帯",
+            "level": 3
+          },
+          {
+            "title": "幅員",
+            "level": 3
+          },
+          {
+            "title": "幅員",
+            "level": 3
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "色彩",
+            "level": 3
+          },
+          {
+            "title": "色彩",
+            "level": 3
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "7",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "色彩",
+            "level": 3
+          },
+          {
+            "title": "（108）",
+            "level": 3
+          },
+          {
+            "title": "幅員",
+            "level": 3
+          },
+          {
+            "title": "幅員",
+            "level": 3
+          }
+        ],
+        "original_id": "f6bb92e2-98c5-40c4-b485-46e552110ea4_246"
+      },
+      "vector_score": 0.8553634,
+      "keyword_score": 0,
+      "hybrid_score": 0.658629818,
+      "rank": 3,
+      "score": 0,
+      "title": "20250817_062802_anzen567646"
+    },
+    {
+      "id": "fb82cc22-e694-458c-95d1-5b45683f6865",
+      "text": "--- テーブル情報 ---\n表 95ページ: 表 6.3 道路分類と道路種別との対応\n道路の種別 道路の機能分類   一般国道     県道  None     市道\n0          None  指定区間外  主要地方道  一般県道  主要な市道\n0          None  指定区間外  主要地方道  一般県道  主要な市道\n1        主要幹線道路      ●      ○   NaN    NaN\n2          幹線道路      ○      ●     ○      ○\n3        補助幹線道路    NaN      ○     ●      ●\n--- テーブル情報 ---\n表 36ページ: 表 1.5 乗入口の設置に伴う費用負担\n列              道路管理者側負担                                    申請者負担\n0  ア                   全 額                                      NaN",
+      "metadata": {
+        "doc_id": "f6bb92e2-98c5-40c4-b485-46e552110ea4",
+        "filename": "20250817_062802_anzen567646.pdf",
+        "file_path": "temp_uploads/20250817_062802_anzen567646.pdf",
+        "file_hash": "4805bb181648284fee31808520655f54",
+        "processing_timestamp": null,
+        "document_type": "other",
+        "language": "ja",
+        "id": "97d542fa-b476-4bc1-9935-68fbd6599288",
+        "title": "20250817_062802_anzen567646",
+        "category": "その他",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "section_level": 1,
+        "section_type": "numbered_section",
+        "section_title": "6  サイクルスポーツや観光を主眼に置いた整備",
+        "section_number": "12",
+        "contains_references": true,
+        "importance_score": 0.4,
+        "related_sections": [
+          {
+            "title": "乗入口の設置に伴う費用負担",
+            "level": 3
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "9",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "9",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          }
+        ],
+        "related_tables": [
+          {
+            "id": "pdfplumber_p97_0",
+            "caption": "表 6.6 標識板の寸法",
+            "page": 97
+          },
+          {
+            "id": "pdfplumber_p131_0",
+            "caption": "(a) 当該道路が１車線である道路において，視距が表 10.1に示す値以下の場所",
+            "page": 131
+          },
+          {
+            "id": "pdfplumber_p131_1",
+            "caption": "(a) 当該道路が１車線である道路において，視距が表 10.1に示す値以下の場所",
+            "page": 131
+          },
+          {
+            "id": "pdfplumber_p77_0",
+            "caption": "バス停車帯の長さの決定にあたっては表4.1の値を参考にし，本線交通量，利用回数，沿道の状況等を勘案",
+            "page": 77
+          },
+          {
+            "id": "pdfplumber_p138_0",
+            "caption": "表 11.1 すりつけ率の標準値",
+            "page": 138
+          },
+          {
+            "id": "pdfplumber_p119_1",
+            "caption": "表 7.2 区画線の設置要領（1）",
+            "page": 119
+          },
+          {
+            "id": "pdfplumber_p7_0",
+            "caption": "表 1.1 基準・指針類",
+            "page": 7
+          },
+          {
+            "id": "pdfplumber_p13_0",
+            "caption": "歩道の横断勾配は表 1.3を標準とする。",
+            "page": 13
+          },
+          {
+            "id": "pdfplumber_p51_0",
+            "caption": "表 3.1 横断歩道橋の幅員",
+            "page": 51
+          },
+          {
+            "id": "pdfplumber_p52_0",
+            "caption": "表 3.2 階段",
+            "page": 52
+          },
+          {
+            "id": "pdfplumber_p75_0",
+            "caption": "表 1",
+            "page": 75
+          },
+          {
+            "id": "pdfplumber_p87_0",
+            "caption": "表 5.4 種別毎の設計強度",
+            "page": 87
+          },
+          {
+            "id": "pdfplumber_p91_4",
+            "caption": "表 5",
+            "page": 91
+          },
+          {
+            "id": "pdfplumber_p100_0",
+            "caption": "表 6.9 道路を示す線の太さ",
+            "page": 100
+          },
+          {
+            "id": "pdfplumber_p102_0",
+            "caption": "地点案内は表6.10のように分類される。",
+            "page": 102
+          },
+          {
+            "id": "pdfplumber_p107_0",
+            "caption": "での高さ。上部曲柱の場合は路面から曲部下端までの高さ）は表6.13のとおりとするものとする。",
+            "page": 107
+          },
+          {
+            "id": "pdfplumber_p130_0",
+            "caption": "２方向２車線道路の曲線部に設置する防護柵に取り付ける視線誘導標の設置間隔は表 9.2による。",
+            "page": 130
+          },
+          {
+            "id": "pdfplumber_p137_0",
+            "caption": "(a) 支柱の諸元は鏡面形状および鏡面の大きさ等に応じて表 10.9により設定することが望ましい。",
+            "page": 137
+          },
+          {
+            "id": "pdfplumber_p136_0",
+            "caption": "鏡面の厚さは，鏡面形状，鏡面の大きさおよび材料に応じて表 10.8より選定することが望ましい。",
+            "page": 136
+          },
+          {
+            "id": "pdfplumber_p119_0",
+            "caption": "表 7.2 区画線の設置要領（1）",
+            "page": 119
+          },
+          {
+            "id": "pdfplumber_p120_0",
+            "caption": "表 7.3 区画線の設置要領（2）",
+            "page": 120
+          },
+          {
+            "id": "pdfplumber_p132_0",
+            "caption": "θを変えた場合の大型車（Ｌ＝12ｍ，Ｗ＝2.5ｍ）及び小型車（Ｌ＝4.5ｍ，Ｗ＝1.7ｍ）の計算結果を，表10.3，",
+            "page": 132
+          },
+          {
+            "id": "pdfplumber_p94_0",
+            "caption": "会の表-2.2.4～6を参照するものとする。",
+            "page": 94
+          },
+          {
+            "id": "pdfplumber_p124_0",
+            "caption": "平均路面輝度は，道路分類及び外部条件に応じて表 8.1 の上段の値を標準とする。また，中央帯に対向車",
+            "page": 124
+          },
+          {
+            "id": "pdfplumber_p126_0",
+            "caption": "表 8.3 ポール基礎（ポール主柱形状が可変型の場合）",
+            "page": 126
+          },
+          {
+            "id": "pdfplumber_p118_0",
+            "caption": "区画線は道路交通法の規定の適用にあたっては道路標示とみなされており，区画線と道路標示との関係は表 7.1",
+            "page": 118
+          },
+          {
+            "id": "pdfplumber_p79_0",
+            "caption": "表 5.1 防護柵の種別と性能",
+            "page": 79
+          },
+          {
+            "id": "pdfplumber_p52_1",
+            "caption": "表 3.2 階段",
+            "page": 52
+          },
+          {
+            "id": "pdfplumber_p96_0",
+            "caption": "表 6.4 道路標識の設置者の区分",
+            "page": 96
+          },
+          {
+            "id": "pdfplumber_p121_0",
+            "caption": "表 7.4 路側帯のまとめ",
+            "page": 121
+          },
+          {
+            "id": "pdfplumber_p80_0",
+            "caption": "表 5.2 防護柵の種別の適用",
+            "page": 80
+          },
+          {
+            "id": "pdfplumber_p95_0",
+            "caption": "表 6.3 道路分類と道路種別との対応",
+            "page": 95
+          },
+          {
+            "id": "pdfplumber_p36_0",
+            "caption": "表 1.5 乗入口の設置に伴う費用負担",
+            "page": 36
+          },
+          {
+            "id": "pdfplumber_p91_3",
+            "caption": "表 4",
+            "page": 91
+          },
+          {
+            "id": "pdfplumber_p105_1",
+            "caption": "警戒標識の種類は表6.11のとおりである。",
+            "page": 105
+          },
+          {
+            "id": "pdfplumber_p31_0",
+            "caption": "(3) 乗入口の設置幅乗入口の設置幅は表 1.4を原則とする。",
+            "page": 31
+          },
+          {
+            "id": "pdfplumber_p111_0",
+            "caption": "表 6.16 表示地名一覧【23:愛知県】",
+            "page": 111
+          },
+          {
+            "id": "pdfplumber_p112_0",
+            "caption": "表 6.18 表示地名一覧【21:岐阜県】",
+            "page": 112
+          },
+          {
+            "id": "pdfplumber_p112_1",
+            "caption": "表 6.18 表示地名一覧【21:岐阜県】",
+            "page": 112
+          },
+          {
+            "id": "pdfplumber_p112_2",
+            "caption": "表 6.18 表示地名一覧【21:岐阜県】",
+            "page": 112
+          },
+          {
+            "id": "pdfplumber_p134_1",
+            "caption": "鏡面の大きさは表 10.6のとおりとする。",
+            "page": 134
+          },
+          {
+            "id": "pdfplumber_p105_0",
+            "caption": "警戒標識の種類は表6.11のとおりである。",
+            "page": 105
+          },
+          {
+            "id": "pdfplumber_p134_0",
+            "caption": "鏡面の大きさは表 10.6のとおりとする。",
+            "page": 134
+          },
+          {
+            "id": "pdfplumber_p32_0",
+            "caption": "表 1",
+            "page": 32
+          },
+          {
+            "id": "pdfplumber_p33_0",
+            "caption": "表 1",
+            "page": 33
+          },
+          {
+            "id": "pdfplumber_p96_1",
+            "caption": "表 6.4 道路標識の設置者の区分",
+            "page": 96
+          },
+          {
+            "id": "pdfplumber_p111_1",
+            "caption": "表 6.16 表示地名一覧【23:愛知県】",
+            "page": 111
+          },
+          {
+            "id": "pdfplumber_p114_0",
+            "caption": "表 6.21 案内標識（1）",
+            "page": 114
+          },
+          {
+            "id": "pdfplumber_p115_0",
+            "caption": "表 6.22 案内標識（2）",
+            "page": 115
+          },
+          {
+            "id": "pdfplumber_p125_0",
+            "caption": "視機能低下グレアは，相対閾値増加を原則として表 8.2の値とするものとする。",
+            "page": 125
+          },
+          {
+            "id": "pdfplumber_p137_1",
+            "caption": "(a) 支柱の諸元は鏡面形状および鏡面の大きさ等に応じて表 10.9により設定することが望ましい。",
+            "page": 137
+          },
+          {
+            "id": "pdfplumber_p91_1",
+            "caption": "表 2",
+            "page": 91
+          },
+          {
+            "id": "pdfplumber_p91_0",
+            "caption": "表 1",
+            "page": 91
+          },
+          {
+            "id": "pdfplumber_p80_1",
+            "caption": "表 5.2 防護柵の種別の適用",
+            "page": 80
+          },
+          {
+            "id": "pdfplumber_p35_2",
+            "caption": "注）自動車の種類は,表1.4を参照することとする。",
+            "page": 35
+          },
+          {
+            "id": "pdfplumber_p98_0",
+            "caption": "表 6.8 交差点の予告案内及び交差点案内の使用区分",
+            "page": 98
+          },
+          {
+            "id": "pdfplumber_p93_0",
+            "caption": "表 6.1 道路標識の分類及び機能",
+            "page": 93
+          },
+          {
+            "id": "pdfplumber_p77_1",
+            "caption": "バス停車帯の長さの決定にあたっては表4.1の値を参考にし，本線交通量，利用回数，沿道の状況等を勘案",
+            "page": 77
+          },
+          {
+            "id": "pdfplumber_p9_0",
+            "caption": "歩道等の有効幅員は，図1-3を参照とし，建築限界は表 1.2を参照することとする。",
+            "page": 9
+          },
+          {
+            "id": "pdfplumber_p88_0",
+            "caption": "表 5.5 一般的な歩行者用自転車用柵の支柱埋込み例",
+            "page": 88
+          },
+          {
+            "id": "table_p16_1",
+            "caption": "表 1",
+            "page": 16
+          },
+          {
+            "id": "table_p17_1",
+            "caption": "表 1",
+            "page": 17
+          },
+          {
+            "id": "table_p21_1",
+            "caption": "表 1",
+            "page": 21
+          },
+          {
+            "id": "table_p26_1",
+            "caption": "表 1",
+            "page": 26
+          },
+          {
+            "id": "table_p27_1",
+            "caption": "表 1",
+            "page": 27
+          },
+          {
+            "id": "table_p32_3",
+            "caption": "表 3",
+            "page": 32
+          },
+          {
+            "id": "table_p33_3",
+            "caption": "表 3",
+            "page": 33
+          },
+          {
+            "id": "table_p35_2",
+            "caption": "注）自動車の種類は,表1.4を参照することとする。",
+            "page": 35
+          },
+          {
+            "id": "table_p38_2",
+            "caption": "表 2",
+            "page": 38
+          },
+          {
+            "id": "table_p41_1",
+            "caption": "表 1",
+            "page": 41
+          },
+          {
+            "id": "table_p44_1",
+            "caption": "表 1",
+            "page": 44
+          },
+          {
+            "id": "table_p65_1",
+            "caption": "表 1",
+            "page": 65
+          },
+          {
+            "id": "table_p83_1",
+            "caption": "表 1",
+            "page": 83
+          },
+          {
+            "id": "table_p92_1",
+            "caption": "表 1",
+            "page": 92
+          },
+          {
+            "id": "table_p115_2",
+            "caption": "表 6.22 案内標識（2）",
+            "page": 115
+          },
+          {
+            "id": "table_p116_1",
+            "caption": "表 6.24 警戒標識 表 6.25 指示標識",
+            "page": 116
+          },
+          {
+            "id": "table_p116_3",
+            "caption": "表 6.24 警戒標識 表 6.25 指示標識",
+            "page": 116
+          },
+          {
+            "id": "table_p129_1",
+            "caption": "表 9.1 標準設置間隔",
+            "page": 129
+          },
+          {
+            "id": "table_p133_1",
+            "caption": "このため，鏡面の曲率半径は表 10.5を標準とするものとする。",
+            "page": 133
+          },
+          {
+            "id": "table_p148_1",
+            "caption": "表 1",
+            "page": 148
+          }
+        ],
+        "original_id": "f6bb92e2-98c5-40c4-b485-46e552110ea4_378"
+      },
+      "vector_score": 0.8502515,
+      "keyword_score": 0,
+      "hybrid_score": 0.654693655,
+      "rank": 4,
+      "score": 0,
+      "title": "20250817_062802_anzen567646"
+    },
+    {
+      "id": "a6be94d8-e092-45c7-b177-4182fbdb8e8f",
+      "text": "5.2.2  防護柵の種別の適用\n表 5.2 防護柵の種別の適用\n道路の区分\n設計速度\n一般区間\n重大な被害が発生す\nるおそれのある区間\n新幹線などと交差ま\nたは近接する区問\n高速自動車国道\n自動車専用道路\n80km/h 以上\nＡ，Ａｍ\nＳＢ，ＳＢｍ\nＳＳ\n60km/h 以上\nＳＣ，ＳＣｍ\nＳＡ\nその他の道路\n60km/h 以上\nＢ，Ｂｍ，Ｂｐ\nＡ，Ａｍ，Ａｐ\nＳＢ，ＳＢｐ\n50km/h 以上\nＣ，Ｃｍ，Ｃｐ\nＢ，Ｂｍ，Ｂｐ\n注 1）その他の道路の重大な被害が発生するおそれのある区間において，設計速度が 40km/h 以下の道路では，C，\nCm，Cp を使用することができる。\n注 2）走行速度や線形条件などにより特に衝撃度が高くなりやすい区間においては，種別の一段階上またはそれ以\n上の種別を適用することができる。\n注 3）重大な被害が発生するおそれのある区間とは，大都市近郊鉄道・地方幹線道路との交差近接区間，高速自動\n車国道・自動車専用道路などとの交差近接区間，分離帯に防護柵を設置する区間で走行速度が特に高くかつ",
+      "metadata": {
+        "doc_id": "f6bb92e2-98c5-40c4-b485-46e552110ea4",
+        "filename": "20250817_062802_anzen567646.pdf",
+        "file_path": "temp_uploads/20250817_062802_anzen567646.pdf",
+        "file_hash": "4805bb181648284fee31808520655f54",
+        "processing_timestamp": null,
+        "document_type": "other",
+        "language": "ja",
+        "id": "97d542fa-b476-4bc1-9935-68fbd6599288",
+        "title": "20250817_062802_anzen567646",
+        "category": "その他",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "section_level": 1,
+        "section_type": "numbered_section",
+        "section_title": "2.2  防護柵の種別の適用",
+        "section_number": "5",
+        "contains_numerical_data": true,
+        "contains_references": true,
+        "importance_score": 0.8,
+        "related_sections": [
+          {
+            "title": "その他",
+            "level": 3
+          },
+          {
+            "title": "その他",
+            "level": 3
+          },
+          {
+            "title": "防護柵",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2.2  防護柵の種別の適用",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          }
+        ],
+        "related_tables": [
+          {
+            "id": "pdfplumber_p97_0",
+            "caption": "表 6.6 標識板の寸法",
+            "page": 97
+          },
+          {
+            "id": "pdfplumber_p131_0",
+            "caption": "(a) 当該道路が１車線である道路において，視距が表 10.1に示す値以下の場所",
+            "page": 131
+          },
+          {
+            "id": "pdfplumber_p131_1",
+            "caption": "(a) 当該道路が１車線である道路において，視距が表 10.1に示す値以下の場所",
+            "page": 131
+          },
+          {
+            "id": "pdfplumber_p77_0",
+            "caption": "バス停車帯の長さの決定にあたっては表4.1の値を参考にし，本線交通量，利用回数，沿道の状況等を勘案",
+            "page": 77
+          },
+          {
+            "id": "pdfplumber_p138_0",
+            "caption": "表 11.1 すりつけ率の標準値",
+            "page": 138
+          },
+          {
+            "id": "pdfplumber_p119_1",
+            "caption": "表 7.2 区画線の設置要領（1）",
+            "page": 119
+          },
+          {
+            "id": "pdfplumber_p7_0",
+            "caption": "表 1.1 基準・指針類",
+            "page": 7
+          },
+          {
+            "id": "pdfplumber_p13_0",
+            "caption": "歩道の横断勾配は表 1.3を標準とする。",
+            "page": 13
+          },
+          {
+            "id": "pdfplumber_p51_0",
+            "caption": "表 3.1 横断歩道橋の幅員",
+            "page": 51
+          },
+          {
+            "id": "pdfplumber_p52_0",
+            "caption": "表 3.2 階段",
+            "page": 52
+          },
+          {
+            "id": "pdfplumber_p75_0",
+            "caption": "表 1",
+            "page": 75
+          },
+          {
+            "id": "pdfplumber_p87_0",
+            "caption": "表 5.4 種別毎の設計強度",
+            "page": 87
+          },
+          {
+            "id": "pdfplumber_p91_4",
+            "caption": "表 5",
+            "page": 91
+          },
+          {
+            "id": "pdfplumber_p100_0",
+            "caption": "表 6.9 道路を示す線の太さ",
+            "page": 100
+          },
+          {
+            "id": "pdfplumber_p102_0",
+            "caption": "地点案内は表6.10のように分類される。",
+            "page": 102
+          },
+          {
+            "id": "pdfplumber_p107_0",
+            "caption": "での高さ。上部曲柱の場合は路面から曲部下端までの高さ）は表6.13のとおりとするものとする。",
+            "page": 107
+          },
+          {
+            "id": "pdfplumber_p130_0",
+            "caption": "２方向２車線道路の曲線部に設置する防護柵に取り付ける視線誘導標の設置間隔は表 9.2による。",
+            "page": 130
+          },
+          {
+            "id": "pdfplumber_p137_0",
+            "caption": "(a) 支柱の諸元は鏡面形状および鏡面の大きさ等に応じて表 10.9により設定することが望ましい。",
+            "page": 137
+          },
+          {
+            "id": "pdfplumber_p136_0",
+            "caption": "鏡面の厚さは，鏡面形状，鏡面の大きさおよび材料に応じて表 10.8より選定することが望ましい。",
+            "page": 136
+          },
+          {
+            "id": "pdfplumber_p119_0",
+            "caption": "表 7.2 区画線の設置要領（1）",
+            "page": 119
+          },
+          {
+            "id": "pdfplumber_p120_0",
+            "caption": "表 7.3 区画線の設置要領（2）",
+            "page": 120
+          },
+          {
+            "id": "pdfplumber_p132_0",
+            "caption": "θを変えた場合の大型車（Ｌ＝12ｍ，Ｗ＝2.5ｍ）及び小型車（Ｌ＝4.5ｍ，Ｗ＝1.7ｍ）の計算結果を，表10.3，",
+            "page": 132
+          },
+          {
+            "id": "pdfplumber_p94_0",
+            "caption": "会の表-2.2.4～6を参照するものとする。",
+            "page": 94
+          },
+          {
+            "id": "pdfplumber_p124_0",
+            "caption": "平均路面輝度は，道路分類及び外部条件に応じて表 8.1 の上段の値を標準とする。また，中央帯に対向車",
+            "page": 124
+          },
+          {
+            "id": "pdfplumber_p126_0",
+            "caption": "表 8.3 ポール基礎（ポール主柱形状が可変型の場合）",
+            "page": 126
+          },
+          {
+            "id": "pdfplumber_p118_0",
+            "caption": "区画線は道路交通法の規定の適用にあたっては道路標示とみなされており，区画線と道路標示との関係は表 7.1",
+            "page": 118
+          },
+          {
+            "id": "pdfplumber_p79_0",
+            "caption": "表 5.1 防護柵の種別と性能",
+            "page": 79
+          },
+          {
+            "id": "pdfplumber_p52_1",
+            "caption": "表 3.2 階段",
+            "page": 52
+          },
+          {
+            "id": "pdfplumber_p96_0",
+            "caption": "表 6.4 道路標識の設置者の区分",
+            "page": 96
+          },
+          {
+            "id": "pdfplumber_p121_0",
+            "caption": "表 7.4 路側帯のまとめ",
+            "page": 121
+          },
+          {
+            "id": "pdfplumber_p80_0",
+            "caption": "表 5.2 防護柵の種別の適用",
+            "page": 80
+          },
+          {
+            "id": "pdfplumber_p95_0",
+            "caption": "表 6.3 道路分類と道路種別との対応",
+            "page": 95
+          },
+          {
+            "id": "pdfplumber_p36_0",
+            "caption": "表 1.5 乗入口の設置に伴う費用負担",
+            "page": 36
+          },
+          {
+            "id": "pdfplumber_p91_3",
+            "caption": "表 4",
+            "page": 91
+          },
+          {
+            "id": "pdfplumber_p105_1",
+            "caption": "警戒標識の種類は表6.11のとおりである。",
+            "page": 105
+          },
+          {
+            "id": "pdfplumber_p31_0",
+            "caption": "(3) 乗入口の設置幅乗入口の設置幅は表 1.4を原則とする。",
+            "page": 31
+          },
+          {
+            "id": "pdfplumber_p111_0",
+            "caption": "表 6.16 表示地名一覧【23:愛知県】",
+            "page": 111
+          },
+          {
+            "id": "pdfplumber_p112_0",
+            "caption": "表 6.18 表示地名一覧【21:岐阜県】",
+            "page": 112
+          },
+          {
+            "id": "pdfplumber_p112_1",
+            "caption": "表 6.18 表示地名一覧【21:岐阜県】",
+            "page": 112
+          },
+          {
+            "id": "pdfplumber_p112_2",
+            "caption": "表 6.18 表示地名一覧【21:岐阜県】",
+            "page": 112
+          },
+          {
+            "id": "pdfplumber_p134_1",
+            "caption": "鏡面の大きさは表 10.6のとおりとする。",
+            "page": 134
+          },
+          {
+            "id": "pdfplumber_p105_0",
+            "caption": "警戒標識の種類は表6.11のとおりである。",
+            "page": 105
+          },
+          {
+            "id": "pdfplumber_p134_0",
+            "caption": "鏡面の大きさは表 10.6のとおりとする。",
+            "page": 134
+          },
+          {
+            "id": "pdfplumber_p32_0",
+            "caption": "表 1",
+            "page": 32
+          },
+          {
+            "id": "pdfplumber_p33_0",
+            "caption": "表 1",
+            "page": 33
+          },
+          {
+            "id": "pdfplumber_p96_1",
+            "caption": "表 6.4 道路標識の設置者の区分",
+            "page": 96
+          },
+          {
+            "id": "pdfplumber_p111_1",
+            "caption": "表 6.16 表示地名一覧【23:愛知県】",
+            "page": 111
+          },
+          {
+            "id": "pdfplumber_p114_0",
+            "caption": "表 6.21 案内標識（1）",
+            "page": 114
+          },
+          {
+            "id": "pdfplumber_p115_0",
+            "caption": "表 6.22 案内標識（2）",
+            "page": 115
+          },
+          {
+            "id": "pdfplumber_p125_0",
+            "caption": "視機能低下グレアは，相対閾値増加を原則として表 8.2の値とするものとする。",
+            "page": 125
+          },
+          {
+            "id": "pdfplumber_p137_1",
+            "caption": "(a) 支柱の諸元は鏡面形状および鏡面の大きさ等に応じて表 10.9により設定することが望ましい。",
+            "page": 137
+          },
+          {
+            "id": "pdfplumber_p91_1",
+            "caption": "表 2",
+            "page": 91
+          },
+          {
+            "id": "pdfplumber_p91_0",
+            "caption": "表 1",
+            "page": 91
+          },
+          {
+            "id": "pdfplumber_p80_1",
+            "caption": "表 5.2 防護柵の種別の適用",
+            "page": 80
+          },
+          {
+            "id": "pdfplumber_p35_2",
+            "caption": "注）自動車の種類は,表1.4を参照することとする。",
+            "page": 35
+          },
+          {
+            "id": "pdfplumber_p98_0",
+            "caption": "表 6.8 交差点の予告案内及び交差点案内の使用区分",
+            "page": 98
+          },
+          {
+            "id": "pdfplumber_p93_0",
+            "caption": "表 6.1 道路標識の分類及び機能",
+            "page": 93
+          },
+          {
+            "id": "pdfplumber_p77_1",
+            "caption": "バス停車帯の長さの決定にあたっては表4.1の値を参考にし，本線交通量，利用回数，沿道の状況等を勘案",
+            "page": 77
+          },
+          {
+            "id": "pdfplumber_p9_0",
+            "caption": "歩道等の有効幅員は，図1-3を参照とし，建築限界は表 1.2を参照することとする。",
+            "page": 9
+          },
+          {
+            "id": "pdfplumber_p88_0",
+            "caption": "表 5.5 一般的な歩行者用自転車用柵の支柱埋込み例",
+            "page": 88
+          },
+          {
+            "id": "table_p16_1",
+            "caption": "表 1",
+            "page": 16
+          },
+          {
+            "id": "table_p17_1",
+            "caption": "表 1",
+            "page": 17
+          },
+          {
+            "id": "table_p21_1",
+            "caption": "表 1",
+            "page": 21
+          },
+          {
+            "id": "table_p26_1",
+            "caption": "表 1",
+            "page": 26
+          },
+          {
+            "id": "table_p27_1",
+            "caption": "表 1",
+            "page": 27
+          },
+          {
+            "id": "table_p32_3",
+            "caption": "表 3",
+            "page": 32
+          },
+          {
+            "id": "table_p33_3",
+            "caption": "表 3",
+            "page": 33
+          },
+          {
+            "id": "table_p35_2",
+            "caption": "注）自動車の種類は,表1.4を参照することとする。",
+            "page": 35
+          },
+          {
+            "id": "table_p38_2",
+            "caption": "表 2",
+            "page": 38
+          },
+          {
+            "id": "table_p41_1",
+            "caption": "表 1",
+            "page": 41
+          },
+          {
+            "id": "table_p44_1",
+            "caption": "表 1",
+            "page": 44
+          },
+          {
+            "id": "table_p65_1",
+            "caption": "表 1",
+            "page": 65
+          },
+          {
+            "id": "table_p83_1",
+            "caption": "表 1",
+            "page": 83
+          },
+          {
+            "id": "table_p92_1",
+            "caption": "表 1",
+            "page": 92
+          },
+          {
+            "id": "table_p115_2",
+            "caption": "表 6.22 案内標識（2）",
+            "page": 115
+          },
+          {
+            "id": "table_p116_1",
+            "caption": "表 6.24 警戒標識 表 6.25 指示標識",
+            "page": 116
+          },
+          {
+            "id": "table_p116_3",
+            "caption": "表 6.24 警戒標識 表 6.25 指示標識",
+            "page": 116
+          },
+          {
+            "id": "table_p129_1",
+            "caption": "表 9.1 標準設置間隔",
+            "page": 129
+          },
+          {
+            "id": "table_p133_1",
+            "caption": "このため，鏡面の曲率半径は表 10.5を標準とするものとする。",
+            "page": 133
+          },
+          {
+            "id": "table_p148_1",
+            "caption": "表 1",
+            "page": 148
+          }
+        ],
+        "original_id": "f6bb92e2-98c5-40c4-b485-46e552110ea4_132"
+      },
+      "vector_score": 0.84989446,
+      "keyword_score": 0,
+      "hybrid_score": 0.6544187342,
+      "rank": 5,
+      "score": 0,
+      "title": "20250817_062802_anzen567646"
+    }
+  ],
+  "confidence_score": 0.8,
+  "search_type": "hybrid",
+  "top_k": 5,
+  "saved_at": "2025-08-17T06:54:53.192732+09:00",
+  "metadata": {
+    "name": "安全",
+    "tags": [
+      "01"
+    ],
+    "processing_time": 17.91838550567627
+  }
+}

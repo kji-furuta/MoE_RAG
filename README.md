@@ -1,16 +1,18 @@
-# AI Fine-tuning Toolkit with RAG Integration & Continual Learning
+# MoE-RAG: AI Fine-tuning Toolkit with RAG Integration & Continual Learning
 
 🚀 **日本語LLMファインチューニング + RAGシステム + 継続学習統合Webツールキット**
 
 Dockerベースの統合Webインターフェースで、日本語大規模言語モデル（LLM）のファインチューニング、土木道路設計特化型RAGシステム、そしてEWCベースの継続学習を同一プラットフォームで実行できます。単一のポート（8050）で全機能にアクセス可能な革新的なツールキットです。
 
-## 📢 最新の更新 (2025年8月16日)
+## 📢 最新の更新 (2025年8月19日)
 
 ### 🆕 最新実装機能
+- **MoE (Mixture of Experts) アーキテクチャ**: エキスパートルーティングによる効率的な学習を実装
+- **継続学習システム改善**: EWCベースの破壊的忘却防止機能を強化
+- **4ビット量子化対応**: QLoRA・AWQ両方式での極低メモリ学習を実現
+- **GitHub統合**: MoE_RAGリポジトリ (https://github.com/kji-furuta/MoE_RAG.git) との完全統合
 - **DoRA (Weight-Decomposed Low-Rank Adaptation)**: LoRAを超える高精度・高効率な新手法を実装
 - **vLLM統合**: PagedAttentionによる高速推論エンジンを統合
-- **AWQ量子化**: 4ビット量子化による75%メモリ削減を実現
-- **実装ガイド追加**: `IMPLEMENTATION_GUIDE.md`に詳細な使用方法を記載
 
 ### ✅ 全システム正常稼働確認済み
 - **ファインチューニング**: cyberagent/calm3-22b-chatモデルで正常動作
@@ -131,7 +133,7 @@ Webインターフェースの「モデル更新」ボタンは、**利用可能
 - **🔧 自動量子化**: モデルサイズに応じた最適化
 
 ### ✅ サポートモデル
-最新のサポートモデルリストです。
+最新のサポートモデルリストです。継続学習とMoEアーキテクチャに最適化されています。
 
 | モデル名 | タイプ | 精度 | 推奨VRAM | タグ |
 | :--- | :--- | :--- | :--- | :--- |
@@ -174,8 +176,13 @@ Webインターフェースの「モデル更新」ボタンは、**利用可能
 ## 🚀 クイックスタート
 ### 1. リポジトリのクローン
 ```bash
-git clone https://github.com/kji-furuta/AI_FT_3.git
-cd AI_FT_3
+# メインリポジトリ（GitHub）
+git clone https://github.com/kji-furuta/MoE_RAG.git
+cd MoE_RAG
+
+# または開発用リポジトリ
+git clone https://github.com/kji-furuta/AI_FT_7.git
+cd AI_FT_7
 ```
 
 ### 2. Ollamaのインストール（初回のみ）
@@ -774,7 +781,7 @@ final_model = trainer_task2.train(train_texts=task2_data)
 ## 📁 プロジェクト構造
 
 ```
-AI_FT_3/
+MoE_RAG/
 ├── app/                          # Webアプリケーション
 │   ├── main_unified.py           # 統合Webサーバー（稼働中）
 │   ├── memory_optimized_loader.py # メモリ最適化ローダー
@@ -836,6 +843,13 @@ AI_FT_3/
 
 ## 📅 更新履歴
 
+### v3.1.0 (2025-08-19) - MoE統合と継続学習改善
+- 🆕 **MoEアーキテクチャ統合**: 8エキスパート構成による効率的な学習
+- 🆕 **継続学習強化**: EWCによる破壊的忘却防止機能の改善
+- 🆕 **4ビット量子化**: メモリ使用量を大幅削減
+- 🆕 **GitHub統合**: MoE_RAGリポジトリへの完全移行
+- ✅ **全システム動作確認**: Docker環境での統合テスト完了
+
 ### v3.0.0 (2025-08-16) - 最新AI技術の統合
 - 🆕 **DoRA実装**: Weight-Decomposed Low-Rank Adaptation - LoRAを超える精度と効率性
 - 🆕 **vLLM統合**: PagedAttentionによる3倍高速推論エンジン
@@ -893,7 +907,11 @@ AI_FT_3/
 
 ## 🤝 コントリビューション
 
-プルリクエストを歓迎します。主な開発ブランチは `main` です。
+プルリクエストを歓迎します。
+
+**メインリポジトリ**: https://github.com/kji-furuta/MoE_RAG.git
+- ブランチ: `main`
+- リモート名: `moe_rag`
 
 1. リポジトリをフォーク
 2. 機能ブランチを作成 (`git checkout -b feature/new-feature`)
@@ -935,8 +953,8 @@ AI_FT_3/
 
 ```bash
 # 1. クローン
-git clone https://github.com/kji-furuta/AI_FT_3.git
-cd AI_FT_3
+git clone https://github.com/kji-furuta/MoE_RAG.git
+cd MoE_RAG
 
 # 2. Ollamaをインストール・起動（新しいターミナルで）
 curl -fsSL https://ollama.com/install.sh | sh

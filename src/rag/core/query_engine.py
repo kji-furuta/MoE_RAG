@@ -613,6 +613,10 @@ class RoadDesignQueryEngine:
         self.citation_engine = None
         self.metadata_manager = None
         
+        # MoE統合コンポーネント
+        self.moe_rag_system = None
+        self.use_moe = False
+        
         self.is_initialized = False
         
     def initialize(self):
@@ -694,6 +698,10 @@ class RoadDesignQueryEngine:
                 reranker=self.reranker,
                 llm_generator=self.llm_generator
             )
+            
+            # 8. MoE統合チェック
+            if hasattr(self.config.llm, 'use_moe') and self.config.llm.use_moe:
+                self._initialize_moe_integration()
             
             self.is_initialized = True
             logger.info("RoadDesignQueryEngine initialization completed")
@@ -810,6 +818,43 @@ class RoadDesignQueryEngine:
             except Exception as fallback_e:
                 logger.error(f"Failed to initialize empty corpus: {fallback_e}")
             
+    def _initialize_moe_integration(self):
+        """MoE統合を初期化"""
+        try:
+            logger.info("Initializing MoE-RAG integration...")
+            
+            # UnifiedMoERAGSystemをインポート
+            from ...moe_rag_integration.unified_moe_rag_system import UnifiedMoERAGSystem
+            from ...moe.moe_architecture import MoEConfig
+            
+            # MoE設定を作成
+            moe_config = MoEConfig(
+                num_experts=self.config.llm.moe_num_experts,
+                num_experts_per_tok=self.config.llm.moe_experts_per_token,
+                hidden_size=768,
+                domain_specific_routing=True
+            )
+            
+            # 統合システムを初期化
+            self.moe_rag_system = UnifiedMoERAGSystem(
+                rag_config_path=None,  # 既存の設定を使用
+                moe_config=moe_config,
+                device='cuda' if torch.cuda.is_available() else 'cpu'
+            )
+            
+            # 既存のRAGコンポーネントを設定
+            if self.vector_store:
+                self.moe_rag_system.vector_store = self.vector_store
+            if self.hybrid_search:
+                self.moe_rag_system.hybrid_searcher = self.hybrid_search
+            
+            self.use_moe = True
+            logger.info("MoE-RAG integration initialized successfully")
+            
+        except Exception as e:
+            logger.warning(f"Failed to initialize MoE integration: {e}")
+            self.use_moe = False
+    
     def query(self, 
              query_text: str,
              top_k: int = 5,
@@ -825,6 +870,10 @@ class RoadDesignQueryEngine:
         start_time = time.time()
         
         logger.info(f"Processing query: {query_text}")
+        
+        # MoEモードが有効な場合
+        if self.use_moe and self.moe_rag_system:
+            return self._query_with_moe(query_text, top_k, search_type, filters, include_sources)
         
         try:
             # 引用エンジンがない場合のみシンプルフォールバック
@@ -932,6 +981,79 @@ class RoadDesignQueryEngine:
             logger.error(f"Query failed: {e}")
             
             # エラー時はOllamaフォールバックを試行
+            processing_time = time.time() - start_time
+            return self._simple_ollama_query(query_text, top_k, processing_time, error=str(e))
+    
+    def _query_with_moe(self, 
+                        query_text: str,
+                        top_k: int,
+                        search_type: str,
+                        filters: Optional[Dict[str, Any]],
+                        include_sources: bool) -> QueryResult:
+        """MoE統合システムでクエリを実行"""
+        import time
+        import asyncio
+        
+        start_time = time.time()
+        
+        try:
+            logger.info(f"Processing query with MoE-RAG: {query_text}")
+            
+            # MoE統合クエリを実行（同期的に実行）
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            moe_result = loop.run_until_complete(
+                self.moe_rag_system.query(
+                    query=query_text,
+                    top_k=top_k,
+                    use_reranking=self.config.retrieval.reranking_enabled
+                )
+            )
+            
+            processing_time = time.time() - start_time
+            
+            # MoE結果をQueryResultに変換
+            sources = []
+            for doc in moe_result.retrieved_documents:
+                source_data = {
+                    'text': doc.get('content', ''),
+                    'score': doc.get('expert_relevance_score', 0.0),
+                    'title': doc.get('metadata', {}).get('source', 'Unknown'),
+                    'expert': doc.get('expert', 'General'),
+                    'metadata': doc.get('metadata', {})
+                }
+                sources.append(source_data)
+            
+            # 引用情報を生成
+            citations = []
+            for expert in moe_result.selected_experts:
+                citations.append({
+                    'expert': expert,
+                    'score': moe_result.expert_scores.get(expert, 0.0)
+                })
+            
+            # メタデータに MoE情報を追加
+            metadata = moe_result.metadata.copy()
+            metadata['moe_experts'] = moe_result.selected_experts
+            metadata['moe_strategy'] = moe_result.fusion_strategy
+            metadata['moe_confidence'] = moe_result.confidence
+            
+            result = QueryResult(
+                query=query_text,
+                answer=moe_result.answer,
+                citations=citations,
+                sources=sources,
+                confidence_score=moe_result.confidence,
+                processing_time=processing_time,
+                metadata=metadata
+            )
+            
+            logger.info(f"MoE query completed in {processing_time:.2f}s, experts: {', '.join(moe_result.selected_experts)}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"MoE query failed: {e}")
+            # フォールバック
             processing_time = time.time() - start_time
             return self._simple_ollama_query(query_text, top_k, processing_time, error=str(e))
     

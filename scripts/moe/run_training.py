@@ -31,17 +31,17 @@ def parse_args():
     parser.add_argument("--num_experts_per_tok", type=int, default=2,
                       help="Number of active experts per token")
     
-    # トレーニング設定
-    parser.add_argument("--batch_size", type=int, default=2,
-                      help="Batch size")
-    parser.add_argument("--gradient_accumulation_steps", type=int, default=16,
-                      help="Gradient accumulation steps")
+    # トレーニング設定（メモリ最適化のためのデフォルト値調整）
+    parser.add_argument("--batch_size", type=int, default=1,
+                      help="Batch size (default=1 for memory optimization)")
+    parser.add_argument("--gradient_accumulation_steps", type=int, default=32,
+                      help="Gradient accumulation steps (increased for effective batch size)")
     parser.add_argument("--learning_rate", type=float, default=2e-5,
                       help="Learning rate")
     parser.add_argument("--num_epochs", type=int, default=3,
                       help="Number of epochs")
-    parser.add_argument("--max_seq_length", type=int, default=512,
-                      help="Maximum sequence length")
+    parser.add_argument("--max_seq_length", type=int, default=256,
+                      help="Maximum sequence length (reduced for memory optimization)")
     
     # パス設定
     parser.add_argument("--data_path", type=str, default="./data/civil_engineering",
@@ -111,7 +111,7 @@ def main():
     print(f"  学習率: {config.learning_rate}")
     print(f"  エポック数: {config.num_epochs}")
     
-    # モデルの作成
+    # モデルの作成（メモリ最適化版）
     print("\nモデルを作成中...")
     
     if args.demo_mode:
@@ -125,10 +125,63 @@ def main():
         from src.moe.moe_architecture import CivilEngineeringMoEModel
         model = CivilEngineeringMoEModel(moe_config, base_model=None)
     else:
-        model = create_civil_engineering_moe(
-            base_model_name=config.base_model_name,
-            num_experts=config.num_experts
+        # メモリ最適化：量子化とLoRAを使用
+        print("メモリ最適化モードでモデルを読み込み中...")
+        from transformers import AutoModelForCausalLM, BitsAndBytesConfig
+        from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+        
+        # 4bit量子化設定
+        quantization_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4"
         )
+        
+        # ベースモデルを量子化して読み込み
+        base_model = AutoModelForCausalLM.from_pretrained(
+            config.base_model_name,
+            quantization_config=quantization_config,
+            device_map="auto",
+            trust_remote_code=True,
+            torch_dtype=torch.bfloat16,
+        )
+        
+        # gradient checkpointingを有効化
+        if hasattr(base_model, 'gradient_checkpointing_enable'):
+            base_model.gradient_checkpointing_enable()
+        
+        # 4bit量子化モデルの準備
+        base_model = prepare_model_for_kbit_training(base_model, use_gradient_checkpointing=True)
+        
+        # LoRA設定
+        lora_config = LoraConfig(
+            r=16,
+            lora_alpha=32,
+            target_modules=["q_proj", "v_proj", "k_proj", "o_proj", "gate", "up_proj", "down_proj"],
+            lora_dropout=0.1,
+            bias="none",
+            task_type="CAUSAL_LM"
+        )
+        
+        # LoRAアダプターを追加
+        model = get_peft_model(base_model, lora_config)
+        model.print_trainable_parameters()
+        
+        # MoEラッパーを作成（必要に応じて）
+        from src.moe.moe_architecture import create_civil_engineering_moe
+        try:
+            model = create_civil_engineering_moe(
+                base_model_name=config.base_model_name,
+                num_experts=config.num_experts,
+                use_quantization=True,
+                use_lora=True,
+                model=model  # 量子化・LoRA済みモデルを渡す
+            )
+        except:
+            # MoEラッパーが対応していない場合はそのまま使用
+            logger.info("Using quantized model with LoRA without MoE wrapper")
+            pass
     
     print(f"✓ モデル作成完了")
     print(f"  パラメータ数: {sum(p.numel() for p in model.parameters()):,}")

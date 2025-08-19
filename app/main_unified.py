@@ -630,13 +630,28 @@ def get_saved_models():
                             elif training_method == "qlora":
                                 model_type = "QLoRA (4bit)"
                                 model_size = "~1.0MB"
+                            elif training_method == "continual_ewc":
+                                model_type = "継続学習 (EWC)"
+                                model_size = "~500MB+"
                             else:
                                 model_type = "LoRA"
                                 model_size = "~1.6MB"
                     except Exception as e:
                         logger.warning(f"training_info.jsonの読み込みに失敗: {e}")
                         # ディレクトリ名から推定
-                        if "lora" in model_dir.name.lower():
+                        if "continual_task" in model_dir.name.lower():
+                            model_type = "継続学習"
+                            training_method = "continual"
+                            # 継続学習の設定ファイルから情報を取得
+                            config_path = model_dir / "config.json"
+                            if config_path.exists():
+                                try:
+                                    with open(config_path, 'r', encoding='utf-8') as f:
+                                        config = json.load(f)
+                                        # ベースモデルなどの情報を取得
+                                except:
+                                    pass
+                        elif "lora" in model_dir.name.lower():
                             model_type = "LoRA"
                             training_method = "lora"
                         elif "qlora" in model_dir.name.lower():
@@ -2451,18 +2466,27 @@ async def get_available_models():
                                     training_info = json.load(f)
                                     model_info["training_method"] = training_info.get("training_method", "unknown")
                                     model_info["created"] = training_info.get("timestamp", "Unknown")
+                                    model_info["created_at"] = training_info.get("created_at", training_info.get("timestamp", "Unknown"))
+                                    model_info["base_model"] = training_info.get("base_model", model_info.get("base_model", "Unknown"))
                             except:
                                 pass
                         
                         # モデルタイプの判定
-                        if "qlora" in model_dir.name.lower() or "4bit" in model_dir.name.lower():
+                        if "continual_task" in model_dir.name.lower():
+                            model_info["training_method"] = "continual"
+                            model_info["type"] = "継続学習 (EWC)"
+                            model_info["size"] = "~500MB+"
+                        elif "qlora" in model_dir.name.lower() or "4bit" in model_dir.name.lower():
                             model_info["training_method"] = "qlora"
+                            model_info["type"] = "QLoRA (4bit)"
                             model_info["size"] = "~1.0MB"
                         elif "lora" in model_dir.name.lower():
                             model_info["training_method"] = "lora"
+                            model_info["type"] = "LoRA"
                             model_info["size"] = "~1.6MB"
                         elif "フルファインチューニング" in model_dir.name:
                             model_info["training_method"] = "full"
+                            model_info["type"] = "フルファインチューニング"
                             model_info["size"] = "~500MB+"
                         
                         models["finetuned_models"].append(model_info)
@@ -2982,6 +3006,9 @@ async def rag_get_system_info():
                     "base_model": config_data.get('llm', {}).get('base_model', '未設定'),
                     "temperature": config_data.get('llm', {}).get('temperature', 0.3),
                     "use_finetuned": config_data.get('llm', {}).get('use_finetuned', False),
+                    "use_moe": config_data.get('llm', {}).get('use_moe', False),
+                    "moe_num_experts": config_data.get('llm', {}).get('moe_num_experts', 8),
+                    "moe_experts_per_token": config_data.get('llm', {}).get('moe_experts_per_token', 2),
                     "model_path": config_data.get('llm', {}).get('model_path', '未設定')
                 },
                 "embedding": {
@@ -3027,16 +3054,44 @@ async def rag_update_settings(settings: Dict[str, Any]):
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = yaml.safe_load(f)
             
+            # LLMセクションが存在しない場合は作成
+            if 'llm' not in config:
+                config['llm'] = {}
+            
             # LLMモデルの更新
             if 'llm_model' in settings and settings['llm_model']:
-                if settings['llm_model'].startswith('finetuned:'):
+                if settings['llm_model'].startswith('moe:'):
+                    # MoEモデルの場合
+                    moe_task_id = settings['llm_model'].replace('moe:', '')
+                    config['llm']['use_moe'] = True
+                    config['llm']['moe_model_path'] = f"/workspace/outputs/moe_{moe_task_id}"
+                    config['llm']['use_finetuned'] = False
+                    
+                    # MoE設定を取得
+                    try:
+                        from app.moe_training_endpoints import training_tasks
+                        if moe_task_id in training_tasks:
+                            task = training_tasks[moe_task_id]
+                            config['llm']['moe_num_experts'] = len(task.config.experts) if task.config.experts else 8
+                            config['llm']['moe_experts_per_token'] = 2
+                    except:
+                        config['llm']['moe_num_experts'] = 8
+                        config['llm']['moe_experts_per_token'] = 2
+                    
+                    logger.info(f"MoE設定を更新: task_id={moe_task_id}, experts={config['llm']['moe_num_experts']}")
+                        
+                elif settings['llm_model'].startswith('finetuned:'):
                     model_path = settings['llm_model'].replace('finetuned:', '')
                     config['llm']['model_name'] = model_path
                     config['llm']['model_path'] = model_path
                     config['llm']['use_finetuned'] = True
+                    config['llm']['use_moe'] = False
+                    logger.info(f"ファインチューニングモデル設定を更新: {model_path}")
                 else:
                     config['llm']['model_name'] = settings['llm_model']
                     config['llm']['use_finetuned'] = False
+                    config['llm']['use_moe'] = False
+                    logger.info(f"ベースモデル設定を更新: {settings['llm_model']}")
             
             # 埋め込みモデルの更新
             if 'embedding_model' in settings:

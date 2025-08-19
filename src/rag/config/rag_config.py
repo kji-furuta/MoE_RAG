@@ -46,6 +46,11 @@ class LLMConfig:
     max_new_tokens: int = 2048
     top_p: float = 0.95
     repetition_penalty: float = 1.1
+    # MoE統合設定
+    use_moe: bool = False
+    moe_model_path: Optional[str] = None
+    moe_num_experts: int = 8
+    moe_experts_per_token: int = 2
     
     def __post_init__(self):
         if self.max_memory is None:
@@ -185,7 +190,12 @@ def load_config(config_path: Optional[str] = None, resolve_model_paths: bool = T
                 temperature=llm_config.get('temperature', config.llm.temperature),
                 max_new_tokens=llm_config.get('max_new_tokens', config.llm.max_new_tokens),
                 top_p=llm_config.get('top_p', config.llm.top_p),
-                repetition_penalty=llm_config.get('repetition_penalty', config.llm.repetition_penalty)
+                repetition_penalty=llm_config.get('repetition_penalty', config.llm.repetition_penalty),
+                # MoE設定
+                use_moe=llm_config.get('use_moe', config.llm.use_moe),
+                moe_model_path=llm_config.get('moe_model_path', config.llm.moe_model_path),
+                moe_num_experts=llm_config.get('moe_num_experts', config.llm.moe_num_experts),
+                moe_experts_per_token=llm_config.get('moe_experts_per_token', config.llm.moe_experts_per_token)
             )
             
         # 文書処理設定
@@ -323,7 +333,12 @@ def save_config(config: RAGConfig, config_path: str):
             'temperature': config.llm.temperature,
             'max_new_tokens': config.llm.max_new_tokens,
             'top_p': config.llm.top_p,
-            'repetition_penalty': config.llm.repetition_penalty
+            'repetition_penalty': config.llm.repetition_penalty,
+            # MoE設定
+            'use_moe': config.llm.use_moe,
+            'moe_model_path': config.llm.moe_model_path,
+            'moe_num_experts': config.llm.moe_num_experts,
+            'moe_experts_per_token': config.llm.moe_experts_per_token
         },
         'document_processing': {
             'pdf_parser': {

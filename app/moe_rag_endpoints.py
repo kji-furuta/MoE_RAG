@@ -113,6 +113,55 @@ async def analyze_query(query: str = Query(..., description="分析するクエ�
         logger.error(f"Query analysis error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/query")
+async def moe_rag_hybrid_query(
+    query: str = Query(..., description="検索クエリ"),
+    top_k: int = Query(5, description="取得するドキュメント数"),
+    use_moe: bool = Query(True, description="MoEを使用するか")
+):
+    """MoE-RAGハイブリッド検索を実行"""
+    if not MOE_RAG_AVAILABLE:
+        raise HTTPException(status_code=503, detail="MoE-RAG not available")
+    
+    try:
+        # UnifiedMoERAGSystemを使用してクエリを実行
+        from src.moe_rag_integration.unified_moe_rag_system import UnifiedMoERAGSystem
+        
+        # システムを初期化（キャッシュ可能）
+        if not hasattr(moe_rag_hybrid_query, 'unified_system'):
+            moe_rag_hybrid_query.unified_system = UnifiedMoERAGSystem()
+        
+        # クエリを実行
+        import asyncio
+        result = await moe_rag_hybrid_query.unified_system.query(
+            query=query,
+            top_k=top_k,
+            use_reranking=True
+        )
+        
+        # 結果をJSON形式に変換
+        return {
+            "query": query,
+            "answer": result.answer,
+            "selected_experts": result.selected_experts,
+            "expert_scores": result.expert_scores,
+            "documents": [
+                {
+                    "content": doc.get('content', ''),
+                    "score": doc.get('expert_relevance_score', 0.0),
+                    "source": doc.get('metadata', {}).get('source', 'Unknown'),
+                    "expert": doc.get('expert', 'General')
+                }
+                for doc in result.retrieved_documents[:top_k]
+            ],
+            "confidence": result.confidence,
+            "metadata": result.metadata
+        }
+        
+    except Exception as e:
+        logger.error(f"MoE-RAG query error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/ui")
 async def moe_rag_ui():
     """MoE-RAG UIへのリダイレクト"""

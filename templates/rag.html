@@ -25,6 +25,19 @@
     .nav-tabs .nav-link {
         padding: 10px 20px;
         border-radius: 5px 5px 0 0;
+        color: #4d0505 !important;  /* タブの文字を黒色に */
+        font-weight: 500;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        color: #fc0b03 !important;  /* ホバー時も黒系統 */
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: #1403fc !important;  /* アクティブタブも黒色 */
+        font-weight: 600;
+        background-color: #a4e3ee;
+        border-color: #dee2e6 #dee2e6 #fff;
     }
     
     .tab-content {
@@ -33,7 +46,7 @@
     
     .card {
         margin-bottom: 20px;
-        border: 1px solid #dee2e6;
+        border: 1px solid #b0cfee;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
@@ -156,6 +169,9 @@
                                 <label for="ragModel" class="form-label">LLM（大規模言語モデル）選択</label>
                                 <select class="form-control" id="ragModel" name="model">
                                     <option value="">モデルを選択してください...</option>
+                                    <optgroup label="MoE（Mixture of Experts）モデル">
+                                        <!-- MoEトレーニング済みモデルが動的に読み込まれます -->
+                                    </optgroup>
                                     <optgroup label="ファインチューニング済みモデル">
                                         <!-- 動的に読み込まれます -->
                                     </optgroup>
@@ -530,31 +546,86 @@ document.getElementById('temperature')?.addEventListener('input', (e) => {
     document.getElementById('tempValue').textContent = e.target.value;
 });
 
-// ファインチューニング済みモデルを読み込む
+// ファインチューニング済みモデルとMoEモデルを読み込む
 async function loadFinetunedModels() {
     try {
+        // ファインチューニング済みモデルを取得
         const response = await fetch('/api/available-models');
         const data = await response.json();
         
         const select = document.getElementById('ragModel');
-        const optgroup = select.querySelector('optgroup[label="ファインチューニング済みモデル"]');
+        const finetunedOptgroup = select.querySelector('optgroup[label="ファインチューニング済みモデル"]');
+        const moeOptgroup = select.querySelector('optgroup[label="MoE（Mixture of Experts）モデル"]');
         
         // 既存のオプションをクリア
-        optgroup.innerHTML = '';
+        finetunedOptgroup.innerHTML = '';
+        moeOptgroup.innerHTML = '';
         
+        // MoEトレーニング履歴を取得
+        try {
+            const moeResponse = await fetch('/api/moe/training/history');
+            const moeData = await moeResponse.json();
+            
+            if (moeData.history && moeData.history.length > 0) {
+                // 完了したMoEモデルのみ表示
+                const completedMoEModels = moeData.history.filter(task => task.status === 'completed');
+                
+                completedMoEModels.forEach(task => {
+                    const option = document.createElement('option');
+                    option.value = `moe:${task.task_id}`;
+                    const experts = task.config.experts ? task.config.experts.join(', ') : '全エキスパート';
+                    option.textContent = `MoE - ${task.config.training_type} (${experts}) - ${new Date(task.start_time).toLocaleDateString('ja-JP')}`;
+                    moeOptgroup.appendChild(option);
+                });
+                
+                if (completedMoEModels.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'トレーニング済みMoEモデルがありません';
+                    option.disabled = true;
+                    moeOptgroup.appendChild(option);
+                }
+            } else {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'MoEモデルが利用できません';
+                option.disabled = true;
+                moeOptgroup.appendChild(option);
+            }
+        } catch (moeError) {
+            console.error('MoEモデルの取得に失敗:', moeError);
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'MoEモデルの読み込みに失敗しました';
+            option.disabled = true;
+            moeOptgroup.appendChild(option);
+        }
+        
+        // ファインチューニング済みモデルを追加（継続学習モデルも含む）
         if (data.finetuned_models && data.finetuned_models.length > 0) {
             data.finetuned_models.forEach(model => {
                 const option = document.createElement('option');
                 option.value = `finetuned:${model.path}`;
-                option.textContent = `${model.name} (${model.base_model || 'Unknown'}) - ${model.created_at}`;
-                optgroup.appendChild(option);
+                
+                // モデルタイプに応じて表示名を調整
+                let displayName = model.name;
+                if (model.type === '継続学習' || model.type === '継続学習 (EWC)') {
+                    displayName = `[継続学習] ${model.name}`;
+                } else if (model.type === 'フルファインチューニング') {
+                    displayName = `[フル] ${model.name}`;
+                } else if (model.type === 'LoRA' || model.type === 'QLoRA (4bit)') {
+                    displayName = `[${model.type}] ${model.name}`;
+                }
+                
+                option.textContent = `${displayName} (${model.base_model || 'Unknown'}) - ${model.created_at || ''}`;
+                finetunedOptgroup.appendChild(option);
             });
         } else {
             const option = document.createElement('option');
             option.value = '';
             option.textContent = 'ファインチューニング済みモデルがありません';
             option.disabled = true;
-            optgroup.appendChild(option);
+            finetunedOptgroup.appendChild(option);
         }
     } catch (error) {
         console.error('Failed to load models:', error);
@@ -580,13 +651,31 @@ async function loadCurrentSettings() {
             // LLMモデルの詳細表示
             const modelName = config.llm?.model_name || '未設定';
             const isFinetunedModel = modelName.includes('outputs/') || modelName.includes('フルファインチューニング');
-            const modelType = isFinetunedModel ? 'ファインチューニング済み' : 'ベースモデル';
+            const isMoEModel = config.llm?.use_moe === true;
             
-            html += `<tr><td><strong>使用中のLLMモデル:</strong></td><td><span class="badge ${isFinetunedModel ? 'bg-success' : 'bg-secondary'}">${modelType}</span><br><code>${modelName}</code></td></tr>`;
+            let modelType = 'ベースモデル';
+            let badgeClass = 'bg-secondary';
+            if (isMoEModel) {
+                modelType = 'MoEモデル';
+                badgeClass = 'bg-warning';
+            } else if (isFinetunedModel) {
+                modelType = 'ファインチューニング済み';
+                badgeClass = 'bg-success';
+            }
+            
+            html += `<tr><td><strong>使用中のLLMモデル:</strong></td><td><span class="badge ${badgeClass}">${modelType}</span><br><code>${modelName}</code></td></tr>`;
+            
+            // MoE設定がある場合は追加情報を表示
+            if (isMoEModel) {
+                html += `<tr><td>MoEエキスパート数:</td><td>${config.llm?.moe_num_experts || 8}</td></tr>`;
+                html += `<tr><td>トークンごとのエキスパート:</td><td>${config.llm?.moe_experts_per_token || 2}</td></tr>`;
+            }
+            
             html += `<tr><td>埋め込みモデル:</td><td>${config.embedding?.model_name || 'multilingual-e5-large'}</td></tr>`;
             html += `<tr><td>Temperature:</td><td>${config.llm?.temperature || 0.3}</td></tr>`;
             html += `<tr><td>ベクトルストア:</td><td>${config.vector_store?.type || 'Qdrant'}</td></tr>`;
             html += `<tr><td>ファインチューニング使用:</td><td><span class="badge ${config.llm?.use_finetuned ? 'bg-success' : 'bg-secondary'}">${config.llm?.use_finetuned ? '有効' : '無効'}</span></td></tr>`;
+            html += `<tr><td>MoE使用:</td><td><span class="badge ${config.llm?.use_moe ? 'bg-warning' : 'bg-secondary'}">${config.llm?.use_moe ? '有効' : '無効'}</span></td></tr>`;
             html += '</table>';
             settingsDiv.innerHTML = html;
             console.log('Settings loaded successfully');
@@ -1126,9 +1215,7 @@ function showNotification(message, type = 'info') {
 
 // ページ読み込み時に実行
 document.addEventListener('DOMContentLoaded', () => {
-    if (!{{ 'true' if rag_available else 'false' }}) {
-        return;
-    }
+    // RAGが利用可能な場合のみ実行
     loadFinetunedModels();
     loadCurrentSettings();
 });

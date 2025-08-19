@@ -1,0 +1,9 @@
+{
+  "model_path": "/workspace/outputs/moe_demo",
+  "task_id": "90146e67-a90c-4969-864e-b10a5b8742ae",
+  "experts": [
+    "road",
+    "regulations"
+  ],
+  "deployed_at": "2025-08-19T10:01:45.933673"
+}

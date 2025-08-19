@@ -29,6 +29,86 @@ router = APIRouter(prefix="/api/moe/training", tags=["MoE Training"])
 # トレーニングタスクの管理
 training_tasks = {}
 
+# 履歴ファイルのパス（プロジェクトルートからの相対パス）
+HISTORY_FILE_PATH = Path(__file__).parent.parent / "data" / "moe_training" / "training_history.json"
+# ディレクトリが存在しない場合は作成
+HISTORY_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+def save_training_history():
+    """トレーニング履歴をファイルに保存（すべてのタスクを保存）"""
+    try:
+        # すべてのタスクを保存（実行中のものも含む）
+        history_data = {
+            task_id: task.to_dict() 
+            for task_id, task in training_tasks.items()
+        }
+        
+        # ファイルが存在しない場合はディレクトリも作成
+        HISTORY_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(HISTORY_FILE_PATH, 'w', encoding='utf-8') as f:
+            json.dump(history_data, f, ensure_ascii=False, indent=2, default=str)
+        
+        logger.info(f"Saved {len(history_data)} training history records (all statuses)")
+    except Exception as e:
+        logger.error(f"Failed to save training history: {e}")
+
+def load_training_history():
+    """起動時にトレーニング履歴を読み込み"""
+    global training_tasks
+    
+    if not HISTORY_FILE_PATH.exists():
+        logger.info(f"No training history file found at {HISTORY_FILE_PATH}")
+        return
+    
+    try:
+        with open(HISTORY_FILE_PATH, 'r', encoding='utf-8') as f:
+            history_data = json.load(f)
+        
+        logger.info(f"Loading {len(history_data)} tasks from history file")
+        
+        for task_id, task_data in history_data.items():
+            try:
+                # configの修正（/workspaceパスを削除）
+                config_dict = task_data['config']
+                if 'base_model' in config_dict and config_dict['base_model']:
+                    config_dict['base_model'] = config_dict['base_model'].replace('/workspace/', '')
+                
+                # TrainingConfigを再構築
+                config = TrainingConfig(**config_dict)
+                
+                # TrainingTaskを再構築
+                task = TrainingTask(task_id, config)
+                task.status = task_data['status']
+                task.progress = task_data.get('progress', 0)
+                task.current_epoch = task_data.get('current_epoch', 0)
+                task.current_loss = task_data.get('current_loss', 0.0)
+                task.logs = task_data.get('logs', [])[:50]  # ログは最新50件のみ保持
+                task.error = task_data.get('error')
+                
+                # 時刻の復元
+                if task_data.get('start_time'):
+                    try:
+                        task.start_time = datetime.fromisoformat(task_data['start_time'])
+                    except:
+                        task.start_time = None
+                if task_data.get('end_time'):
+                    try:
+                        task.end_time = datetime.fromisoformat(task_data['end_time'])
+                    except:
+                        task.end_time = None
+                
+                training_tasks[task_id] = task
+                logger.info(f"Loaded task {task_id}: status={task.status}, type={config.training_type}")
+                
+            except Exception as task_error:
+                logger.error(f"Failed to load task {task_id}: {task_error}")
+                continue
+        
+        logger.info(f"Successfully loaded {len(training_tasks)} training history records")
+    except Exception as e:
+        logger.error(f"Failed to load training history file: {e}")
+
 class TrainingConfig(BaseModel):
     """トレーニング設定モデル"""
     training_type: str = "demo"  # demo, full, lora, continual
@@ -72,6 +152,9 @@ class TrainingTask:
             "error": self.error
         }
 
+# クラス定義後に履歴を読み込み
+load_training_history()
+
 @router.post("/start")
 async def start_training(config: TrainingConfig, background_tasks: BackgroundTasks):
     """トレーニングを開始"""
@@ -81,6 +164,9 @@ async def start_training(config: TrainingConfig, background_tasks: BackgroundTas
     # タスク作成
     task = TrainingTask(task_id, config)
     training_tasks[task_id] = task
+    
+    # 開始時に履歴を保存
+    save_training_history()
     
     # バックグラウンドでトレーニング実行
     background_tasks.add_task(execute_training, task)
@@ -99,6 +185,9 @@ async def execute_training(task: TrainingTask):
         task.status = "running"
         task.start_time = datetime.now()
         task.logs.append(f"[{datetime.now().isoformat()}] トレーニングを開始しました")
+        
+        # ステータス変更時に保存
+        save_training_history()
         
         # エキスパート設定をファイルに保存
         expert_config_path = f"/workspace/temp/expert_config_{task.task_id}.json"
@@ -188,16 +277,22 @@ async def execute_training(task: TrainingTask):
             task.status = "completed"
             task.progress = 100
             task.logs.append(f"[{datetime.now().isoformat()}] トレーニングが正常に完了しました")
+            # 完了時に履歴を保存
+            save_training_history()
         else:
             task.status = "failed"
             task.error = f"Process exited with code {return_code}"
             task.logs.append(f"[{datetime.now().isoformat()}] エラー: {task.error}")
+            # 失敗時も履歴を保存
+            save_training_history()
         
     except Exception as e:
         task.status = "failed"
         task.error = str(e)
         task.logs.append(f"[{datetime.now().isoformat()}] エラー: {task.error}")
         logger.error(f"Training task {task.task_id} failed: {e}")
+        # エラー時も履歴を保存
+        save_training_history()
     
     finally:
         task.end_time = datetime.now()
@@ -229,13 +324,60 @@ async def stop_training(task_id: str):
             if task.process.returncode is None:
                 task.process.kill()
             task.status = "stopped"
+            task.end_time = datetime.now()
             task.logs.append(f"[{datetime.now().isoformat()}] ユーザーによって停止されました")
+            # 停止時も履歴を保存
+            save_training_history()
             return {"status": "stopped", "message": "Training stopped successfully"}
         except Exception as e:
             logger.error(f"Failed to stop training {task_id}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
     else:
         return {"status": task.status, "message": "Training is not running"}
+
+@router.delete("/history/{task_id}")
+async def delete_training_history(task_id: str):
+    """特定のトレーニング履歴を削除"""
+    if task_id not in training_tasks:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task = training_tasks[task_id]
+    
+    # 実行中のタスクは削除できない
+    if task.status == "running":
+        raise HTTPException(status_code=400, detail="Cannot delete running task")
+    
+    # タスクを削除
+    del training_tasks[task_id]
+    
+    # 履歴ファイルを更新
+    save_training_history()
+    
+    return {"status": "deleted", "message": f"Task {task_id} deleted successfully"}
+
+@router.delete("/history/clear")
+async def clear_training_history():
+    """すべての完了済みトレーニング履歴をクリア"""
+    global training_tasks
+    
+    # 実行中のタスクは保持
+    running_tasks = {
+        task_id: task 
+        for task_id, task in training_tasks.items() 
+        if task.status == "running" or task.status == "pending"
+    }
+    
+    deleted_count = len(training_tasks) - len(running_tasks)
+    training_tasks = running_tasks
+    
+    # 履歴ファイルを更新
+    save_training_history()
+    
+    return {
+        "status": "cleared",
+        "message": f"Deleted {deleted_count} completed tasks",
+        "remaining": len(training_tasks)
+    }
 
 @router.get("/history")
 async def get_training_history(limit: int = 10):

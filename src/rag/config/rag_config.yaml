@@ -38,13 +38,17 @@ llm:
     0: 36GB
     1: 36GB
   max_new_tokens: 512
-  model_name: outputs/フルファインチューニング_20250818_222549
-  model_path: outputs/フルファインチューニング_20250818_222549
+  model_name: outputs/フルファインチューニング_20250819_111844
+  model_path: outputs/フルファインチューニング_20250819_111844
+  moe_experts_per_token: 2
+  moe_model_path: /workspace/outputs/moe_90146e67-a90c-4969-864e-b10a5b8742ae
+  moe_num_experts: 2
   repetition_penalty: 1.1
   temperature: 0.1
   top_p: 0.95
   torch_dtype: float16
   use_finetuned: true
+  use_moe: false
   use_ollama_fallback: true
 performance:
   batch_processing:

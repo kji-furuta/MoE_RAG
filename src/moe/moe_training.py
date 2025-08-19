@@ -174,9 +174,14 @@ class MoETrainer:
         self.config = config
         self.tokenizer = tokenizer
         
-        # デバイス設定
+        # デバイス設定（量子化モデルの場合は移動をスキップ）
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model.to(self.device)
+        
+        # 量子化モデルまたはdevice_mapがある場合は移動をスキップ
+        if not (hasattr(model, 'is_quantized') or hasattr(model, 'hf_device_map')):
+            self.model.to(self.device)
+        else:
+            logger.info("Skipping model device placement (already mapped or quantized)")
         
         # 最適化設定
         self._setup_optimizer()

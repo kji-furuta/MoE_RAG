@@ -387,8 +387,11 @@ class DomainKeywordDetector(nn.Module):
 def create_civil_engineering_moe(
     base_model_name: str = "cyberagent/calm3-22b-chat",
     num_experts: int = 8,
-    device: Optional[str] = None
-) -> CivilEngineeringMoEModel:
+    device: Optional[str] = None,
+    use_quantization: bool = False,
+    use_lora: bool = False,
+    model: Optional[nn.Module] = None
+) -> nn.Module:
     """
     土木・建設分野MoEモデルの作成
     
@@ -396,10 +399,18 @@ def create_civil_engineering_moe(
         base_model_name: ベースモデル名
         num_experts: エキスパート数
         device: 実行デバイス（None の場合は自動選択）
+        use_quantization: 量子化を使用するか
+        use_lora: LoRAを使用するか
+        model: 事前に準備されたモデル（量子化・LoRA済み）
     
     Returns:
-        CivilEngineeringMoEModel: 初期化済みMoEモデル
+        nn.Module: 初期化済みモデル（MoEまたは量子化モデル）
     """
+    # 量子化モデルの場合は直接返す（MoEラッパーなし）
+    if use_quantization and use_lora and model is not None:
+        logger.info("Using quantized model with LoRA directly (no MoE wrapper)")
+        return model
+    
     config = MoEConfig(
         num_experts=num_experts,
         hidden_size=4096,  # CALM3-22Bの隠れ層サイズ
@@ -410,21 +421,28 @@ def create_civil_engineering_moe(
     # 設定の検証
     config.validate()
     
-    # ベースモデルのロード（簡略化）
-    # 実際にはHuggingFaceのモデルをロード
-    base_model = None  # ここでbase_modelをロード
+    # ベースモデルのロード
+    if model is not None:
+        # 既に準備されたモデルを使用
+        base_model = model
+        logger.info("Using pre-configured model")
+    else:
+        # 通常のモデルロード
+        base_model = None  # ここでbase_modelをロード
     
     model = CivilEngineeringMoEModel(config, base_model)
     
-    # デバイスの選択
-    if device is None:
-        from .utils import get_device
-        device = get_device()
-    else:
-        device = torch.device(device)
+    # デバイスの選択（量子化モデルでない場合のみ）
+    if not (use_quantization and use_lora):
+        if device is None:
+            from .utils import get_device
+            device = get_device()
+        else:
+            device = torch.device(device)
+        
+        model = model.to(device)
+        logger.info(f"Model moved to {device}")
     
-    model = model.to(device)
-    logger.info(f"Model moved to {device}")
     logger.info(f"Created Civil Engineering MoE model with {num_experts} experts")
     
     return model

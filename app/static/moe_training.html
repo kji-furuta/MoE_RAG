@@ -176,6 +176,37 @@
             <div class="config-section">
                 <h5>基本設定</h5>
                 <div class="row">
+                    <div class="col-md-8">
+                        <label class="form-label">ベースモデル</label>
+                        <select id="base-model" class="form-select">
+                            <optgroup label="事前学習済みモデル (推奨: メモリ使用量順)">
+                                <option value="cyberagent/open-calm-small" selected>OpenCALM Small (160M) ⭐推奨</option>
+                                <option value="cyberagent/open-calm-medium">OpenCALM Medium (400M)</option>
+                                <option value="cyberagent/open-calm-large">OpenCALM Large (830M)</option>
+                                <option value="cyberagent/open-calm-1b">OpenCALM 1B</option>
+                                <option value="cyberagent/open-calm-3b">OpenCALM 3B</option>
+                                <option value="cyberagent/open-calm-7b">OpenCALM 7B ⚠️高メモリ</option>
+                                <option value="rinna/japanese-gpt-neox-3.6b">Rinna GPT-NeoX 3.6B</option>
+                                <option value="line-corporation/japanese-large-lm-3.6b">LINE Japanese LM 3.6B</option>
+                                <option value="stabilityai/japanese-stablelm-base-alpha-7b">StableLM JP 7B ⚠️高メモリ</option>
+                                <option value="elyza/ELYZA-japanese-Llama-2-7b">ELYZA Llama 2 7B ⚠️高メモリ</option>
+                                <option value="elyza/ELYZA-japanese-Llama-2-7b-fast">ELYZA Llama 2 7B Fast ⚠️高メモリ</option>
+                                <option value="llm-jp/llm-jp-13b-v1.0">LLM-JP 13B ⛔非推奨(超高メモリ)</option>
+                                <option value="cyberagent/calm3-22b-chat">CALM3 22B Chat ⛔非推奨(超高メモリ)</option>
+                                <option value="cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese">DeepSeek-R1 32B Japanese ⛔非推奨(超高メモリ)</option>
+                            </optgroup>
+                            <optgroup label="ファインチューニング済みモデル" id="finetuned-models-group">
+                                <!-- 動的に追加される -->
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="button" class="btn btn-outline-primary mt-4" onclick="loadFinetunedModels()">
+                            <i class="fas fa-sync"></i> モデル更新
+                        </button>
+                    </div>
+                </div>
+                <div class="row mt-3">
                     <div class="col-md-4">
                         <label class="form-label">トレーニングタイプ</label>
                         <select id="training-type" class="form-select">
@@ -190,8 +221,8 @@
                         <input type="number" id="epochs" class="form-control" value="3" min="1" max="100">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">バッチサイズ</label>
-                        <input type="number" id="batch-size" class="form-control" value="4" min="1" max="32">
+                        <label class="form-label">バッチサイズ (メモリ不足時は小さくしてください)</label>
+                        <input type="number" id="batch-size" class="form-control" value="1" min="1" max="32">
                     </div>
                 </div>
                 <div class="row mt-3">
@@ -429,6 +460,7 @@
 
             const config = {
                 training_type: document.getElementById('training-type').value,
+                base_model: document.getElementById('base-model').value,
                 epochs: parseInt(document.getElementById('epochs').value),
                 batch_size: parseInt(document.getElementById('batch-size').value),
                 learning_rate: parseFloat(document.getElementById('learning-rate').value),
@@ -812,9 +844,57 @@
             }
         }
 
+        // ファインチューニング済みモデルの読み込み
+        async function loadFinetunedModels() {
+            try {
+                const response = await fetch('/api/models');
+                if (response.ok) {
+                    const data = await response.json();
+                    const savedModels = data.saved_models || [];
+                    
+                    // ファインチューニング済みモデルのoptgroupを更新
+                    const optgroup = document.getElementById('finetuned-models-group');
+                    optgroup.innerHTML = '';
+                    
+                    if (savedModels.length === 0) {
+                        optgroup.innerHTML = '<option disabled>ファインチューニング済みモデルがありません</option>';
+                    } else {
+                        savedModels.forEach(model => {
+                            const option = document.createElement('option');
+                            // モデルパスを値として使用
+                            option.value = model.path;
+                            
+                            // 表示名を作成
+                            let displayName = model.name;
+                            if (model.type) {
+                                displayName += ` (${model.type})`;
+                            }
+                            if (model.base_model && model.base_model !== '不明') {
+                                displayName += ` - ベース: ${model.base_model.split('/').pop()}`;
+                            }
+                            
+                            option.textContent = displayName;
+                            
+                            // 追加情報をdata属性として保存
+                            option.setAttribute('data-training-method', model.training_method || 'unknown');
+                            option.setAttribute('data-base-model', model.base_model || '不明');
+                            
+                            optgroup.appendChild(option);
+                        });
+                    }
+                    
+                    console.log(`${savedModels.length}個のファインチューニング済みモデルを読み込みました`);
+                }
+            } catch (error) {
+                console.error('モデルリストの取得に失敗:', error);
+                alert('モデルリストの取得に失敗しました');
+            }
+        }
+
         // ページ読み込み時
         document.addEventListener('DOMContentLoaded', () => {
             loadHistory();
+            loadFinetunedModels(); // ページロード時にファインチューニング済みモデルも読み込む
         });
     </script>
 </body>

@@ -32,6 +32,7 @@ training_tasks = {}
 class TrainingConfig(BaseModel):
     """トレーニング設定モデル"""
     training_type: str = "demo"  # demo, full, lora, continual
+    base_model: str = "cyberagent/open-calm-small"  # ベースモデル
     epochs: int = 3
     batch_size: int = 4
     learning_rate: float = 0.0001
@@ -106,7 +107,8 @@ async def execute_training(task: TrainingTask):
         with open(expert_config_path, 'w') as f:
             json.dump({
                 "experts": task.config.experts,
-                "training_type": task.config.training_type
+                "training_type": task.config.training_type,
+                "base_model": task.config.base_model  # ベースモデルも含める
             }, f)
         
         # トレーニングコマンドの構築
@@ -121,6 +123,7 @@ async def execute_training(task: TrainingTask):
         # 環境変数の設定
         env = os.environ.copy()
         env["EXPERT_CONFIG"] = expert_config_path
+        env["BASE_MODEL"] = task.config.base_model  # ベースモデルを環境変数として渡す
         env["LEARNING_RATE"] = str(task.config.learning_rate)
         env["WARMUP_STEPS"] = str(task.config.warmup_steps)
         env["SAVE_STEPS"] = str(task.config.save_steps)

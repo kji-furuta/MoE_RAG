@@ -42,8 +42,13 @@ fi
 # トレーニング実行
 if [ "$MODE" = "demo" ]; then
     echo "デモモードで実行します（小規模モデル）..."
+    # ベースモデルの設定（環境変数から取得、デフォルトは小さいモデル）
+    BASE_MODEL=${BASE_MODEL:-"cyberagent/open-calm-small"}
+    echo "使用モデル: $BASE_MODEL"
+    
     python scripts/moe/run_training.py \
         --demo_mode \
+        --base_model "$BASE_MODEL" \
         --num_experts 8 \
         --batch_size $BATCH_SIZE \
         --num_epochs $EPOCHS \
@@ -53,7 +58,12 @@ if [ "$MODE" = "demo" ]; then
         --checkpoint_dir ./checkpoints/moe_demo
 else
     echo "フルモードで実行します..."
+    # ベースモデルの設定（環境変数から取得、デフォルトは小さいモデル）
+    BASE_MODEL=${BASE_MODEL:-"cyberagent/open-calm-small"}
+    echo "使用モデル: $BASE_MODEL"
+    
     python scripts/moe/run_training.py \
+        --base_model "$BASE_MODEL" \
         --num_experts 8 \
         --batch_size $BATCH_SIZE \
         --num_epochs $EPOCHS \

@@ -28,6 +28,15 @@
         "-y",
         "@playwright/mcp@latest"
       ]
+    },
+    "cipher": {
+      "command": "cipher",
+      "args": ["--mode", "mcp"],
+      "env": {
+        "CIPHER_WORKSPACE": "${workspaceFolder}/.cipher",
+        "OPENAI_API_KEY": "${OPENAI_API_KEY}",
+        "CIPHER_EMBEDDER": "local"
+      }
     }
   }
 }

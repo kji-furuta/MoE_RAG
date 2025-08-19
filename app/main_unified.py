@@ -852,7 +852,7 @@ async def run_training_task(task_id: str, request: TrainingRequest):
                     return model
                 return model
             
-            def compute_loss(self, model, inputs, return_outputs=False):
+            def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
                 """損失関数にEWCペナルティを追加"""
                 outputs = model(**inputs)
                 loss = outputs.loss if isinstance(outputs, dict) else outputs[0]
@@ -867,7 +867,7 @@ async def run_training_task(task_id: str, request: TrainingRequest):
 
         
         # トレーニング引数
-        # フルファインチューニングの場合は、より慎重なパラメータを使用
+        # トレーニングパラメータの設定
         if request.training_method == "full":
             batch_size = get_config_value(training_config, "batch_size", 1, int)
             gradient_accumulation_steps = get_config_value(training_config, "gradient_accumulation_steps", 16, int)
@@ -877,34 +877,73 @@ async def run_training_task(task_id: str, request: TrainingRequest):
             total_steps = len(train_dataset) * num_epochs // effective_batch_size
             max_steps = min(100, total_steps)  # フルファインチューニングは100ステップまで
             learning_rate = 5e-6  # より低い学習率
+        elif request.training_method == "continual":
+            # 継続学習の場合：より多くのステップでしっかり学習
+            batch_size = get_config_value(training_config, "batch_size", 1, int)
+            gradient_accumulation_steps = get_config_value(training_config, "gradient_accumulation_steps", 8, int)
+            num_epochs = get_config_value(training_config, "num_epochs", 3, int)
+            
+            effective_batch_size = batch_size * gradient_accumulation_steps
+            total_steps = len(train_dataset) * num_epochs // effective_batch_size
+            max_steps = min(200, total_steps)  # 継続学習は200ステップまで
+            learning_rate = get_config_value(training_config, "learning_rate", 1e-4, float)
+            
+            logger.info(f"Task {task_id}: 継続学習設定 - データ数: {len(train_dataset)}, エポック: {num_epochs}, 総ステップ数: {total_steps}, 実行ステップ数: {max_steps}")
         else:
             batch_size = get_config_value(training_config, "batch_size", 1, int)
             max_steps = min(50, len(train_dataset) // batch_size)
             learning_rate = get_config_value(training_config, "learning_rate", 2e-4, float)
         
-        training_args = TrainingArguments(
-            output_dir=str(output_dir),
-            per_device_train_batch_size=get_config_value(training_config, "batch_size", 1, int),
-            gradient_accumulation_steps=get_config_value(training_config, "gradient_accumulation_steps", 4, int),
-            num_train_epochs=get_config_value(training_config, "num_epochs", 1, int),
-            learning_rate=learning_rate,
-            warmup_steps=min(get_config_value(training_config, "warmup_steps", 10, int), max_steps // 10),
-            logging_steps=5,
-            save_steps=max_steps // 2,
-            max_steps=max_steps,
-            fp16=torch.cuda.is_available(),
-            gradient_checkpointing=True,
-            remove_unused_columns=False,
-            report_to=[],
-            save_strategy="steps",
-            save_total_limit=2,
-            dataloader_pin_memory=False,  # メモリ問題回避
-        )
+        # 継続学習の場合は専用の設定を使用
+        if request.training_method == "continual":
+            training_args = TrainingArguments(
+                output_dir=str(output_dir),
+                per_device_train_batch_size=batch_size,
+                gradient_accumulation_steps=gradient_accumulation_steps,
+                num_train_epochs=num_epochs,
+                learning_rate=learning_rate,
+                warmup_steps=min(20, max_steps // 10),
+                logging_steps=10,
+                save_steps=max_steps // 4,  # より頻繁に保存
+                max_steps=max_steps,
+                fp16=torch.cuda.is_available(),
+                gradient_checkpointing=True,
+                remove_unused_columns=False,
+                report_to=[],
+                save_strategy="steps",
+                save_total_limit=3,
+                dataloader_pin_memory=False,
+                load_best_model_at_end=False,
+                metric_for_best_model=None,
+                greater_is_better=None,
+            )
+        else:
+            training_args = TrainingArguments(
+                output_dir=str(output_dir),
+                per_device_train_batch_size=get_config_value(training_config, "batch_size", 1, int),
+                gradient_accumulation_steps=get_config_value(training_config, "gradient_accumulation_steps", 4, int),
+                num_train_epochs=get_config_value(training_config, "num_epochs", 1, int),
+                learning_rate=learning_rate,
+                warmup_steps=min(get_config_value(training_config, "warmup_steps", 10, int), max_steps // 10),
+                logging_steps=5,
+                save_steps=max_steps // 2,
+                max_steps=max_steps,
+                fp16=torch.cuda.is_available(),
+                gradient_checkpointing=True,
+                remove_unused_columns=False,
+                report_to=[],
+                save_strategy="steps",
+                save_total_limit=2,
+                dataloader_pin_memory=False,  # メモリ問題回避
+            )
         
         # Trainer作成と実行
-        # フルファインチューニングの場合はEWCを使用 (リソース問題のためデフォルトで無効化)
-        use_ewc = False # request.training_method == "full"
+        # 継続学習の場合はEWCを使用
+        use_ewc = request.training_method == "continual"
         ewc_lambda = 5000.0 if use_ewc else 0.0
+        
+        if use_ewc:
+            logger.info(f"Task {task_id}: 継続学習モード - EWC有効 (λ={ewc_lambda})")
         
         trainer = EWCTrainer(
             model=model,
@@ -917,7 +956,7 @@ async def run_training_task(task_id: str, request: TrainingRequest):
         
         # EWCを使用する場合、事前学習データでFisher行列を計算
         if use_ewc and trainer.ewc_helper is not None:
-            logger.info("Fisher行列を計算中...")
+            logger.info(f"Task {task_id}: Fisher行列を計算中...")
             # 事前学習データとして一般的な日本語テキストを使用
             pretrain_texts = [
                 "人工知能は急速に発展している技術分野です。",
@@ -925,21 +964,40 @@ async def run_training_task(task_id: str, request: TrainingRequest):
                 "深層学習はニューラルネットワークを使用します。",
                 "自然言語処理は言語を理解する技術です。",
                 "コンピュータビジョンは画像を解析します。",
+                "土木工学は社会インフラストラクチャの設計と建設を扱います。",
+                "構造解析は建物や橋の安全性を評価する重要な技術です。",
+                "地盤工学は土壌や岩盤の特性を研究します。",
+                "水理学は水の流れと挙動を解析する分野です。",
+                "交通工学は道路や鉄道の設計と最適化を行います。",
             ]
             
+            logger.info(f"Task {task_id}: 事前学習データ数: {len(pretrain_texts)}")
             pretrain_dataset = SimpleDataset(pretrain_texts, tokenizer)
             from torch.utils.data import DataLoader
             pretrain_loader = DataLoader(pretrain_dataset, batch_size=1, shuffle=False)
             
             # Fisher行列の計算（最適化版）
+            logger.info(f"Task {task_id}: Fisher行列の計算開始 (最大{30}バッチ)")
             trainer.ewc_helper.compute_fisher_matrix(pretrain_loader, max_batches=30)
-            logger.info("Fisher行列の計算完了")
+            logger.info(f"Task {task_id}: Fisher行列の計算完了")
         
         # トレーニング実行
-        logger.info(f"Task {task_id}: 実際のトレーニング開始")
+        logger.info(f"Task {task_id}: 実際のトレーニング開始 (メソッド: {request.training_method})")
+        logger.info(f"Task {task_id}: トレーニング設定 - ステップ数: {max_steps}, バッチサイズ: {batch_size}, 学習率: {learning_rate}")
+        
         try:
-            trainer.train()
-            logger.info(f"Task {task_id}: トレーニング完了")
+            train_result = trainer.train()
+            
+            # トレーニング結果のログ
+            if hasattr(train_result, 'metrics'):
+                logger.info(f"Task {task_id}: トレーニング完了 - メトリクス: {train_result.metrics}")
+            else:
+                logger.info(f"Task {task_id}: トレーニング完了")
+                
+            # 継続学習の場合は追加情報をログ
+            if use_ewc:
+                logger.info(f"Task {task_id}: 継続学習（EWC）によるトレーニングが正常に完了しました")
+                
         except Exception as train_error:
             logger.error(f"Task {task_id}: トレーニングエラー: {str(train_error)}")
             # エラーが発生してもモデルは保存して続行
@@ -3525,8 +3583,7 @@ async def run_continual_learning_background(task_id: str, config: dict, dataset_
         logger.info(f"継続学習タスク開始: {task_id}")
         logger.info(f"設定: {config}")
         
-        # 実際の継続学習処理をここに実装
-        # 現在はシミュレーション
+        # 実際の継続学習処理を実装
         total_epochs = config.get("epochs", 3)
         base_model_path = config.get("base_model")
         
@@ -3540,26 +3597,125 @@ async def run_continual_learning_background(task_id: str, config: dict, dataset_
         else:
             logger.info(f"ベースモデルを使用: {base_model_path}")
         
-        for epoch in range(total_epochs):
-            # プログレス更新
-            progress = int((epoch + 1) / total_epochs * 100)
-            continual_tasks[task_id]["progress"] = progress
-            continual_tasks[task_id]["current_epoch"] = epoch + 1
+        # TrainingRequestオブジェクトを作成して既存のトレーニング関数を使用
+        training_request = TrainingRequest(
+            model_name=base_model_path,
+            training_data=[],  # データは後で設定
+            training_method="continual",  # 継続学習を指定
+            lora_config={
+                "r": 16,
+                "alpha": 32,
+                "dropout": 0.1
+            },
+            training_config={
+                "batch_size": config.get("batch_size", 1),
+                "num_epochs": total_epochs,
+                "learning_rate": config.get("learning_rate", 2e-5),
+                "gradient_accumulation_steps": config.get("gradient_accumulation_steps", 8),
+                "warmup_steps": config.get("warmup_steps", 20),
+                "max_length": config.get("max_length", 512),
+                "ewc_lambda": config.get("ewc_lambda", 5000)
+            }
+        )
+        
+        # データの準備
+        train_texts = []
+        if dataset_path and os.path.exists(dataset_path):
+            with open(dataset_path, 'r', encoding='utf-8', errors='replace') as f:
+                line_num = 0
+                for line in f:
+                    line_num += 1
+                    if line.strip():
+                        try:
+                            # JSONパースエラーに対処
+                            data = json.loads(line)
+                            
+                            # 様々なデータ形式に対応
+                            if isinstance(data, dict):
+                                if "question" in data and "answer" in data:
+                                    text = f"質問: {data['question']}\n回答: {data['answer']}"
+                                elif "text" in data:
+                                    # "質問：" と "回答：" が既に含まれている場合はそのまま使用
+                                    text = data["text"]
+                                else:
+                                    # その他の形式の場合
+                                    text = str(data)
+                            else:
+                                # 辞書でない場合
+                                text = str(data)
+                            
+                            train_texts.append({"text": text})
+                            
+                        except json.JSONDecodeError as e:
+                            logger.warning(f"行 {line_num} でJSONパースエラー: {e}")
+                            # エラーのある行をスキップして継続
+                            continue
+                        except Exception as e:
+                            logger.warning(f"行 {line_num} でエラー: {e}")
+                            continue
+                            
+            logger.info(f"データファイルから{len(train_texts)}件のデータを読み込みました")
+            
+            # データが少ない場合の警告
+            if len(train_texts) == 0:
+                logger.warning("データファイルからデータを読み込めませんでした。デフォルトデータを使用します。")
+                train_texts = [
+                    {"text": "継続学習は既存の知識を保持しながら新しいタスクを学習する技術です。"},
+                    {"text": "EWC（Elastic Weight Consolidation）は継続学習の代表的な手法です。"},
+                    {"text": "Fisher情報行列を使用して重要なパラメータを特定します。"},
+                    {"text": "土木工学は社会インフラの設計と建設を扱う工学分野です。"},
+                    {"text": "道路設計では安全性と効率性を両立させる必要があります。"},
+                ]
+        else:
+            # デフォルトのデータを使用
+            train_texts = [
+                {"text": "継続学習は既存の知識を保持しながら新しいタスクを学習する技術です。"},
+                {"text": "EWC（Elastic Weight Consolidation）は継続学習の代表的な手法です。"},
+                {"text": "Fisher情報行列を使用して重要なパラメータを特定します。"},
+                {"text": "土木工学は社会インフラの設計と建設を扱う工学分野です。"},
+                {"text": "道路設計では安全性と効率性を両立させる必要があります。"},
+            ]
+            logger.warning(f"データファイルが見つかりません: {dataset_path}")
+            logger.info("デフォルトデータを使用します。")
+        
+        # データが少なすぎる場合は最小限のデータを確保
+        if len(train_texts) < 3:
+            logger.warning(f"データが少なすぎます（{len(train_texts)}件）。最小限のデータを追加します。")
+            train_texts.extend([
+                {"text": "継続学習により、モデルは新しい知識を効率的に学習できます。"},
+                {"text": "既存の知識を保持することが継続学習の重要な特徴です。"},
+                {"text": "EWCは重要なパラメータの変更を制限することで過去の知識を保護します。"},
+            ])
+        
+        training_request.training_data = train_texts[:100]  # 最大100サンプル
+        logger.info(f"最終的なトレーニングデータ数: {len(training_request.training_data)}件")
+        
+        # 実際のトレーニングを実行
+        logger.info(f"タスク {task_id}: 実際のトレーニングを開始します")
+        continual_tasks[task_id]["message"] = "トレーニングを実行中..."
+        save_continual_tasks()
+        
+        # run_training_taskを呼び出す
+        training_task_id = f"continual_{task_id}"
+        training_tasks[training_task_id] = TrainingStatus(
+            task_id=training_task_id,
+            status="running", 
+            message="継続学習トレーニング中...",
+            progress=0.0,
+            model_path=None
+        )
+        
+        # トレーニングを実行
+        await run_training_task(training_task_id, training_request)
+        
+        # トレーニング結果を継続学習タスクにコピー
+        if training_tasks[training_task_id].status == "completed":
+            continual_tasks[task_id]["progress"] = 100
+            continual_tasks[task_id]["current_epoch"] = total_epochs
             continual_tasks[task_id]["total_epochs"] = total_epochs
-            continual_tasks[task_id]["message"] = f"エポック {epoch + 1}/{total_epochs} を実行中..."
-            save_continual_tasks()  # 進捗を保存
-            
-            logger.info(f"タスク {task_id}: エポック {epoch + 1}/{total_epochs}")
-            
-            # 実際の学習処理をここに追加
-            await asyncio.sleep(5)  # シミュレーション用の待機
-            
-            # TODO: 実際の継続学習実装
-            # 1. モデルとトークナイザーの読み込み
-            # 2. データセットの準備
-            # 3. EWC設定
-            # 4. トレーニングループ
-            # 5. チェックポイント保存
+            logger.info(f"タスク {task_id}: トレーニング完了")
+        else:
+            raise Exception(f"トレーニングが失敗しました: {training_tasks[training_task_id].message}")
         
         # 完了
         continual_tasks[task_id]["status"] = "completed"

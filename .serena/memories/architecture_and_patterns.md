@@ -1,205 +1,215 @@
-# プロジェクトアーキテクチャと設計パターン
+# アーキテクチャとデザインパターン
 
-## アーキテクチャ概要
+## システムアーキテクチャ
 
-### レイヤード・アーキテクチャ
+### レイヤードアーキテクチャ
 ```
-┌─────────────────────────────────────────┐
-│      Presentation Layer (Web UI)         │
-│         - FastAPI (port 8050)           │
-│         - WebSocket (real-time)         │
-│         - Bootstrap UI                  │
-├─────────────────────────────────────────┤
-│        Application Layer (API)           │
-│    - Training endpoints                 │
-│    - RAG endpoints                      │
-│    - Model management                   │
-├─────────────────────────────────────────┤
-│        Business Logic Layer              │
-│    - Training services                  │
-│    - RAG query engine                   │
-│    - Model loaders                      │
-├─────────────────────────────────────────┤
-│         Data Access Layer                │
-│    - Qdrant vector store                │
-│    - File system (models/data)          │
-│    - Cache management                   │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────┐
+│     Presentation Layer (app/)       │
+│  - FastAPI エンドポイント            │
+│  - WebSocket ハンドラー              │
+│  - 静的ファイル配信                  │
+└─────────────────────────────────────┘
+                ↓
+┌─────────────────────────────────────┐
+│     Business Logic Layer (src/)     │
+│  - MoE エキスパートルーティング      │
+│  - RAG クエリ処理                   │
+│  - 訓練パイプライン                  │
+└─────────────────────────────────────┘
+                ↓
+┌─────────────────────────────────────┐
+│      Data Access Layer              │
+│  - Qdrant ベクトルストア            │
+│  - モデルローダー                    │
+│  - ファイルシステムアクセス          │
+└─────────────────────────────────────┘
 ```
 
-## 主要設計パターン
+## 主要デザインパターン
 
-### 1. Dependency Injection (DI)
+### 1. Mixture of Experts (MoE) パターン
 ```python
-# FastAPIの依存性注入システムを活用
-async def get_rag_app():
-    return rag_app
-
-@app.get("/rag/query")
-async def query(
-    request: QueryRequest,
-    rag: RAGApplication = Depends(get_rag_app)
-):
-    return await rag.query(request)
+class MoERouter:
+    """エキスパート選択ルーター"""
+    def route(self, query: str) -> List[Expert]:
+        # ゲーティングネットワークによる専門家選択
+        scores = self.gating_network(query)
+        return self.select_top_k_experts(scores)
 ```
 
-### 2. Repository Pattern
+### 2. Strategy パターン（訓練戦略）
 ```python
-# データアクセスの抽象化
-class ModelRepository:
-    def load_model(self, model_path: str) -> Any
-    def save_model(self, model: Any, path: str) -> None
-    def list_models(self) -> List[ModelInfo]
-```
-
-### 3. Factory Pattern
-```python
-# モデルローダーのファクトリー
-def create_model_loader(model_type: str) -> BaseModelLoader:
-    if model_type == "lora":
-        return LoRAModelLoader()
-    elif model_type == "full":
-        return FullModelLoader()
-```
-
-### 4. Strategy Pattern
-```python
-# トレーニング戦略の切り替え
 class TrainingStrategy(ABC):
     @abstractmethod
-    def train(self, model, dataset, config): pass
+    def train(self, model, data): pass
 
-class LoRATrainingStrategy(TrainingStrategy):
-    def train(self, model, dataset, config):
-        # LoRA specific training
+class LoRATraining(TrainingStrategy):
+    def train(self, model, data):
+        # LoRA特有の訓練ロジック
 
-class FullTrainingStrategy(TrainingStrategy):
-    def train(self, model, dataset, config):
-        # Full finetuning
+class FullTraining(TrainingStrategy):
+    def train(self, model, data):
+        # フル訓練ロジック
 ```
 
-### 5. Observer Pattern (WebSocket)
+### 3. Factory パターン（モデル生成）
 ```python
-# リアルタイム進捗通知
-@app.websocket("/ws/training/{task_id}")
-async def training_websocket(websocket: WebSocket, task_id: str):
-    await websocket.accept()
-    while True:
-        status = get_training_status(task_id)
-        await websocket.send_json(status)
+class ModelFactory:
+    @staticmethod
+    def create_model(config: ModelConfig) -> BaseModel:
+        if config.type == "lora":
+            return LoRAModel(config)
+        elif config.type == "full":
+            return FullModel(config)
 ```
 
-## コード組織原則
-
-### 1. Single Responsibility Principle (SRP)
-- 各クラス/関数は単一の責任を持つ
-- 例: `ModelLoader`はモデル読み込みのみ、`Trainer`は訓練のみ
-
-### 2. Open/Closed Principle (OCP)
-- 拡張に対して開き、修正に対して閉じている
-- 新しいモデルタイプの追加は既存コードを変更せずに可能
-
-### 3. Dependency Inversion Principle (DIP)
-- 高レベルモジュールは低レベルモジュールに依存しない
-- 抽象に依存する（インターフェース/プロトコル使用）
-
-## ディレクトリ構造の意味
-
+### 4. Singleton パターン（リソース管理）
+```python
+class QdrantClient:
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 ```
-src/
-├── training/          # ドメイン: モデル訓練
-│   ├── lora_*.py     # LoRA関連機能
-│   ├── full_*.py     # フル訓練機能
-│   └── ewc_*.py      # 継続学習機能
-├── rag/              # ドメイン: 情報検索
-│   ├── core/         # RAGコア機能
-│   ├── indexing/     # インデックス管理
-│   └── retrieval/    # 検索機能
-├── utils/            # 横断的関心事
-│   ├── logger.py     # ロギング
-│   └── gpu_utils.py  # GPU管理
-└── data/             # データ処理
+
+### 5. Pipeline パターン（RAG処理）
+```python
+class RAGPipeline:
+    def __init__(self):
+        self.stages = [
+            DocumentRetrieval(),
+            Reranking(),
+            ResponseGeneration()
+        ]
+    
+    def process(self, query):
+        result = query
+        for stage in self.stages:
+            result = stage.process(result)
+        return result
 ```
 
 ## 非同期処理パターン
 
-### 1. バックグラウンドタスク
+### AsyncIO + FastAPI
 ```python
-@app.post("/api/train")
-async def start_training(
-    request: TrainingRequest,
-    background_tasks: BackgroundTasks
-):
-    task_id = str(uuid.uuid4())
-    background_tasks.add_task(run_training_task, task_id, request)
-    return {"task_id": task_id}
+@app.post("/api/query")
+async def process_query(request: QueryRequest):
+    # 非同期でMoEとRAGを並列実行
+    moe_task = asyncio.create_task(moe_process(request))
+    rag_task = asyncio.create_task(rag_process(request))
+    
+    moe_result, rag_result = await asyncio.gather(moe_task, rag_task)
+    return fusion_results(moe_result, rag_result)
 ```
 
-### 2. 非同期コンテキストマネージャー
+### WebSocketストリーミング
 ```python
-async with rag_app.get_session() as session:
-    result = await session.query(prompt)
+@app.websocket("/ws/stream")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    async for chunk in generate_stream():
+        await websocket.send_json(chunk)
 ```
 
-## エラーハンドリング戦略
+## メモリ最適化パターン
 
-### 1. 階層的例外処理
+### 動的量子化
 ```python
-class AppException(Exception): pass
-class ModelLoadError(AppException): pass
-class TrainingError(AppException): pass
-class RAGError(AppException): pass
+def load_model_optimized(model_path: str, model_size: int):
+    if model_size > 20_000:  # 20B以上
+        return load_4bit_quantized(model_path)
+    elif model_size > 7_000:  # 7B以上
+        return load_8bit_quantized(model_path)
+    else:
+        return load_full_precision(model_path)
 ```
 
-### 2. グローバルエラーハンドラー
+### Gradient Checkpointing
 ```python
-@app.exception_handler(AppException)
-async def app_exception_handler(request: Request, exc: AppException):
-    return JSONResponse(
-        status_code=400,
-        content={"error": str(exc)}
-    )
+model.gradient_checkpointing_enable()
+# メモリ使用量を削減（計算時間は増加）
 ```
 
-## パフォーマンス最適化
+## エラーハンドリングパターン
 
-### 1. モデルキャッシング
+### Circuit Breaker
 ```python
-model_cache = {}  # グローバルキャッシュ
-
-def get_cached_model(model_path: str):
-    if model_path not in model_cache:
-        model_cache[model_path] = load_model(model_path)
-    return model_cache[model_path]
+class CircuitBreaker:
+    def __init__(self, failure_threshold=5):
+        self.failure_count = 0
+        self.threshold = failure_threshold
+        self.is_open = False
+    
+    def call(self, func, *args, **kwargs):
+        if self.is_open:
+            raise ServiceUnavailableError()
+        
+        try:
+            result = func(*args, **kwargs)
+            self.failure_count = 0
+            return result
+        except Exception as e:
+            self.failure_count += 1
+            if self.failure_count >= self.threshold:
+                self.is_open = True
+            raise
 ```
 
-### 2. GPU メモリ管理
+## データフローパターン
+
+### Pub/Sub（訓練進捗通知）
 ```python
-# 動的バッチサイズ調整
-def get_optimal_batch_size(model_size: int, available_memory: int):
-    # メモリに基づいてバッチサイズを計算
+class TrainingEventBus:
+    def __init__(self):
+        self.subscribers = []
+    
+    def subscribe(self, callback):
+        self.subscribers.append(callback)
+    
+    def publish(self, event):
+        for subscriber in self.subscribers:
+            subscriber(event)
 ```
 
-### 3. 非同期I/O
+## セキュリティパターン
+
+### 環境変数による設定管理
 ```python
-# ファイル操作の非同期化
-async def save_results_async(results: dict, path: str):
-    async with aiofiles.open(path, 'w') as f:
-        await f.write(json.dumps(results))
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    hf_token: str = Field(..., env="HF_TOKEN")
+    api_key: str = Field(..., env="API_KEY")
+    
+    class Config:
+        env_file = ".env"
 ```
 
-## セキュリティ考慮事項
+## キャッシング戦略
 
-### 1. 入力検証
-- Pydantic モデルによる自動検証
-- ファイルアップロードのサイズ制限
-- パス・トラバーサル攻撃の防止
+### LRUキャッシュ（モデル推論）
+```python
+from functools import lru_cache
 
-### 2. 認証・認可
-- 環境変数による API キー管理
-- HuggingFace トークンの安全な使用
+@lru_cache(maxsize=100)
+def cached_inference(model_id: str, input_text: str):
+    return model.generate(input_text)
+```
 
-### 3. リソース制限
-- 同時実行タスク数の制限
-- メモリ使用量の監視
-- タイムアウト設定
+### Redisキャッシュ（RAG結果）
+```python
+async def get_rag_result(query: str):
+    # Redisから確認
+    cached = await redis.get(f"rag:{query}")
+    if cached:
+        return json.loads(cached)
+    
+    # 新規計算
+    result = await compute_rag(query)
+    await redis.setex(f"rag:{query}", 3600, json.dumps(result))
+    return result
+```

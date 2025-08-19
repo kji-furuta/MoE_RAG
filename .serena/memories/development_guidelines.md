@@ -1,336 +1,242 @@
-# 開発ガイドラインとベストプラクティス
+# 開発ガイドライン
 
-## コーディング規約
+## 開発原則
 
-### Python スタイルガイド
+### 1. Docker優先開発
+- **必須**: すべての開発はDockerコンテナ内で実施
+- **理由**: 環境差異の排除、GPU設定の統一
+- **例外**: 簡単なコード編集のみローカル可
+
+### 2. ポート管理
+- **統合API**: 8050番ポート（main_unified.py）
+- **他のポート使用禁止**: 競合を避けるため
+- **WebSocket**: 同一ポートで `/ws/*` パス使用
+
+### 3. エラーハンドリング
 ```python
-# 1. インポート順序（isortで自動整理）
-import os
-import sys
-from pathlib import Path
-from typing import List, Dict, Optional
-
-import numpy as np
-import torch
-from transformers import AutoModelForCausalLM
-
-from src.training import LoRATrainer
-from src.utils import logger
-
-# 2. クラス定義
-class ModelTrainer:
-    """モデル訓練を管理するクラス
-    
-    Args:
-        model_name: 使用するモデル名
-        config: 訓練設定
-        
-    Example:
-        >>> trainer = ModelTrainer("gpt2", config)
-        >>> trainer.train(dataset)
-    """
-    
-    def __init__(self, model_name: str, config: Dict[str, Any]):
-        self.model_name = model_name
-        self.config = config
-        self._model: Optional[torch.nn.Module] = None
-    
-    @property
-    def model(self) -> torch.nn.Module:
-        """遅延読み込みプロパティ"""
-        if self._model is None:
-            self._model = self._load_model()
-        return self._model
-
-# 3. 関数定義
-def prepare_dataset(
-    data_path: Path,
-    tokenizer: Any,
-    max_length: int = 512
-) -> Dataset:
-    """データセットを準備する
-    
-    Args:
-        data_path: データファイルのパス
-        tokenizer: 使用するトークナイザー
-        max_length: 最大トークン長
-        
-    Returns:
-        準備されたデータセット
-        
-    Raises:
-        FileNotFoundError: データファイルが見つからない場合
-    """
-    if not data_path.exists():
-        raise FileNotFoundError(f"Data file not found: {data_path}")
-    
-    # 処理実装
-    return dataset
-```
-
-### 命名規則
-```python
-# 変数名: snake_case
-model_name = "gpt2"
-batch_size = 32
-
-# 定数: UPPER_SNAKE_CASE
-MAX_LENGTH = 512
-DEFAULT_LEARNING_RATE = 2e-4
-
-# クラス名: PascalCase
-class DataProcessor:
-    pass
-
-# プライベートメソッド/変数: アンダースコアプレフィックス
-class Model:
-    def __init__(self):
-        self._internal_state = {}
-    
-    def _process_internal(self):
-        pass
-
-# 型エイリアス: PascalCase
-ModelOutput = Dict[str, torch.Tensor]
-```
-
-## エラーハンドリング
-
-### 適切な例外処理
-```python
-# ❌ 悪い例: 全ての例外をキャッチ
+# 良い例
 try:
-    model = load_model(path)
-except Exception:
-    pass  # エラーを握りつぶす
-
-# ✅ 良い例: 具体的な例外を処理
-try:
-    model = load_model(path)
-except FileNotFoundError:
-    logger.error(f"Model file not found: {path}")
-    raise ModelLoadError(f"Cannot load model from {path}")
-except torch.cuda.OutOfMemoryError:
-    logger.warning("GPU memory insufficient, falling back to CPU")
-    model = load_model(path, device="cpu")
+    result = risky_operation()
+except SpecificException as e:
+    logger.error(f"具体的なエラー: {e}")
+    return ErrorResponse(detail=str(e))
 except Exception as e:
-    logger.exception(f"Unexpected error loading model: {e}")
-    raise
+    logger.exception("予期しないエラー")
+    raise HTTPException(status_code=500)
+
+# 悪い例
+try:
+    result = risky_operation()
+except:
+    pass  # エラーを握りつぶさない
 ```
 
-### カスタム例外
+## コード追加・変更時の注意点
+
+### 新機能追加時
+1. 既存パターンの確認
+   - 類似機能のコードを参照
+   - 命名規則の統一
+   - インターフェースの一貫性
+
+2. 設定ファイルの更新
+   - `config/*.yaml` に設定追加
+   - 環境変数は `.env.example` に記載
+   - デフォルト値の設定
+
+3. テストの追加
+   - 単体テストを `tests/` に追加
+   - 統合テストの更新確認
+
+### API変更時
+1. 後方互換性の考慮
+   - 既存エンドポイントの維持
+   - バージョニング（必要な場合）
+   - 非推奨警告の追加
+
+2. ドキュメント更新
+   - OpenAPI仕様の自動生成確認
+   - README.mdの更新（重要変更時）
+
+### モデル関連の変更
+1. メモリ使用量の確認
+   ```python
+   # GPU メモリ監視
+   import torch
+   print(f"Allocated: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+   ```
+
+2. 量子化設定の確認
+   - モデルサイズに応じた自動量子化
+   - CPUオフロードの設定
+
+## パフォーマンス最適化
+
+### バッチ処理
 ```python
-class AIFTException(Exception):
-    """プロジェクト基底例外"""
-    pass
+# 良い例：バッチ処理
+def process_batch(items: List[Item], batch_size: int = 32):
+    for i in range(0, len(items), batch_size):
+        batch = items[i:i + batch_size]
+        yield process_items(batch)
 
-class ModelError(AIFTException):
-    """モデル関連エラー"""
-    pass
-
-class DataError(AIFTException):
-    """データ関連エラー"""
-    pass
-
-class ConfigError(AIFTException):
-    """設定関連エラー"""
-    pass
+# 悪い例：逐次処理
+for item in items:
+    process_item(item)  # 非効率
 ```
 
-## ログ記録
-
-### ログレベルの使い分け
+### 非同期処理の活用
 ```python
-import logging
-
-logger = logging.getLogger(__name__)
-
-# DEBUG: 詳細なデバッグ情報
-logger.debug(f"Model parameters: {model.num_parameters()}")
-
-# INFO: 通常の動作情報
-logger.info(f"Training started with {len(dataset)} samples")
-
-# WARNING: 注意が必要だが続行可能
-logger.warning("GPU memory low, performance may be affected")
-
-# ERROR: エラーだが復旧可能
-logger.error(f"Failed to save checkpoint: {e}")
-
-# CRITICAL: 致命的エラー
-logger.critical("CUDA not available, cannot continue")
-```
-
-### 構造化ログ
-```python
-# コンテキスト情報を含める
-logger.info(
-    "Training completed",
-    extra={
-        "task_id": task_id,
-        "duration": time.time() - start_time,
-        "final_loss": final_loss,
-        "model_name": model_name
-    }
+# 並列実行
+results = await asyncio.gather(
+    async_task1(),
+    async_task2(),
+    async_task3()
 )
 ```
 
-## テスト作成
-
-### ユニットテスト
+### キャッシング
 ```python
-import pytest
-from unittest.mock import Mock, patch
+from functools import lru_cache
 
-class TestModelLoader:
-    @pytest.fixture
-    def mock_model(self):
-        """モックモデルのフィクスチャ"""
-        model = Mock()
-        model.num_parameters.return_value = 1000
-        return model
-    
-    def test_load_model_success(self, mock_model):
-        """正常系: モデル読み込み成功"""
-        with patch("app.model_loader.AutoModel.from_pretrained") as mock_load:
-            mock_load.return_value = mock_model
-            
-            loader = ModelLoader()
-            model = loader.load("gpt2")
-            
-            assert model is not None
-            mock_load.assert_called_once_with("gpt2")
-    
-    def test_load_model_not_found(self):
-        """異常系: モデルが見つからない"""
-        loader = ModelLoader()
-        
-        with pytest.raises(ModelNotFoundError):
-            loader.load("non_existent_model")
+@lru_cache(maxsize=128)
+def expensive_computation(param):
+    # 重い計算処理
+    return result
 ```
 
-### 統合テスト
+## セキュリティガイドライン
+
+### 1. 認証情報の管理
+- **禁止**: ハードコーディング
+- **必須**: 環境変数使用
+- **推奨**: シークレット管理ツール
+
+### 2. 入力検証
 ```python
-@pytest.mark.integration
-async def test_training_api_flow(client: TestClient):
-    """トレーニングAPIの統合テスト"""
-    # 1. データアップロード
-    with open("test_data.jsonl", "rb") as f:
-        response = await client.post(
-            "/api/upload-data",
-            files={"file": f}
-        )
-    assert response.status_code == 200
+from pydantic import BaseModel, validator
+
+class QueryRequest(BaseModel):
+    query: str
+    top_k: int = 5
     
-    # 2. トレーニング開始
-    response = await client.post(
-        "/api/train",
-        json={
-            "model_name": "distilgpt2",
-            "training_data": ["test_data.jsonl"],
-            "training_method": "lora"
-        }
-    )
-    assert response.status_code == 200
-    task_id = response.json()["task_id"]
-    
-    # 3. ステータス確認
-    response = await client.get(f"/api/training-status/{task_id}")
-    assert response.json()["status"] in ["running", "completed"]
+    @validator('top_k')
+    def validate_top_k(cls, v):
+        if v < 1 or v > 100:
+            raise ValueError('top_k must be between 1 and 100')
+        return v
 ```
 
-## パフォーマンス考慮事項
-
-### メモリ効率
+### 3. SQLインジェクション対策
 ```python
-# ❌ 悪い例: 全データをメモリに読み込む
-data = []
-with open("large_file.jsonl") as f:
-    for line in f:
-        data.append(json.loads(line))
+# 良い例：パラメータ化クエリ
+cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
 
-# ✅ 良い例: ジェネレーターを使用
-def read_jsonl(path: Path):
-    with open(path) as f:
-        for line in f:
-            yield json.loads(line)
+# 悪い例：文字列連結
+cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")  # 危険
 ```
 
-### GPU メモリ管理
+## Git運用
+
+### ブランチ戦略
+- **main**: 本番環境
+- **develop**: 開発環境
+- **feature/***: 機能開発
+- **fix/***: バグ修正
+- **hotfix/***: 緊急修正
+
+### コミットメッセージ
+```
+<type>: <subject>
+
+<body>
+
+<footer>
+```
+
+Types:
+- feat: 新機能
+- fix: バグ修正
+- docs: ドキュメント
+- style: フォーマット
+- refactor: リファクタリング
+- test: テスト
+- chore: その他
+
+例：
+```
+feat: MoEルーターに動的エキスパート選択を追加
+
+- エントロピーベースの信頼度計算を実装
+- top-kパラメータを動的に調整
+- パフォーマンスが15%向上
+```
+
+## デバッグ手法
+
+### ログレベルの使い分け
 ```python
-# メモリクリア
-torch.cuda.empty_cache()
-
-# グラデーション累積
-accumulation_steps = 4
-for i, batch in enumerate(dataloader):
-    loss = model(batch) / accumulation_steps
-    loss.backward()
-    
-    if (i + 1) % accumulation_steps == 0:
-        optimizer.step()
-        optimizer.zero_grad()
-
-# Mixed Precision Training
-from torch.cuda.amp import autocast, GradScaler
-
-scaler = GradScaler()
-with autocast():
-    outputs = model(inputs)
-    loss = criterion(outputs, targets)
+logger.debug("詳細なデバッグ情報")
+logger.info("通常の処理フロー")
+logger.warning("警告（処理は継続）")
+logger.error("エラー（リカバリ可能）")
+logger.critical("致命的エラー")
 ```
 
-## ドキュメント作成
-
-### Docstring形式（Google Style）
+### プロファイリング
 ```python
-def process_documents(
-    documents: List[str],
-    chunk_size: int = 512,
-    overlap: int = 50
-) -> List[Dict[str, Any]]:
-    """ドキュメントを処理してチャンクに分割する
-    
-    Args:
-        documents: 処理対象のドキュメントリスト
-        chunk_size: 各チャンクの最大サイズ
-        overlap: チャンク間のオーバーラップサイズ
-    
-    Returns:
-        処理されたチャンクのリスト。各チャンクは以下の形式:
-        {
-            "text": str,
-            "metadata": dict,
-            "chunk_id": int
-        }
-    
-    Raises:
-        ValueError: chunk_size <= overlap の場合
-        
-    Example:
-        >>> docs = ["長いテキスト1", "長いテキスト2"]
-        >>> chunks = process_documents(docs, chunk_size=100)
-        >>> print(len(chunks))
-        5
-    """
+import cProfile
+import pstats
+
+profiler = cProfile.Profile()
+profiler.enable()
+
+# 計測対象のコード
+expensive_operation()
+
+profiler.disable()
+stats = pstats.Stats(profiler)
+stats.sort_stats('cumulative')
+stats.print_stats(10)  # Top 10
 ```
 
-## Git コミットメッセージ
-```bash
-# 形式: <type>(<scope>): <subject>
+## リソース管理
 
-feat(training): LoRA訓練の動的バッチサイズ調整を追加
-fix(rag): Qdrant接続タイムアウトの修正
-docs(api): RAGエンドポイントのドキュメント更新
-refactor(model): モデルローダーの責任分離
-test(integration): 大規模モデルの統合テスト追加
-chore(deps): transformers を v4.36.0 に更新
+### コンテキストマネージャーの使用
+```python
+# 良い例
+with open('file.txt', 'r') as f:
+    content = f.read()
 
-# type:
-# - feat: 新機能
-# - fix: バグ修正
-# - docs: ドキュメント
-# - refactor: リファクタリング
-# - test: テスト
-# - chore: ビルド、補助ツール
+# GPUメモリの解放
+with torch.cuda.device(0):
+    # GPU処理
+    pass
+# 自動的にメモリ解放
 ```
+
+### メモリリーク対策
+```python
+# 循環参照の回避
+import weakref
+
+class Node:
+    def __init__(self, parent=None):
+        self.parent = weakref.ref(parent) if parent else None
+```
+
+## 継続的改善
+
+### コードレビューチェックリスト
+- [ ] 命名規則の遵守
+- [ ] 適切なエラーハンドリング
+- [ ] テストの追加・更新
+- [ ] ドキュメントの更新
+- [ ] パフォーマンスへの影響確認
+- [ ] セキュリティの考慮
+
+### リファクタリング指針
+1. **DRY原則**: 重複コードの排除
+2. **SOLID原則**: 設計原則の遵守
+3. **KISS原則**: シンプルさの維持
+4. **YAGNI原則**: 必要になるまで実装しない

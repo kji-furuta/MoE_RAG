@@ -38,8 +38,8 @@ llm:
     0: 36GB
     1: 36GB
   max_new_tokens: 512
-  model_name: outputs/フルファインチューニング_20250817_060610
-  model_path: outputs/フルファインチューニング_20250817_060610
+  model_name: outputs/フルファインチューニング_20250818_222549
+  model_path: outputs/フルファインチューニング_20250818_222549
   repetition_penalty: 1.1
   temperature: 0.1
   top_p: 0.95

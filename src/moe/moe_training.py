@@ -12,70 +12,36 @@ import logging
 from pathlib import Path
 import json
 from tqdm import tqdm
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
 import os
+
+# Import from refactored modules
+from .base_config import MoETrainingConfig
+from .constants import DEFAULT_VOCAB_SIZE, SAFE_VOCAB_LIMIT
+from .utils import validate_input_ids, load_config, save_config, get_device
+from .exceptions import MoETrainingError, MoEDataError
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class MoETrainingConfig:
-    """MoEトレーニング設定"""
-    # モデル設定
-    base_model_name: str = "cyberagent/calm3-22b-chat"
-    num_experts: int = 8
-    num_experts_per_tok: int = 2
-    
-    # トレーニング設定
-    learning_rate: float = 2e-5
-    weight_decay: float = 0.01
-    num_epochs: int = 3
-    batch_size: int = 4
-    gradient_accumulation_steps: int = 8
-    max_seq_length: int = 2048
-    warmup_ratio: float = 0.1
-    
-    # MoE特有の設定
-    aux_loss_weight: float = 0.01
-    router_lr_multiplier: float = 0.1  # ルーターの学習率調整
-    expert_dropout: float = 0.1
-    capacity_factor: float = 1.25
-    
-    # 最適化設定
-    gradient_checkpointing: bool = True
-    mixed_precision: str = "bf16"  # bf16 or fp16
-    
-    # パス設定
-    output_dir: str = "./outputs/moe_civil_engineering"
-    checkpoint_dir: str = "./checkpoints/moe_civil_engineering"
-    dataset_path: str = "./data/civil_engineering"
-    
-    # ロギング
-    logging_steps: int = 10
-    save_steps: int = 500
-    eval_steps: int = 100
-    use_wandb: bool = False  # デフォルトでオフ
-    project_name: str = "civil-engineering-moe"
-
-
 
 def safe_collate_fn(batch):
     """安全なバッチ処理（input_idsを語彙サイズ内に制限）"""
-    import torch
-    
-    # バッチデータを結合
-    input_ids = torch.stack([item['input_ids'].squeeze(0) for item in batch])
-    attention_mask = torch.stack([item['attention_mask'].squeeze(0) for item in batch])
-    
-    # input_idsを語彙サイズ内に制限（重要！）
-    vocab_size = 32000
-    input_ids = torch.clamp(input_ids, 0, vocab_size - 1)
-    
-    return {
-        'input_ids': input_ids,
-        'attention_mask': attention_mask
-    }
+    try:
+        # バッチデータを結合
+        input_ids = torch.stack([item['input_ids'].squeeze(0) for item in batch])
+        attention_mask = torch.stack([item['attention_mask'].squeeze(0) for item in batch])
+        
+        # input_idsを語彙サイズ内に制限
+        input_ids = validate_input_ids(input_ids, vocab_size=DEFAULT_VOCAB_SIZE)
+        
+        return {
+            'input_ids': input_ids,
+            'attention_mask': attention_mask
+        }
+    except Exception as e:
+        raise MoEDataError(f"Error in collate_fn: {e}")
 
 class CivilEngineeringDataset(Dataset):
     """土木・建設分野データセット"""

@@ -14,8 +14,11 @@ import os
 
 # MoEモジュールのインポート
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from moe.moe_architecture import CivilEngineeringMoEModel, MoEConfig, ExpertType
-from moe.moe_architecture import DomainKeywordDetector
+from moe.moe_architecture import CivilEngineeringMoEModel, DomainKeywordDetector
+from moe.base_config import MoEConfig
+from moe.constants import ExpertType, EXPERT_DISPLAY_NAMES
+from moe.utils import get_device, validate_input_ids
+from moe.exceptions import MoEModelError, MoEInferenceError
 
 import logging
 logger = logging.getLogger(__name__)
@@ -75,17 +78,8 @@ class MoEModelServer:
         # ドメインキーワード検出器
         self.keyword_detector = DomainKeywordDetector(self.config)
         
-        # エキスパートタイプのマッピング
-        self.expert_names = {
-            0: "構造設計",
-            1: "道路設計", 
-            2: "地盤工学",
-            3: "水理・排水",
-            4: "材料工学",
-            5: "施工管理",
-            6: "法規・基準",
-            7: "環境・維持管理"
-        }
+        # エキスパートタイプのマッピング（定数から取得）
+        self.expert_names = EXPERT_DISPLAY_NAMES
         
         logger.info(f"MoE Model Server initialized on {device}")
     

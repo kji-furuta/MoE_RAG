@@ -30,6 +30,7 @@
       ]
     },
     "cipher": {
+      "type": "stdio",
       "command": "cipher",
       "args": ["--mode", "mcp"],
       "env": {

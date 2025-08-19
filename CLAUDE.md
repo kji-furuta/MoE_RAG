@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AI Fine-tuning Toolkit (AI_FT_3) is a comprehensive Japanese LLM fine-tuning platform with integrated RAG (Retrieval-Augmented Generation) system specialized for civil engineering and road design. The project provides a unified web interface for both fine-tuning and RAG functionality through a single port (8050).
+AI Fine-tuning Toolkit (AI_FT_7) is a comprehensive Japanese LLM fine-tuning platform with integrated RAG (Retrieval-Augmented Generation) system specialized for civil engineering and road design. The project provides a unified web interface for both fine-tuning and RAG functionality through a single port (8050).
 
 ## Key Architecture Components
 
@@ -19,8 +19,10 @@ AI Fine-tuning Toolkit (AI_FT_3) is a comprehensive Japanese LLM fine-tuning pla
 #### Fine-tuning System (`src/training/`)
 - **LoRA Training**: `lora_finetuning.py` - Parameter-efficient fine-tuning
 - **Full Fine-tuning**: `full_finetuning.py` - Complete model training
+- **DoRA**: `dora/dora_implementation.py` - Weight-decomposed LoRA for improved accuracy
 - **EWC**: `ewc_utils.py` - Elastic Weight Consolidation for continual learning
 - **Multi-GPU**: `multi_gpu_training.py` - Distributed training support
+- **Continual Learning**: `continual_learning_pipeline.py` - Task-based continuous learning
 
 #### RAG System (`src/rag/`)
 - **Query Engine**: `core/query_engine.py` - Main RAG processing engine
@@ -29,10 +31,15 @@ AI Fine-tuning Toolkit (AI_FT_3) is a comprehensive Japanese LLM fine-tuning pla
 - **Document Processing**: `document_processing/` - PDF, OCR, and table extraction
 - **Specialized Features**: `specialized/` - Numerical processing, design standard validation
 
+#### Inference System (`src/inference/`)
+- **vLLM Integration**: `vllm_integration.py` - PagedAttention-based high-speed inference
+- **AWQ Quantization**: `awq_quantization.py` - 4-bit quantization for memory reduction
+
 ### 3. Model Management
 - **Model Loader**: `app/memory_optimized_loader.py` - Dynamic quantization and memory optimization
 - **Supported Models**: Located in `outputs/` directory, including LoRA adapters and full models
 - **Model Config**: `config/model_config.yaml` and `configs/` directory for model specifications
+- **Ollama Integration**: Support for Llama 3.2 3B via Ollama API (port 11434)
 
 ## Common Development Commands
 
@@ -58,6 +65,7 @@ docker exec ai-ft-container python -m uvicorn app.main_unified:app --host 0.0.0.
 # Integration tests
 python scripts/test_integration.py
 python scripts/test_docker_rag.py
+python scripts/test_continual_learning_integration.py
 
 # Configuration tests
 python scripts/test_config_resolution.py
@@ -90,6 +98,21 @@ python scripts/train_calm3_22b.py
 
 # Run LoRA fine-tuning
 python scripts/test/simple_lora_tutorial.py
+
+# Continual learning
+python src/training/continual_learning_pipeline.py
+```
+
+### Ollama Operations
+```bash
+# Start Ollama service
+ollama serve
+
+# Pull Llama model
+ollama pull llama3.2:3b
+
+# List available models
+ollama list
 ```
 
 ## API Endpoints
@@ -108,10 +131,18 @@ python scripts/test/simple_lora_tutorial.py
 - `POST /rag/stream-query` - Streaming search
 - `GET /rag/system-info` - System information
 
+### Continual Learning APIs
+- `GET /continual` - Continual learning interface
+- `POST /api/continual/train` - Start continual learning task
+- `GET /api/continual/tasks` - List all tasks
+- `GET /api/continual/task/{task_id}` - Get task status
+- `POST /api/continual/update-models` - Refresh available models list
+
 ### Web Interface Routes
 - `/` - Main dashboard
 - `/finetune` - Fine-tuning interface
 - `/rag` - RAG interface
+- `/continual` - Continual learning interface
 - `/models` - Model management
 - `/manual` - User manual
 - `/system-overview` - System documentation
@@ -124,12 +155,21 @@ python scripts/test/simple_lora_tutorial.py
   - 7B/8B models: 8-bit quantization
 - CPU offloading is enabled for large models
 - Model caching is implemented to reduce loading times
+- AWQ quantization available for 75% memory reduction
 
 ### RAG Vector Store
 - Uses Qdrant with UUID-based point IDs
 - Hybrid search combines vector similarity (0.7 weight) and keyword matching (0.3 weight)
 - Supports multilingual-e5-large embeddings
 - Document chunks are 512 tokens with 128 token overlap
+
+### Continual Learning System
+- EWC-based learning with Fisher Information Matrix
+- Default EWC lambda: 5000
+- Task history stored in `outputs/ewc_data/task_history.json`
+- Fisher matrices saved as `outputs/ewc_data/fisher_task_*.pt`
+- Models saved to `outputs/continual_task_*`
+- Tasks state tracked in `data/continual_learning/tasks_state.json`
 
 ### Error Handling Patterns
 - Bootstrap JavaScript errors are handled in `templates/base.html`
@@ -166,6 +206,12 @@ python scripts/test/simple_lora_tutorial.py
 2. Check module installation: `docker exec ai-ft-container pip list | grep <module>`
 3. Reinstall requirements if needed: `docker exec ai-ft-container pip install -r requirements.txt`
 
+### Ollama Connection Issues
+1. Verify Ollama is running: `curl http://localhost:11434/api/tags`
+2. Check if model is downloaded: `ollama list`
+3. Pull model if missing: `ollama pull llama3.2:3b`
+4. Restart Ollama service: `killall ollama && ollama serve`
+
 ## Development Workflow Tips
 
 1. **Always use the Docker environment** for consistency
@@ -174,3 +220,5 @@ python scripts/test/simple_lora_tutorial.py
 4. **Use the unified API** at port 8050 rather than separate services
 5. **Check GPU memory** before training large models: `nvidia-smi`
 6. **Backup trained models** from the `outputs/` directory regularly
+7. **Review task history** in `data/continual_learning/tasks_state.json` for continual learning
+8. **Keep Ollama running** in a separate terminal for Ollama model integration

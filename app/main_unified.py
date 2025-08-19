@@ -4,6 +4,11 @@ AI Fine-tuning Toolkit Web API - Unified Implementation
 統合されたWebインターフェース実装
 """
 
+# PyTorchメモリ管理の最適化
+import os
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"  # トークナイザーの警告を抑制
+
 from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, Query, WebSocket, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse, StreamingResponse
@@ -736,9 +741,41 @@ async def run_training_task(task_id: str, request: TrainingRequest):
             training_tasks[task_id].message = "LoRAアダプターを設定中..."
             training_tasks[task_id].progress = 30.0
             
-            # QLoRAの場合はモデルを準備
+            # QLoRAの場合はモデルを準備（メモリ最適化付き）
             if request.training_method == "qlora":
-                model = prepare_model_for_kbit_training(model)
+                try:
+                    # GPUメモリのクリア
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                        torch.cuda.synchronize()
+                    
+                    # gradient_checkpointingを有効化してメモリ使用量を削減
+                    if hasattr(model, 'gradient_checkpointing_enable'):
+                        model.gradient_checkpointing_enable()
+                    
+                    # prepare_model_for_kbit_trainingを安全に実行
+                    model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+                    
+                    logger.info(f"Task {task_id}: QLoRA準備完了、gradient checkpointing有効化")
+                except torch.cuda.OutOfMemoryError as e:
+                    logger.error(f"Task {task_id}: QLoRA準備中にメモリ不足: {str(e)}")
+                    # メモリをクリアして再試行
+                    torch.cuda.empty_cache()
+                    torch.cuda.synchronize()
+                    
+                    # より積極的なメモリ最適化を試みる
+                    if hasattr(model, 'config'):
+                        model.config.use_cache = False  # KVキャッシュを無効化
+                    
+                    # 再度試行
+                    try:
+                        model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+                        logger.info(f"Task {task_id}: QLoRA準備完了（再試行成功）")
+                    except Exception as retry_error:
+                        logger.error(f"Task {task_id}: QLoRA準備失敗: {str(retry_error)}")
+                        training_tasks[task_id].status = "failed"
+                        training_tasks[task_id].message = f"QLoRA準備中にメモリ不足が発生しました。より小さいモデルを選択してください。"
+                        return
             
             # LoRA設定
             lora_config = LoraConfig(
@@ -820,8 +857,13 @@ async def run_training_task(task_id: str, request: TrainingRequest):
                     "labels": labels
                 }
         
-        # データセット作成
-        train_dataset = SimpleDataset(train_texts, tokenizer)
+        # データセット作成（QLoRAの場合はmax_seq_lengthを使用）
+        if request.training_method == "qlora" and ("32B" in request.model_name or "22B" in request.model_name):
+            dataset_max_length = 256  # 大規模モデルの場合は短縮
+        else:
+            dataset_max_length = get_config_value(training_config, "max_length", 512, int)
+        
+        train_dataset = SimpleDataset(train_texts, tokenizer, max_length=dataset_max_length)
         
         # EWCを使用するカスタムトレーナー
         class EWCTrainer(Trainer):
@@ -877,6 +919,25 @@ async def run_training_task(task_id: str, request: TrainingRequest):
             total_steps = len(train_dataset) * num_epochs // effective_batch_size
             max_steps = min(100, total_steps)  # フルファインチューニングは100ステップまで
             learning_rate = 5e-6  # より低い学習率
+        elif request.training_method == "qlora":
+            # QLoRAの場合：メモリ効率を最優先
+            # DeepSeek-R1-32Bのような大規模モデル用の設定
+            if "32B" in request.model_name or "22B" in request.model_name:
+                batch_size = 1  # 最小バッチサイズ
+                gradient_accumulation_steps = 16  # 勾配累積を増やして実効バッチサイズを確保
+                max_seq_length = 256  # シーケンス長を短縮
+            else:
+                batch_size = get_config_value(training_config, "batch_size", 2, int)
+                gradient_accumulation_steps = get_config_value(training_config, "gradient_accumulation_steps", 8, int)
+                max_seq_length = get_config_value(training_config, "max_length", 512, int)
+            
+            num_epochs = get_config_value(training_config, "num_epochs", 3, int)
+            effective_batch_size = batch_size * gradient_accumulation_steps
+            total_steps = len(train_dataset) * num_epochs // effective_batch_size
+            max_steps = min(50, total_steps)  # QLoRAは50ステップまで
+            learning_rate = get_config_value(training_config, "learning_rate", 2e-4, float)
+            
+            logger.info(f"Task {task_id}: QLoRA設定 - batch_size: {batch_size}, grad_accum: {gradient_accumulation_steps}, max_seq_length: {max_seq_length}")
         elif request.training_method == "continual":
             # 継続学習の場合：より多くのステップでしっかり学習
             batch_size = get_config_value(training_config, "batch_size", 1, int)

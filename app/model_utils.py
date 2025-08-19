@@ -99,15 +99,26 @@ def create_quantization_config(
     
     model_size = get_model_size_category(model_name)
     
-    # DeepSeek-R1-Distill-Qwen-32Bの特別処理
+    # DeepSeek-R1-Distill-Qwen-32Bの特別処理（強化されたメモリ最適化）
     if "DeepSeek-R1-Distill-Qwen-32B" in model_name:
-        if training_method in ["lora", "qlora"]:
+        if training_method == "qlora":
+            # QLoRAの場合は最大限のメモリ最適化
             return BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=torch.float16,
                 bnb_4bit_use_double_quant=True,
                 bnb_4bit_quant_type="nf4",
-                llm_int8_enable_fp32_cpu_offload=True
+                llm_int8_enable_fp32_cpu_offload=True,
+                llm_int8_has_fp16_weight=False,  # メモリ削減のため
+                bnb_4bit_quant_storage=torch.uint8  # ストレージを最小化
+            )
+        elif training_method == "lora":
+            # 通常のLoRAでも4bit量子化を使用
+            return BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.float16,
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_quant_type="nf4"
             )
         return None
     
@@ -153,7 +164,22 @@ def get_device_map(model_name: str, model_size: Optional[str] = None) -> Any:
             return {"": 0}
         return None
     
-    # 大規模モデルは自動配置
+    # 大規模モデルは自動配置（CPUオフロード有効）
+    if model_size in ['large', 'xlarge']:
+        if torch.cuda.is_available():
+            # DeepSeek-R1-Distill-Qwen-32Bの特別処理
+            if "DeepSeek-R1-Distill-Qwen-32B" in model_name:
+                # メモリ効率を最大化するためのカスタムデバイスマップ
+                return {
+                    "model.embed_tokens": 0,
+                    "model.layers": 0,
+                    "model.norm": 0,
+                    "lm_head": "cpu"  # lm_headをCPUにオフロード
+                }
+            return "auto"
+        return None
+    
+    # デフォルト
     return "auto" if torch.cuda.is_available() else None
 
 

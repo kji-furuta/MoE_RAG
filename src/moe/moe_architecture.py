@@ -7,56 +7,19 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass
-import math
 import logging
-from enum import Enum
+
+# Import constants and configurations
+from .constants import (
+    ExpertType,
+    DEFAULT_MLP_RATIO,
+    DEFAULT_VOCAB_SIZE,
+    SAFE_VOCAB_LIMIT,
+    DOMAIN_KEYWORDS
+)
+from .base_config import MoEConfig
 
 logger = logging.getLogger(__name__)
-
-
-class ExpertType(Enum):
-    """土木・建設分野の専門エキスパート定義"""
-    STRUCTURAL_DESIGN = "structural_design"  # 構造設計
-    ROAD_DESIGN = "road_design"  # 道路設計
-    GEOTECHNICAL = "geotechnical"  # 地盤工学
-    HYDRAULICS = "hydraulics"  # 水理・排水
-    MATERIALS = "materials"  # 材料工学
-    CONSTRUCTION_MGMT = "construction_management"  # 施工管理
-    REGULATIONS = "regulations"  # 法規・基準
-    ENVIRONMENTAL = "environmental"  # 環境・維持管理
-
-
-@dataclass
-class MoEConfig:
-    """MoE設定クラス"""
-    hidden_size: int = 4096
-    num_experts: int = 8
-    num_experts_per_tok: int = 2  # トークンごとのアクティブエキスパート数
-    expert_capacity_factor: float = 1.25
-    aux_loss_coef: float = 0.01  # 補助損失係数（ロードバランシング用）
-    router_jitter_noise: float = 0.1
-    dropout: float = 0.1
-    use_bias: bool = False
-    normalize_expert_weights: bool = True
-    
-    # 土木・建設特化設定
-    domain_specific_routing: bool = True
-    expert_specialization: Dict[str, float] = None
-    
-    def __post_init__(self):
-        if self.expert_specialization is None:
-            # エキスパートごとの専門度重み（高いほど専門的）
-            self.expert_specialization = {
-                ExpertType.STRUCTURAL_DESIGN.value: 1.0,
-                ExpertType.ROAD_DESIGN.value: 0.95,
-                ExpertType.GEOTECHNICAL.value: 0.9,
-                ExpertType.HYDRAULICS.value: 0.85,
-                ExpertType.MATERIALS.value: 0.9,
-                ExpertType.CONSTRUCTION_MGMT.value: 0.8,
-                ExpertType.REGULATIONS.value: 1.0,
-                ExpertType.ENVIRONMENTAL.value: 0.75,
-            }
 
 
 class CivilEngineeringExpert(nn.Module):
@@ -73,7 +36,7 @@ class CivilEngineeringExpert(nn.Module):
         self.expert_type = expert_type
         
         if intermediate_size is None:
-            intermediate_size = config.hidden_size * 4
+            intermediate_size = config.hidden_size * DEFAULT_MLP_RATIO
         
         # FFNレイヤー
         self.w1 = nn.Linear(config.hidden_size, intermediate_size, bias=config.use_bias)
@@ -90,7 +53,7 @@ class CivilEngineeringExpert(nn.Module):
         
         self._initialize_weights()
     
-    def _initialize_weights(self):
+    def _initialize_weights(self) -> None:
         """重み初期化"""
         for module in [self.w1, self.w2, self.w3]:
             if isinstance(module, nn.Linear):
@@ -346,17 +309,8 @@ class CivilEngineeringMoEModel(nn.Module):
         **kwargs
     ) -> Dict[str, torch.Tensor]:
         """順伝播"""
-        # 入力検証：input_idsが語彙サイズ内にあることを保証
-        vocab_size = self.embedding.num_embeddings if hasattr(self, 'embedding') else 32000
-        safe_limit = min(vocab_size - 1, 30000)  # 安全な上限を設定
-        
-        # 境界値チェックとクランプ
-        if input_ids.max() >= vocab_size:
-            logger.warning(f"Input IDs exceed vocab size: max={input_ids.max().item()}, vocab_size={vocab_size}")
-            input_ids = torch.clamp(input_ids, min=0, max=safe_limit)
-        
-        # 安全のため、常に安全な範囲にクランプ
-        input_ids = torch.clamp(input_ids, min=0, max=safe_limit)
+        # 入力検証とサニタイズ
+        input_ids = self._sanitize_input_ids(input_ids)
         
         # ドメインキーワードの検出
         domain_keywords = self.keyword_detector(input_ids)
@@ -386,6 +340,19 @@ class CivilEngineeringMoEModel(nn.Module):
             "aux_loss": total_aux_loss,
             "router_info": all_router_info
         }
+    
+    def _sanitize_input_ids(self, input_ids: torch.Tensor) -> torch.Tensor:
+        """入力IDのサニタイズ処理"""
+        vocab_size = getattr(self.embedding, 'num_embeddings', DEFAULT_VOCAB_SIZE)
+        safe_limit = min(vocab_size - 1, SAFE_VOCAB_LIMIT)
+        
+        if input_ids.max() >= vocab_size:
+            logger.warning(
+                f"Input IDs exceed vocab size: max={input_ids.max().item()}, "
+                f"vocab_size={vocab_size}. Clamping to safe range."
+            )
+        
+        return torch.clamp(input_ids, min=0, max=safe_limit)
 
 
 class DomainKeywordDetector(nn.Module):
@@ -395,33 +362,8 @@ class DomainKeywordDetector(nn.Module):
         super().__init__()
         self.config = config
         
-        # ドメイン辞書（実際の実装では外部ファイルから読み込み）
-        self.domain_keywords = {
-            ExpertType.STRUCTURAL_DESIGN.value: [
-                "構造", "梁", "柱", "基礎", "耐震", "応力", "モーメント", "せん断"
-            ],
-            ExpertType.ROAD_DESIGN.value: [
-                "道路", "舗装", "線形", "勾配", "カーブ", "交差点", "設計速度"
-            ],
-            ExpertType.GEOTECHNICAL.value: [
-                "地盤", "土質", "支持力", "沈下", "液状化", "斜面", "擁壁"
-            ],
-            ExpertType.HYDRAULICS.value: [
-                "排水", "流量", "管渠", "ポンプ", "貯留", "浸透", "洪水"
-            ],
-            ExpertType.MATERIALS.value: [
-                "コンクリート", "鋼材", "アスファルト", "強度", "配合", "試験"
-            ],
-            ExpertType.CONSTRUCTION_MGMT.value: [
-                "工程", "安全", "品質", "コスト", "施工", "管理", "工期"
-            ],
-            ExpertType.REGULATIONS.value: [
-                "基準", "法規", "規格", "JIS", "道路構造令", "建築基準法"
-            ],
-            ExpertType.ENVIRONMENTAL.value: [
-                "環境", "騒音", "振動", "廃棄物", "リサイクル", "維持", "点検"
-            ]
-        }
+        # ドメイン辞書を定数から取得
+        self.domain_keywords = DOMAIN_KEYWORDS
     
     def forward(self, input_ids: torch.Tensor) -> Dict[str, torch.Tensor]:
         """キーワード検出（簡易実装）"""
@@ -445,10 +387,18 @@ class DomainKeywordDetector(nn.Module):
 def create_civil_engineering_moe(
     base_model_name: str = "cyberagent/calm3-22b-chat",
     num_experts: int = 8,
-    device: str = "cuda"
+    device: Optional[str] = None
 ) -> CivilEngineeringMoEModel:
     """
     土木・建設分野MoEモデルの作成
+    
+    Args:
+        base_model_name: ベースモデル名
+        num_experts: エキスパート数
+        device: 実行デバイス（None の場合は自動選択）
+    
+    Returns:
+        CivilEngineeringMoEModel: 初期化済みMoEモデル
     """
     config = MoEConfig(
         num_experts=num_experts,
@@ -457,16 +407,24 @@ def create_civil_engineering_moe(
         domain_specific_routing=True
     )
     
+    # 設定の検証
+    config.validate()
+    
     # ベースモデルのロード（簡略化）
     # 実際にはHuggingFaceのモデルをロード
     base_model = None  # ここでbase_modelをロード
     
     model = CivilEngineeringMoEModel(config, base_model)
     
-    if torch.cuda.is_available() and device == "cuda":
-        model = model.to(device)
-        logger.info(f"Model moved to {device}")
+    # デバイスの選択
+    if device is None:
+        from .utils import get_device
+        device = get_device()
+    else:
+        device = torch.device(device)
     
+    model = model.to(device)
+    logger.info(f"Model moved to {device}")
     logger.info(f"Created Civil Engineering MoE model with {num_experts} experts")
     
     return model

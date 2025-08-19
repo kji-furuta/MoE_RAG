@@ -721,12 +721,19 @@ async def run_training_task(task_id: str, request: TrainingRequest):
         try:
             project_root = Path(os.getcwd())
             cache_dir = project_root / "hf_cache"
+            # 継続学習の場合、use_memory_efficientパラメータを渡す
+            use_memory_efficient = (
+                request.training_method == "continual" and 
+                hasattr(request, 'training_config') and 
+                request.training_config.get('use_memory_efficient', False)
+            )
             model, tokenizer = load_model_and_tokenizer(
                 model_name=request.model_name,
                 training_method=request.training_method,
-                cache_dir=cache_dir
+                cache_dir=cache_dir,
+                use_memory_efficient=use_memory_efficient
             )
-            logger.info(f"Task {task_id}: モデル読み込み完了")
+            logger.info(f"Task {task_id}: モデル読み込み完了 (メモリ効率化: {use_memory_efficient})")
         except Exception as e:
             import traceback
             error_traceback = traceback.format_exc()
@@ -736,13 +743,13 @@ async def run_training_task(task_id: str, request: TrainingRequest):
             training_tasks[task_id].message = handle_model_loading_error(e, request.model_name, task_id)
             return
         
-        # LoRA設定
-        if request.training_method in ["lora", "qlora"]:
+        # LoRA設定（継続学習も含む）
+        if request.training_method in ["lora", "qlora", "continual"]:
             training_tasks[task_id].message = "LoRAアダプターを設定中..."
             training_tasks[task_id].progress = 30.0
             
-            # QLoRAの場合はモデルを準備（メモリ最適化付き）
-            if request.training_method == "qlora":
+            # QLoRAまたは継続学習（量子化モデル）の場合はモデルを準備（メモリ最適化付き）
+            if request.training_method == "qlora" or (request.training_method == "continual" and use_memory_efficient):
                 try:
                     # GPUメモリのクリア
                     if torch.cuda.is_available():
@@ -794,21 +801,31 @@ async def run_training_task(task_id: str, request: TrainingRequest):
         training_tasks[task_id].message = "トレーニングデータを準備中..."
         training_tasks[task_id].progress = 40.0
         
-        # JSONLファイルからデータを読み込み
+        # トレーニングデータの処理（継続学習の場合とファイルパスの場合を判別）
         train_texts = []
-        for data_path in request.training_data:
-            data_file = Path(data_path)
-            if data_file.exists() and data_file.suffix == '.jsonl':
-                with open(data_file, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        try:
-                            data = json.loads(line.strip())
-                            if 'text' in data:
-                                train_texts.append(data['text'])
-                            elif 'input' in data and 'output' in data:
-                                train_texts.append(f"{data['input']}\n{data['output']}")
-                        except json.JSONDecodeError:
-                            continue
+        
+        # 継続学習の場合、training_dataは既にdictのリスト
+        if request.training_data and isinstance(request.training_data[0], dict):
+            for data in request.training_data:
+                if 'text' in data:
+                    train_texts.append(data['text'])
+                elif 'input' in data and 'output' in data:
+                    train_texts.append(f"{data['input']}\n{data['output']}")
+        # 通常のトレーニングの場合、ファイルパスから読み込み
+        else:
+            for data_path in request.training_data:
+                data_file = Path(data_path)
+                if data_file.exists() and data_file.suffix == '.jsonl':
+                    with open(data_file, 'r', encoding='utf-8') as f:
+                        for line in f:
+                            try:
+                                data = json.loads(line.strip())
+                                if 'text' in data:
+                                    train_texts.append(data['text'])
+                                elif 'input' in data and 'output' in data:
+                                    train_texts.append(f"{data['input']}\n{data['output']}")
+                            except json.JSONDecodeError:
+                                continue
         
         if not train_texts:
             # フォールバック: サンプルデータを使用
@@ -3675,7 +3692,8 @@ async def run_continual_learning_background(task_id: str, config: dict, dataset_
                 "gradient_accumulation_steps": config.get("gradient_accumulation_steps", 8),
                 "warmup_steps": config.get("warmup_steps", 20),
                 "max_length": config.get("max_length", 512),
-                "ewc_lambda": config.get("ewc_lambda", 5000)
+                "ewc_lambda": config.get("ewc_lambda", 5000),
+                "use_memory_efficient": config.get("use_memory_efficient", True)  # メモリ効率化を有効化
             }
         )
         

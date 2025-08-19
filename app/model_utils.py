@@ -57,6 +57,31 @@ def get_model_size_category(model_name: str) -> str:
     """
     model_name_lower = model_name.lower()
     
+    # ローカルモデルの場合、config.jsonからサイズを判定
+    if os.path.exists(model_name):
+        config_path = os.path.join(model_name, "config.json")
+        if os.path.exists(config_path):
+            try:
+                import json
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                
+                # hidden_sizeとnum_hidden_layersからサイズを推定
+                hidden_size = config.get("hidden_size", 0)
+                num_layers = config.get("num_hidden_layers", 0)
+                
+                # Qwen2モデルの場合の判定
+                if hidden_size >= 5120 and num_layers >= 64:
+                    return 'xlarge'  # 32B相当
+                elif hidden_size >= 4096 and num_layers >= 40:
+                    return 'large'   # 13B相当
+                elif hidden_size >= 3072 and num_layers >= 32:
+                    return 'medium'  # 7B相当
+                else:
+                    return 'small'   # 3B以下
+            except Exception:
+                pass  # エラーの場合は通常の判定にフォールバック
+    
     # Extra large models (32B+)
     if any(size in model_name_lower for size in ['70b', '32b', '22b']):
         return 'xlarge'
@@ -80,24 +105,30 @@ def get_model_size_category(model_name: str) -> str:
 def create_quantization_config(
     model_name: str,
     training_method: str = "lora",
-    force_4bit: bool = False
+    force_4bit: bool = False,
+    use_memory_efficient: bool = False
 ) -> Optional[BitsAndBytesConfig]:
     """
     モデルとトレーニング方法に基づいて量子化設定を作成
     
     Args:
         model_name: モデル名
-        training_method: トレーニング方法 ('lora', 'qlora', 'full')
+        training_method: トレーニング方法 ('lora', 'qlora', 'full', 'continual')
         force_4bit: 強制的に4bit量子化を使用
+        use_memory_efficient: メモリ効率化を使用するか
         
     Returns:
         量子化設定またはNone（フルファインチューニングの場合）
     """
-    # フルファインチューニングの場合は量子化なし
-    if training_method == "full" and not force_4bit:
+    # フルファインチューニング/継続学習の場合でも、メモリ効率化が有効なら量子化を適用
+    if training_method in ["full", "continual"] and not force_4bit and not use_memory_efficient:
         return None
     
     model_size = get_model_size_category(model_name)
+    
+    # xlarge モデルまたはメモリ効率化が有効な場合は必ず4bit量子化
+    if model_size == 'xlarge' or use_memory_efficient:
+        force_4bit = True
     
     # DeepSeek-R1-Distill-Qwen-32Bの特別処理（強化されたメモリ最適化）
     if "DeepSeek-R1-Distill-Qwen-32B" in model_name:
@@ -123,7 +154,7 @@ def create_quantization_config(
         return None
     
     # 小〜中規模モデルの最適化
-    if model_size in ['small', 'medium'] and not force_4bit:
+    if model_size in ['small', 'medium'] and not force_4bit and not use_memory_efficient:
         gpu_memory = 0
         if torch.cuda.is_available():
             gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3
@@ -170,11 +201,11 @@ def get_device_map(model_name: str, model_size: Optional[str] = None) -> Any:
             # DeepSeek-R1-Distill-Qwen-32Bの特別処理
             if "DeepSeek-R1-Distill-Qwen-32B" in model_name:
                 # メモリ効率を最大化するためのカスタムデバイスマップ
+                # 基本的なレイヤーのみを指定（lm_headは存在しない場合があるため除外）
                 return {
                     "model.embed_tokens": 0,
                     "model.layers": 0,
-                    "model.norm": 0,
-                    "lm_head": "cpu"  # lm_headをCPUにオフロード
+                    "model.norm": 0
                 }
             return "auto"
         return None
@@ -223,7 +254,8 @@ def load_model_and_tokenizer(
     training_method: str = "lora",
     cache_dir: Optional[Path] = None,
     trust_remote_code: bool = True,
-    low_cpu_mem_usage: bool = True
+    low_cpu_mem_usage: bool = True,
+    use_memory_efficient: bool = False
 ) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
     """
     モデルとトークナイザーを統一的に読み込む
@@ -234,6 +266,7 @@ def load_model_and_tokenizer(
         cache_dir: キャッシュディレクトリ
         trust_remote_code: リモートコードを信頼するか
         low_cpu_mem_usage: CPU メモリ使用量を削減するか
+        use_memory_efficient: メモリ効率化を使用するか
         
     Returns:
         (model, tokenizer) のタプル
@@ -246,8 +279,10 @@ def load_model_and_tokenizer(
     # トークナイザーの読み込み
     tokenizer = load_tokenizer(model_name, cache_dir, trust_remote_code)
     
-    # 量子化設定の作成
-    quantization_config = create_quantization_config(model_name, training_method)
+    # 量子化設定の作成（メモリ効率化パラメータを追加）
+    quantization_config = create_quantization_config(
+        model_name, training_method, use_memory_efficient=use_memory_efficient
+    )
     
     # デバイスマップの決定
     device_map = get_device_map(model_name)

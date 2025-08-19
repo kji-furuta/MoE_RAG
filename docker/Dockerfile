@@ -21,7 +21,11 @@ ENV CUDA_DEVICE_ORDER=PCI_BUS_ID
 ENV CUDA_VISIBLE_DEVICES_OCR=""
 
 # システムの依存関係をインストール
-RUN apt-get update && apt-get install -y \
+# apt-getのエラーを回避するためにリトライとクリーンアップを追加
+RUN rm -rf /var/lib/apt/lists/* && \
+    apt-get clean && \
+    apt-get update --fix-missing && \
+    apt-get install -y --no-install-recommends \
     git \
     wget \
     curl \

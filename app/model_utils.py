@@ -120,15 +120,15 @@ def create_quantization_config(
     Returns:
         量子化設定またはNone（フルファインチューニングの場合）
     """
-    # フルファインチューニング/継続学習の場合でも、メモリ効率化が有効なら量子化を適用
-    if training_method in ["full", "continual"] and not force_4bit and not use_memory_efficient:
-        return None
-    
     model_size = get_model_size_category(model_name)
     
-    # xlarge モデルまたはメモリ効率化が有効な場合は必ず4bit量子化
-    if model_size == 'xlarge' or use_memory_efficient:
+    # メモリ効率化が有効な場合は量子化を強制
+    if use_memory_efficient:
         force_4bit = True
+    
+    # フルファインチューニング/継続学習の場合、量子化なし（force_4bitの場合を除く）
+    if training_method in ["full", "continual"] and not force_4bit:
+        return None
     
     # DeepSeek-R1-Distill-Qwen-32Bの特別処理（強化されたメモリ最適化）
     if "DeepSeek-R1-Distill-Qwen-32B" in model_name:
@@ -151,6 +151,7 @@ def create_quantization_config(
                 bnb_4bit_use_double_quant=True,
                 bnb_4bit_quant_type="nf4"
             )
+        # フルファインチューニングの場合は量子化なし（CPUオフロードで対応）
         return None
     
     # 小〜中規模モデルの最適化
@@ -166,7 +167,17 @@ def create_quantization_config(
                 bnb_8bit_compute_dtype=torch.float16,
             )
     
-    # デフォルトまたは大規模モデルは4bit量子化
+    # xlarge モデル（32B以上）の特別処理
+    if model_size == 'xlarge' or force_4bit:
+        return BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+            llm_int8_enable_fp32_cpu_offload=True  # CPUオフロードを有効化
+        )
+    
+    # デフォルトは4bit量子化
     return BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_compute_dtype=torch.float16,
@@ -195,18 +206,26 @@ def get_device_map(model_name: str, model_size: Optional[str] = None) -> Any:
             return {"": 0}
         return None
     
-    # 大規模モデルは自動配置（CPUオフロード有効）
+    # 大規模モデルは自動配置（マルチGPU対応）
     if model_size in ['large', 'xlarge']:
         if torch.cuda.is_available():
+            gpu_count = torch.cuda.device_count()
+            
             # DeepSeek-R1-Distill-Qwen-32Bの特別処理
             if "DeepSeek-R1-Distill-Qwen-32B" in model_name:
-                # メモリ効率を最大化するためのカスタムデバイスマップ
-                # 基本的なレイヤーのみを指定（lm_headは存在しない場合があるため除外）
-                return {
-                    "model.embed_tokens": 0,
-                    "model.layers": 0,
-                    "model.norm": 0
-                }
+                if gpu_count > 1:
+                    # マルチGPUの場合は自動配置
+                    import logging
+                    logging.getLogger(__name__).info(f"Using auto device map for {gpu_count} GPUs")
+                    return "auto"
+                else:
+                    # シングルGPUの場合はCPUオフロード
+                    return {
+                        "model.embed_tokens": 0,
+                        "model.layers": 0,
+                        "model.norm": 0,
+                        "lm_head": "cpu"  # 重要: lm_headをCPUにオフロード
+                    }
             return "auto"
         return None
     
@@ -255,6 +274,7 @@ def load_model_and_tokenizer(
     cache_dir: Optional[Path] = None,
     trust_remote_code: bool = True,
     low_cpu_mem_usage: bool = True,
+    skip_if_rag_active: bool = True,
     use_memory_efficient: bool = False
 ) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
     """
@@ -266,15 +286,31 @@ def load_model_and_tokenizer(
         cache_dir: キャッシュディレクトリ
         trust_remote_code: リモートコードを信頼するか
         low_cpu_mem_usage: CPU メモリ使用量を削減するか
+        skip_if_rag_active: RAGが有効な場合はスキップするか
         use_memory_efficient: メモリ効率化を使用するか
         
     Returns:
         (model, tokenizer) のタプル
     """
+    # RAGが有効な場合はダミーを返す（メモリ節約）
+    if skip_if_rag_active and os.environ.get("RAG_DISABLE_MODEL_LOAD", "false").lower() == "true":
+        logger.info("RAG is active. Returning dummy model to save memory.")
+        return None, load_tokenizer(model_name, cache_dir, trust_remote_code)
     # DeepSeek モデルの環境設定
     if "DeepSeek-R1-Distill-Qwen-32B" in model_name and cache_dir:
         os.environ["HF_HOME"] = str(cache_dir)
         os.environ["HF_HUB_OFFLINE"] = "0"
+    
+    # GPUメモリをクリア（大規模モデルのロード前）
+    model_size = get_model_size_category(model_name)
+    if model_size == 'xlarge' and torch.cuda.is_available():
+        import gc
+        gc.collect()
+        # 全GPUのメモリをクリア
+        for i in range(torch.cuda.device_count()):
+            with torch.cuda.device(i):
+                torch.cuda.empty_cache()
+        logger.info(f"Cleared memory on all {torch.cuda.device_count()} GPUs before loading xlarge model")
     
     # トークナイザーの読み込み
     tokenizer = load_tokenizer(model_name, cache_dir, trust_remote_code)
@@ -309,11 +345,43 @@ def load_model_and_tokenizer(
     # デバイスマップの追加
     if device_map is not None:
         model_kwargs["device_map"] = device_map
+        
+        # 32Bモデルの場合、マルチGPU対応のmax_memory設定
+        if model_size == 'xlarge' and torch.cuda.is_available():
+            gpu_count = torch.cuda.device_count()
+            max_memory = {}
+            
+            # 各GPUのメモリを確認して設定
+            for i in range(gpu_count):
+                gpu_memory = torch.cuda.get_device_properties(i).total_memory / 1024**3
+                # 20GBを固定で割り当て（24GBのGPUに対して）
+                if gpu_memory >= 24:
+                    max_memory[i] = "20GB"
+                    logger.info(f"GPU {i}: Total {gpu_memory:.1f}GB, Allocated 20GB")
+                else:
+                    # それ以外のGPUは80%を使用
+                    max_memory[i] = f"{int(gpu_memory * 0.8)}GB"
+                    logger.info(f"GPU {i}: Total {gpu_memory:.1f}GB, Allocated {int(gpu_memory * 0.8)}GB")
+            
+            # CPUメモリも設定
+            max_memory["cpu"] = "100GB"
+            
+            model_kwargs["max_memory"] = max_memory
+            model_kwargs["offload_folder"] = "offload"
+            model_kwargs["offload_state_dict"] = True
+            logger.info(f"Set max_memory for xlarge model: {max_memory}")
     
     # モデルの読み込み
     try:
         model = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
         logger.info(f"Successfully loaded model: {model_name}")
+        
+        # 量子化モデルの場合、kbitトレーニング用に準備（LoRA/QLoRAのみ）
+        if quantization_config and training_method in ["lora", "qlora"]:
+            from peft import prepare_model_for_kbit_training
+            model = prepare_model_for_kbit_training(model)
+            logger.info("Prepared model for k-bit training")
+            
     except Exception as e:
         logger.error(f"Failed to load model {model_name}: {str(e)}")
         raise

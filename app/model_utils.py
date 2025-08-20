@@ -354,14 +354,16 @@ def load_model_and_tokenizer(
             # 各GPUのメモリを確認して設定
             for i in range(gpu_count):
                 gpu_memory = torch.cuda.get_device_properties(i).total_memory / 1024**3
-                # 20GBを固定で割り当て（24GBのGPUに対して）
-                if gpu_memory >= 24:
-                    max_memory[i] = "20GB"
-                    logger.info(f"GPU {i}: Total {gpu_memory:.1f}GB, Allocated 20GB")
+                # 24GBのGPUには95%（約22.8GB）を割り当て
+                if gpu_memory >= 23.5:  # 24GB GPUの判定（浮動小数点誤差を考慮）
+                    allocated_gb = int(gpu_memory * 0.95)  # 95%使用
+                    max_memory[i] = f"{allocated_gb}GB"
+                    logger.info(f"GPU {i}: Total {gpu_memory:.1f}GB, Allocated {allocated_gb}GB (95%)")
                 else:
-                    # それ以外のGPUは80%を使用
-                    max_memory[i] = f"{int(gpu_memory * 0.8)}GB"
-                    logger.info(f"GPU {i}: Total {gpu_memory:.1f}GB, Allocated {int(gpu_memory * 0.8)}GB")
+                    # それ以外のGPUは90%を使用
+                    allocated_gb = int(gpu_memory * 0.95)
+                    max_memory[i] = f"{allocated_gb}GB"
+                    logger.info(f"GPU {i}: Total {gpu_memory:.1f}GB, Allocated {allocated_gb}GB (90%)")
             
             # CPUメモリも設定
             max_memory["cpu"] = "100GB"

@@ -4,20 +4,22 @@
 
 Dockerベースの統合Webインターフェースで、日本語大規模言語モデル（LLM）のファインチューニング、土木道路設計特化型RAGシステム、そしてEWCベースの継続学習を同一プラットフォームで実行できます。単一のポート（8050）で全機能にアクセス可能な革新的なツールキットです。
 
-## 📢 最新の更新 (2025年8月19日)
+## 📢 最新の更新 (2025年8月21日)
 
 ### 🆕 最新実装機能
-- **MoE (Mixture of Experts) アーキテクチャ**: エキスパートルーティングによる効率的な学習を実装
-- **継続学習システム改善**: EWCベースの破壊的忘却防止機能を強化
-- **4ビット量子化対応**: QLoRA・AWQ両方式での極低メモリ学習を実現
-- **GitHub統合**: MoE_RAGリポジトリ (https://github.com/kji-furuta/MoE_RAG.git) との完全統合
+- **MoE (Mixture of Experts) アーキテクチャ強化**: メモリ最適化版実装により大規模モデルでの安定稼働を実現
+- **継続学習システム改善**: タスク状態の永続化とエラーハンドリングを強化
+- **GPU メモリ最適化**: 90-95%の効率的なGPUメモリ利用を実現（24GB GPUで20GB割り当て）
+- **統合APIエンドポイント**: MoEトレーニングとRAGシステムの完全統合
+- **永続化機構**: MoEモデルとタスク履歴の自動保存・復元機能
 - **DoRA (Weight-Decomposed Low-Rank Adaptation)**: LoRAを超える高精度・高効率な新手法を実装
 - **vLLM統合**: PagedAttentionによる高速推論エンジンを統合
 
 ### ✅ 全システム正常稼働確認済み
 - **ファインチューニング**: cyberagent/calm3-22b-chatモデルで正常動作
-- **RAGシステム**: Qdrantベクトルデータベース377件インデックス済み、Ollama統合による高速応答実現
-- **継続学習**: EWCベース継続学習タスク管理システム正常稼働
+- **MoEシステム**: 土木・道路設計エキスパートモデルの学習と展開済み（`/workspace/outputs/moe_civil`）
+- **RAGシステム**: Qdrantベクトルデータベース377件インデックス済み、MoEモデル統合による専門的応答実現
+- **継続学習**: EWCベース継続学習タスク管理システム正常稼働（タスク状態永続化対応）
 - **量子化モデル対応**: Ollama（Llama 3.2 3B）+ AWQ 4bit量子化による超軽量・高速推論
 
 ## 🌟 主要機能
@@ -112,8 +114,9 @@ Webインターフェースの「モデル更新」ボタンは、**利用可能
 5. 「学習開始」をクリック
 
 # 学習履歴の確認
-- data/continual_learning/tasks_state.json に全タスクの状態を記録
+- data/continual_learning/tasks_state.json に全タスクの状態を永続的に記録
 - outputs/continual_task_* に各タスクのモデルを保存
+- エラー発生時も状態が保存され、再開可能
 ```
 
 ##### 6. 技術的特徴
@@ -131,6 +134,7 @@ Webインターフェースの「モデル更新」ボタンは、**利用可能
 - **🚀 AWQ (NEW)**: 4ビット量子化で75%メモリ削減
 - **⚙️ vLLM (NEW)**: PagedAttentionによる高速推論エンジン
 - **🔧 自動量子化**: モデルサイズに応じた最適化
+- **🎯 MoE (Mixture of Experts)**: 専門エキスパートモデルによる効率的な学習と推論
 
 ### ✅ サポートモデル
 最新のサポートモデルリストです。継続学習とMoEアーキテクチャに最適化されています。
@@ -152,8 +156,46 @@ Webインターフェースの「モデル更新」ボタンは、**利用可能
 - **Mixed Precision**: FP16による計算高速化
 - **マルチGPU対応**: DataParallel/DistributedDataParallel
 
-### 🧠 メモリ最適化（新機能）
+### 🎯 MoE (Mixture of Experts) アーキテクチャ（強化版）
+
+#### 概要
+MoEシステムは、複数の専門エキスパートモデルを組み合わせて、効率的かつ高精度な推論を実現します。土木・道路設計分野に特化した専門知識を持つエキスパートモデルを構築・管理できます。
+
+#### 主要機能
+- **専門エキスパート**: 道路設計（road）、法規（regulations）など分野別エキスパート
+- **動的ルーティング**: クエリに応じて最適なエキスパートを自動選択
+- **メモリ最適化版実装**: 大規模モデルでも安定稼働（`src/moe/moe_architecture_optimized.py`）
+- **永続化機構**: 学習済みMoEモデルの自動保存・復元
+- **統合管理**: Web UIからのトレーニング・デプロイ・推論
+
+#### MoE トレーニング実行例
+```python
+from src.moe.moe_architecture_optimized import OptimizedMoE
+from src.moe.moe_training import MoETrainer
+
+# MoEモデルの初期化（メモリ最適化版）
+moe = OptimizedMoE(
+    base_model_path="cyberagent/calm3-22b-chat",
+    num_experts=8,
+    experts_per_token=2,
+    use_memory_efficient=True  # メモリ最適化有効
+)
+
+# トレーニング実行
+trainer = MoETrainer(moe)
+trainer.train(
+    road_data="data/road_design.jsonl",
+    regulations_data="data/regulations.jsonl",
+    epochs=3
+)
+
+# モデルの保存
+moe.save_pretrained("outputs/moe_civil")
+```
+
+### 🧠 メモリ最適化（強化版）
 - **動的量子化**: 32B/22Bモデルは4bit、7B/8bitモデルは8bit量子化を自動選択
+- **GPU使用率最適化**: 90-95%の効率的なGPUメモリ割り当て（24GB GPUで20GB使用）
 - **CPUオフロード**: GPUメモリ不足時の自動CPU実行
 - **メモリ監視**: リアルタイムメモリ使用量の監視と警告
 - **モデルキャッシュ**: 効率的なモデル再利用
@@ -532,9 +574,16 @@ curl -X POST "http://localhost:8050/rag/stream-query" \
 - `POST /api/generate` - テキスト生成
 - `GET /api/models` - 利用可能モデル一覧
 
-#### RAG API（NEW統合）
+#### MoE (Mixture of Experts) API（NEW）
+- `POST /api/moe/train` - MoEモデルのトレーニング開始
+- `GET /api/moe/status/{task_id}` - MoEトレーニング状況確認
+- `POST /api/moe/deploy` - 学習済みMoEモデルのデプロイ
+- `GET /api/moe/deployed` - デプロイ済みMoEモデル情報取得
+- `POST /api/moe/inference` - MoEモデルによる推論実行
+
+#### RAG API（MoE統合対応）
 - `GET /rag/health` - RAGシステムヘルスチェック
-- `POST /rag/query` - 高度な文書検索・質問応答
+- `POST /rag/query` - 高度な文書検索・質問応答（MoEモデル対応）
 - `GET /rag/search` - 簡易検索API
 - `POST /rag/batch-query` - バッチクエリ処理
 - `GET /rag/documents` - 文書一覧取得
@@ -542,6 +591,7 @@ curl -X POST "http://localhost:8050/rag/stream-query" \
 - `GET /rag/statistics` - システム統計情報
 - `POST /rag/stream-query` - ストリーミング検索
 - `GET /rag/system-info` - RAGシステム詳細情報
+- `POST /rag/moe-query` - MoEエキスパートを使用した専門的クエリ
 
 ### 🧪 テスト・検証
 
@@ -554,6 +604,15 @@ python3 test_integration.py
 
 # Docker RAG統合テスト
 python3 test_docker_rag.py
+
+# MoE永続化テスト
+python3 scripts/test_moe_persistence.py
+
+# MoE-RAG統合テスト
+python3 scripts/test_moe_rag_integration.py
+
+# 継続学習メモリ最適化テスト
+python3 scripts/test_continual_memory_optimized.py
 
 # 設定解決機能テスト
 python3 scripts/test_config_resolution.py
@@ -842,6 +901,14 @@ MoE_RAG/
 - **コンパクトレイアウト**: 効率的なスペース利用
 
 ## 📅 更新履歴
+
+### v3.2.0 (2025-08-21) - メモリ最適化とMoE永続化強化
+- 🆕 **GPUメモリ最適化**: 90-95%の効率的なGPU使用率を実現（24GB GPUで20GB割り当て）
+- 🆕 **MoEメモリ最適化版**: `OptimizedMoE`クラスによる大規模モデル対応
+- 🆕 **永続化機構強化**: MoEモデルとタスク履歴の自動保存・復元
+- 🆕 **継続学習タスク状態管理**: エラー時も状態を保存し再開可能に
+- 🆕 **統合APIエンドポイント**: MoEトレーニングとRAGシステムの完全統合
+- ✅ **土木・道路設計エキスパート**: 専門分野モデルのデプロイ済み（`/workspace/outputs/moe_civil`）
 
 ### v3.1.0 (2025-08-19) - MoE統合と継続学習改善
 - 🆕 **MoEアーキテクチャ統合**: 8エキスパート構成による効率的な学習

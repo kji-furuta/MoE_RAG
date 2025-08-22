@@ -309,7 +309,7 @@
                 <div class="row">
                     <div class="col-md-6">
                         <label class="form-label">トレーニングデータ</label>
-                        <select id="dataset" class="form-select">
+                        <select id="dataset" class="form-select" onchange="handleDatasetChange()">
                             <option value="demo">デモデータセット（100サンプル）</option>
                             <option value="civil_engineering">土木工学データセット</option>
                             <option value="road_design">道路設計データセット</option>
@@ -319,6 +319,56 @@
                     <div class="col-md-6">
                         <label class="form-label">カスタムデータアップロード</label>
                         <input type="file" id="custom-data" class="form-control" accept=".json,.jsonl,.csv">
+                    </div>
+                </div>
+                
+                <!-- データセット更新機能 -->
+                <div class="row mt-3" id="dataset-update-section" style="display: none;">
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> 
+                            既存のデータセットを更新できます。アップロード前に自動的にバックアップが作成されます。
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label">データセット更新ファイル (JSON/JSONL)</label>
+                        <div class="input-group">
+                            <input type="file" id="dataset-update-file" class="form-control" accept=".json,.jsonl">
+                            <button class="btn btn-warning" onclick="updateDataset()" type="button">
+                                <i class="fas fa-upload"></i> データセットを更新
+                            </button>
+                        </div>
+                        <div class="form-text">現在選択中のデータセットを新しいファイルで上書きします</div>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-secondary" onclick="downloadCurrentDataset()" type="button">
+                            <i class="fas fa-download"></i> 現在のデータセットをダウンロード
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- データセット統計情報 -->
+                <div class="row mt-3" id="dataset-stats" style="display: none;">
+                    <div class="col-12">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title">データセット情報</h6>
+                                <div class="row" id="dataset-stats-content">
+                                    <div class="col-md-3">
+                                        <strong>サンプル数:</strong> <span id="stat-samples">-</span>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <strong>エキスパート分布:</strong> <span id="stat-experts">-</span>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <strong>最終更新:</strong> <span id="stat-updated">-</span>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <strong>ファイルサイズ:</strong> <span id="stat-size">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -888,6 +938,136 @@
             } catch (error) {
                 console.error('モデルリストの取得に失敗:', error);
                 alert('モデルリストの取得に失敗しました');
+            }
+        }
+
+        // データセット選択変更時の処理
+        function handleDatasetChange() {
+            const dataset = document.getElementById('dataset').value;
+            const updateSection = document.getElementById('dataset-update-section');
+            const statsSection = document.getElementById('dataset-stats');
+            
+            if (dataset === 'civil_engineering' || dataset === 'road_design') {
+                updateSection.style.display = 'block';
+                statsSection.style.display = 'block';
+                loadDatasetStats(dataset);
+            } else {
+                updateSection.style.display = 'none';
+                statsSection.style.display = 'none';
+            }
+        }
+        
+        // データセット統計情報の読み込み
+        async function loadDatasetStats(datasetName) {
+            try {
+                const response = await fetch(`/api/moe/dataset/stats/${datasetName}`);
+                if (response.ok) {
+                    const stats = await response.json();
+                    document.getElementById('stat-samples').textContent = stats.sample_count || '-';
+                    document.getElementById('stat-experts').textContent = stats.expert_distribution || '-';
+                    document.getElementById('stat-updated').textContent = stats.last_updated || '-';
+                    document.getElementById('stat-size').textContent = formatFileSize(stats.file_size || 0);
+                }
+            } catch (error) {
+                console.error('Failed to load dataset stats:', error);
+            }
+        }
+        
+        // ファイルサイズのフォーマット
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+        
+        // データセット更新処理
+        async function updateDataset() {
+            const dataset = document.getElementById('dataset').value;
+            const fileInput = document.getElementById('dataset-update-file');
+            
+            if (!fileInput.files[0]) {
+                alert('更新するファイルを選択してください');
+                return;
+            }
+            
+            if (!confirm(`${dataset}データセットを更新しますか？
+現在のデータセットは自動的にバックアップされます。`)) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('dataset_name', dataset);
+            
+            // プログレス表示
+            const progressDiv = document.createElement('div');
+            progressDiv.className = 'alert alert-info mt-2';
+            progressDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> データセットを更新中...';
+            fileInput.parentElement.parentElement.appendChild(progressDiv);
+            
+            try {
+                const response = await fetch('/api/moe/dataset/update', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    progressDiv.className = 'alert alert-success mt-2';
+                    progressDiv.innerHTML = `
+                        <i class="fas fa-check-circle"></i> データセットが正常に更新されました！<br>
+                        <small>
+                            バックアップ: ${result.backup_path}<br>
+                            更新されたサンプル数: ${result.sample_count}<br>
+                            検証結果: ${result.validation_result}
+                        </small>
+                    `;
+                    
+                    // 統計情報を再読み込み
+                    loadDatasetStats(dataset);
+                    
+                    // 3秒後にメッセージを削除
+                    setTimeout(() => {
+                        progressDiv.remove();
+                        fileInput.value = '';
+                    }, 5000);
+                } else {
+                    const error = await response.json();
+                    progressDiv.className = 'alert alert-danger mt-2';
+                    progressDiv.innerHTML = `
+                        <i class="fas fa-times-circle"></i> 更新エラー: ${error.detail || error.message}
+                    `;
+                }
+            } catch (error) {
+                progressDiv.className = 'alert alert-danger mt-2';
+                progressDiv.innerHTML = `<i class="fas fa-times-circle"></i> 更新失敗: ${error.message}`;
+            }
+        }
+        
+        // 現在のデータセットをダウンロード
+        async function downloadCurrentDataset() {
+            const dataset = document.getElementById('dataset').value;
+            
+            try {
+                const response = await fetch(`/api/moe/dataset/download/${dataset}`);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${dataset}_dataset_${new Date().toISOString().split('T')[0]}.jsonl`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    alert('データセットのダウンロードに失敗しました');
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('ダウンロードエラー: ' + error.message);
             }
         }
 

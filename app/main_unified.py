@@ -56,6 +56,8 @@ logger = logging.getLogger(__name__)
 
 # RAG system imports
 try:
+    # RAGシステムのモデルロードを無効化（メモリ節約）
+    os.environ["RAG_DISABLE_MODEL_LOAD"] = "true"
     sys.path.insert(0, str(PathlibPath(__file__).parent.parent))
     from loguru import logger as rag_logger
     from src.rag.core.query_engine import RoadDesignQueryEngine, QueryResult
@@ -742,12 +744,29 @@ async def run_training_task(task_id: str, request: TrainingRequest):
                 hasattr(request, 'training_config') and 
                 request.training_config.get('use_memory_efficient', False)
             )
+            
+            # ファインチューニング時はRAG無効化フラグを一時的に解除
+            original_rag_flag = os.environ.get("RAG_DISABLE_MODEL_LOAD", "")
+            os.environ["RAG_DISABLE_MODEL_LOAD"] = "false"
+            
             model, tokenizer = load_model_and_tokenizer(
                 model_name=request.model_name,
                 training_method=request.training_method,
                 cache_dir=cache_dir,
-                use_memory_efficient=use_memory_efficient
+                use_memory_efficient=use_memory_efficient,
+                skip_if_rag_active=False  # ファインチューニング時は必ずロード
             )
+            
+            # 環境変数を復元
+            if original_rag_flag:
+                os.environ["RAG_DISABLE_MODEL_LOAD"] = original_rag_flag
+            else:
+                os.environ.pop("RAG_DISABLE_MODEL_LOAD", None)
+                
+            # モデルがNoneでないことを確認
+            if model is None:
+                raise ValueError("モデルのロードに失敗しました。メモリ不足の可能性があります。")
+                
             logger.info(f"Task {task_id}: モデル読み込み完了 (メモリ効率化: {use_memory_efficient})")
         except Exception as e:
             import traceback
@@ -1042,7 +1061,7 @@ async def run_training_task(task_id: str, request: TrainingRequest):
             model=model,
             args=training_args,
             train_dataset=train_dataset,
-            tokenizer=tokenizer,
+            processing_class=tokenizer,  # tokenizer -> processing_classに変更
             use_ewc=use_ewc,
             ewc_lambda=ewc_lambda,
         )
@@ -3300,38 +3319,241 @@ async def process_uploaded_rag_document(
     file_path: str,
     title: str,
     category: str,
-    document_type: str
+    document_type: str,
+    status_callback: Optional[callable] = None
 ):
     """アップロードされたRAG文書を処理（バックグラウンドタスク）"""
     
+    status_info = {
+        "file_path": file_path,
+        "title": title,
+        "status": "processing",
+        "progress": 0,
+        "message": "処理を開始しています...",
+        "start_time": datetime.now(JST).isoformat()
+    }
+    
+    # ステータス情報を保存
+    status_file = PathlibPath(f"./temp_uploads/status_{PathlibPath(file_path).stem}.json")
+    
+    def update_status(progress: int, message: str, status: str = "processing"):
+        """処理状況を更新"""
+        status_info.update({
+            "progress": progress,
+            "message": message,
+            "status": status,
+            "last_update": datetime.now(JST).isoformat()
+        })
+        
+        # ステータスファイルに保存
+        try:
+            with open(status_file, "w", encoding="utf-8") as f:
+                json.dump(status_info, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.warning(f"Failed to save status: {e}")
+        
+        logger.info(f"[{progress}%] {message}")
+    
     try:
-        logger.info(f"Processing uploaded RAG document: {file_path}")
+        update_status(10, f"ファイルを読み込んでいます: {PathlibPath(file_path).name}")
         
-        # インデックス作成スクリプトを実行
-        import subprocess
+        # ファイルサイズチェック
+        file_size = os.path.getsize(file_path)
+        file_size_mb = file_size / (1024 * 1024)
+        logger.info(f"Processing file: {file_path} (Size: {file_size_mb:.2f} MB)")
         
-        result = subprocess.run([
-            sys.executable,
-            "scripts/rag/index_documents.py",
-            file_path,
-            "--output-dir", "./outputs/rag_index"
-        ], capture_output=True, text=True, cwd="/workspace")
+        if file_size_mb > 100:
+            update_status(15, f"大きなファイル ({file_size_mb:.1f}MB) を処理中... 時間がかかる場合があります")
         
-        if result.returncode == 0:
-            logger.info(f"RAG Document processed successfully: {file_path}")
-        else:
-            logger.error(f"RAG Document processing failed: {result.stderr}")
-            logger.error(f"RAG Document processing stdout: {result.stdout}")
+        # PDFの前処理とページ数取得
+        update_status(20, "PDFの構造を解析中...")
+        
+        # PyMuPDFでページ数を事前確認
+        import fitz
+        with fitz.open(file_path) as pdf_doc:
+            total_pages = len(pdf_doc)
+            logger.info(f"PDF has {total_pages} pages")
             
-        # 一時ファイルを削除（成功時のみ）
-        if result.returncode == 0:
-            logger.info(f"Removing processed file: {file_path}")
-            os.remove(file_path)
-        else:
-            logger.warning(f"Keeping failed file for debugging: {file_path}")
+            # OCRが必要かチェック
+            needs_ocr = False
+            for page_num in range(min(5, total_pages)):  # 最初の5ページをチェック
+                page = pdf_doc[page_num]
+                text = page.get_text()
+                if not text.strip():
+                    needs_ocr = True
+                    break
+            
+            if needs_ocr:
+                update_status(25, f"スキャンされたPDFを検出しました。OCR処理を準備中... (全{total_pages}ページ)")
+            else:
+                update_status(25, f"テキストPDFを処理中... (全{total_pages}ページ)")
         
+        # インデックス作成スクリプトを実行（タイムアウト設定）
+        update_status(30, "文書のインデックス化を開始...")
+        
+        import subprocess
+        import asyncio
+        
+        # タイムアウト時間を動的に設定（ページ数とOCR必要性に基づく）
+        base_timeout = 60  # 基本60秒
+        per_page_timeout = 5 if needs_ocr else 2  # OCR必要なら5秒/ページ、不要なら2秒/ページ
+        timeout_seconds = base_timeout + (total_pages * per_page_timeout)
+        
+        update_status(35, f"インデックス処理中... (最大{timeout_seconds//60}分待機)")
+        
+        # スクリプトの存在確認（デバッグ用に一時的にテストスクリプトを使用）
+        # script_path = "/workspace/scripts/rag/index_documents.py"
+        script_path = "/workspace/scripts/test_simple_index.py"  # テスト用
+        if not os.path.exists(script_path):
+            error_msg = f"インデックススクリプトが見つかりません: {script_path}"
+            logger.error(error_msg)
+            update_status(100, error_msg, status="error")
+            return
+        
+        # 非同期でサブプロセスを実行
+        update_status(40, "インデックススクリプトを起動中...")
+        
+        cmd = [
+            sys.executable,
+            script_path,
+            file_path,
+            "--output-dir", "/workspace/outputs/rag_index"
+        ]
+        
+        logger.info(f"Executing command: {' '.join(cmd)}")
+        
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd="/workspace"
+            )
+            logger.info(f"Process started with PID: {process.pid}")
+        except Exception as e:
+            error_msg = f"プロセス起動エラー: {str(e)}"
+            logger.error(error_msg)
+            update_status(100, error_msg, status="error")
+            return
+        
+        # プログレス監視タスク
+        async def monitor_progress():
+            progress_value = 40
+            check_count = 0
+            max_checks = 120  # 最大10分間（5秒×120回）
+            
+            while process.returncode is None and check_count < max_checks:
+                await asyncio.sleep(5)  # 5秒ごとに更新
+                check_count += 1
+                
+                if progress_value < 90:
+                    progress_value = min(progress_value + 5, 90)
+                    page_estimate = min(int((progress_value - 40) * total_pages / 50), total_pages)
+                    update_status(
+                        progress_value, 
+                        f"処理中... (約{page_estimate}/{total_pages}ページ完了)"
+                    )
+                else:
+                    # 90%に達したら、最終処理中と表示
+                    update_status(90, f"最終処理中... (全{total_pages}ページ処理済み、インデックス作成中)")
+                
+                # プロセスの状態を確認
+                poll_result = process.returncode
+                if poll_result is not None:
+                    logger.info(f"Process completed with code: {poll_result}")
+                    break
+            
+            if check_count >= max_checks:
+                logger.warning("Monitor task reached maximum check count")
+        
+        # タイムアウト付きで実行
+        monitor_task = asyncio.create_task(monitor_progress())
+        
+        try:
+            logger.info(f"Waiting for subprocess to complete (timeout: {timeout_seconds}s)")
+            
+            # プロセスの完了を待つ
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    process.communicate(),
+                    timeout=timeout_seconds
+                )
+            except asyncio.TimeoutError:
+                logger.error("Process communication timed out")
+                raise
+            
+            # モニタータスクをキャンセル
+            monitor_task.cancel()
+            try:
+                await monitor_task
+            except asyncio.CancelledError:
+                pass
+            
+            # デバッグ用にログ出力
+            return_code = process.returncode
+            logger.info(f"Process finished with return code: {return_code}")
+            
+            if stdout:
+                stdout_text = stdout.decode('utf-8', errors='ignore')
+                logger.info(f"Index script stdout: {stdout_text[:1000]}")
+            if stderr:
+                stderr_text = stderr.decode('utf-8', errors='ignore')
+                if stderr_text.strip():
+                    logger.warning(f"Index script stderr: {stderr_text[:1000]}")
+            
+            if return_code == 0:
+                update_status(95, "インデックス化完了、最終処理中...")
+                logger.info(f"RAG Document processed successfully: {file_path}")
+                
+                # 処理成功を明確に記録
+                await asyncio.sleep(2)  # クライアントがステータスを確認する時間を確保
+                update_status(100, "処理が正常に完了しました！", status="completed")
+                
+                # ステータス確認のための待機時間を増やす
+                await asyncio.sleep(5)  # 5秒待機してからファイル削除
+                
+                try:
+                    os.remove(file_path)
+                    logger.info(f"Removed processed file: {file_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to remove file: {e}")
+                    
+            else:
+                error_msg = stderr_text if 'stderr_text' in locals() and stderr_text else "Unknown error"
+                logger.error(f"RAG Document processing failed: {error_msg}")
+                update_status(100, f"処理エラー: {error_msg[:200]}", status="error")
+                
+        except asyncio.TimeoutError:
+            monitor_task.cancel()
+            process.terminate()
+            await process.wait()
+            
+            error_msg = f"処理がタイムアウトしました ({timeout_seconds}秒)。ファイルが大きすぎるか、複雑すぎる可能性があります。"
+            logger.error(f"RAG Document processing timeout: {file_path}")
+            update_status(100, error_msg, status="timeout")
+            
     except Exception as e:
-        logger.error(f"Background RAG document processing failed: {e}")
+        error_msg = f"処理中にエラーが発生: {str(e)}"
+        logger.error(f"Background RAG document processing failed: {e}", exc_info=True)
+        update_status(100, error_msg, status="error")
+    
+    finally:
+        # ステータスファイルの削除は遅延させる
+        if status_info.get("status") == "completed":
+            # 成功時は5分後に削除（クライアントが結果を確認する時間を確保）
+            await asyncio.sleep(300)  # 5分後に削除
+            try:
+                os.remove(status_file)
+                logger.info(f"Removed status file: {status_file}")
+            except Exception as e:
+                logger.warning(f"Failed to remove status file: {e}")
+        elif status_info.get("status") in ["error", "timeout"]:
+            # エラー時は10分後に削除（デバッグ用に長めに保持）
+            await asyncio.sleep(600)  # 10分後に削除
+            try:
+                os.remove(status_file)
+            except:
+                pass
 
 @app.post("/rag/save-search")
 async def save_search_result(request: SaveSearchRequest):
@@ -3512,6 +3734,35 @@ async def rag_upload_document(
     except Exception as e:
         logger.error(f"RAG Document upload failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/rag/upload-status/{document_id}")
+async def get_upload_status(document_id: str):
+    """PDFアップロードの処理状況を取得"""
+    try:
+        # ステータスファイルを確認
+        status_file = PathlibPath(f"./temp_uploads/status_{document_id.replace('.pdf', '')}.json")
+        
+        if not status_file.exists():
+            # ステータスファイルがない場合は、処理完了か未開始
+            return {
+                "status": "unknown",
+                "message": "処理状況が見つかりません",
+                "progress": 0
+            }
+        
+        # ステータス情報を読み込み
+        with open(status_file, "r", encoding="utf-8") as f:
+            status_info = json.load(f)
+        
+        return status_info
+        
+    except Exception as e:
+        logger.error(f"Failed to get upload status: {e}")
+        return {
+            "status": "error",
+            "message": f"状況取得エラー: {str(e)}",
+            "progress": 0
+        }
 
 @app.post("/rag/stream-query")
 async def rag_stream_query(request: QueryRequest):
@@ -3940,6 +4191,374 @@ async def get_continual_history():
     except Exception as e:
         logger.error(f"履歴取得エラー: {str(e)}")
         return []
+
+# ============================================
+# MoE Dataset Management API Endpoints
+# ============================================
+
+@app.get("/api/moe/dataset/stats/{dataset_name}")
+async def get_dataset_stats(dataset_name: str):
+    """データセットの統計情報を取得"""
+    try:
+        dataset_paths = {
+            "civil_engineering": "data/moe_training_corpus.jsonl",
+            "road_design": "data/moe_training_sample.jsonl"
+        }
+        
+        if dataset_name not in dataset_paths:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        
+        file_path = Path(dataset_paths[dataset_name])
+        
+        if not file_path.exists():
+            return {
+                "sample_count": 0,
+                "expert_distribution": "データなし",
+                "last_updated": "未作成",
+                "file_size": 0
+            }
+        
+        # ファイル統計
+        file_stat = file_path.stat()
+        file_size = file_stat.st_size
+        last_modified = datetime.fromtimestamp(file_stat.st_mtime).strftime("%Y/%m/%d %H:%M")
+        
+        # サンプル数とエキスパート分布を計算
+        sample_count = 0
+        expert_counts = {}
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    sample_count += 1
+                    try:
+                        data = json.loads(line)
+                        expert = data.get('expert_domain', '不明')
+                        expert_counts[expert] = expert_counts.get(expert, 0) + 1
+                    except:
+                        pass
+        
+        # エキスパート分布の文字列化
+        expert_distribution = ", ".join([f"{k}: {v}" for k, v in expert_counts.items()])
+        
+        return {
+            "sample_count": sample_count,
+            "expert_distribution": expert_distribution or "不明",
+            "last_updated": last_modified,
+            "file_size": file_size
+        }
+        
+    except Exception as e:
+        logger.error(f"Dataset stats error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/moe/dataset/update")
+async def update_dataset(
+    file: UploadFile = File(...),
+    dataset_name: str = Form(...)
+):
+    """データセットを更新（既存データセットのバックアップ付き）"""
+    try:
+        dataset_paths = {
+            "civil_engineering": "data/moe_training_corpus.jsonl",
+            "road_design": "data/moe_training_sample.jsonl"
+        }
+        
+        if dataset_name not in dataset_paths:
+            raise HTTPException(status_code=400, detail="Invalid dataset name")
+        
+        file_path = Path(dataset_paths[dataset_name])
+        
+        # バックアップの作成
+        backup_path = None
+        if file_path.exists():
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_dir = Path("data/backups")
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            backup_path = backup_dir / f"{dataset_name}_{timestamp}.jsonl"
+            
+            import shutil
+            shutil.copy2(file_path, backup_path)
+            logger.info(f"Backup created: {backup_path}")
+        
+        # ファイル内容の読み取りと検証
+        content = await file.read()
+        
+        # JSONLファイルの検証
+        lines = content.decode('utf-8').strip().split('\n')
+        valid_samples = []
+        invalid_lines = []
+        
+        for i, line in enumerate(lines, 1):
+            if not line.strip():
+                continue
+            try:
+                data = json.loads(line)
+                # 必須フィールドの確認
+                required_fields = ['question', 'answer']
+                if all(field in data for field in required_fields):
+                    valid_samples.append(line)
+                else:
+                    invalid_lines.append(f"Line {i}: Missing required fields")
+            except json.JSONDecodeError as e:
+                invalid_lines.append(f"Line {i}: {str(e)}")
+        
+        if not valid_samples:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No valid samples found. Errors: {'; '.join(invalid_lines[:5])}"
+            )
+        
+        # 新しいデータセットを保存
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            for sample in valid_samples:
+                f.write(sample + '\n')
+        
+        validation_result = "成功" if not invalid_lines else f"警告: {len(invalid_lines)}行スキップ"
+        
+        return {
+            "status": "success",
+            "backup_path": str(backup_path) if backup_path else None,
+            "sample_count": len(valid_samples),
+            "validation_result": validation_result,
+            "invalid_lines": len(invalid_lines),
+            "message": f"Dataset {dataset_name} updated successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Dataset update error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/moe/dataset/download/{dataset_name}")
+async def download_dataset(dataset_name: str):
+    """データセットをダウンロード"""
+    try:
+        dataset_paths = {
+            "civil_engineering": "data/moe_training_corpus.jsonl",
+            "road_design": "data/moe_training_sample.jsonl"
+        }
+        
+        if dataset_name not in dataset_paths:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        
+        file_path = Path(dataset_paths[dataset_name])
+        
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="Dataset file not found")
+        
+        def iterfile():
+            with open(file_path, 'rb') as f:
+                yield from f
+        
+        filename = f"{dataset_name}_dataset_{datetime.now().strftime('%Y%m%d')}.jsonl"
+        
+        return StreamingResponse(
+            iterfile(),
+            media_type='application/x-jsonlines',
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Dataset download error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# MoE Training API Endpoints
+@app.post("/api/moe/training/start")
+async def start_moe_training(request: Dict[str, Any], background_tasks: BackgroundTasks):
+    """MoEトレーニングを開始"""
+    try:
+        task_id = str(uuid.uuid4())
+        
+        # タスク情報を保存
+        task_info = {
+            "task_id": task_id,
+            "status": "pending",
+            "config": request,
+            "start_time": datetime.now(JST).isoformat(),
+            "logs": []
+        }
+        
+        # タスクを非同期で実行
+        background_tasks.add_task(run_moe_training_task, task_id, request)
+        
+        # タスク情報をメモリに保存（実際の実装ではDBを使用）
+        if not hasattr(app.state, 'moe_tasks'):
+            app.state.moe_tasks = {}
+        app.state.moe_tasks[task_id] = task_info
+        
+        return {"task_id": task_id, "status": "started"}
+        
+    except Exception as e:
+        logger.error(f"MoE training start error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def run_moe_training_task(task_id: str, config: Dict[str, Any]):
+    """MoEトレーニングタスクを実行（バックグラウンド）"""
+    try:
+        task_info = app.state.moe_tasks[task_id]
+        task_info["status"] = "running"
+        task_info["logs"].append(f"[{datetime.now(JST).strftime('%H:%M:%S')}] Training started")
+        
+        # ここで実際のトレーニングロジックを実装
+        # デモ用のダミー処理
+        await asyncio.sleep(5)
+        task_info["logs"].append(f"[{datetime.now(JST).strftime('%H:%M:%S')}] Loading model...")
+        await asyncio.sleep(3)
+        task_info["logs"].append(f"[{datetime.now(JST).strftime('%H:%M:%S')}] Training epoch 1/3...")
+        task_info["current_epoch"] = 1
+        task_info["current_loss"] = 0.5
+        await asyncio.sleep(3)
+        task_info["logs"].append(f"[{datetime.now(JST).strftime('%H:%M:%S')}] Training completed")
+        
+        task_info["status"] = "completed"
+        task_info["end_time"] = datetime.now(JST).isoformat()
+        task_info["progress"] = 100
+        
+    except Exception as e:
+        task_info["status"] = "failed"
+        task_info["error"] = str(e)
+        task_info["logs"].append(f"[{datetime.now(JST).strftime('%H:%M:%S')}] Error: {str(e)}")
+
+@app.get("/api/moe/training/status/{task_id}")
+async def get_moe_training_status(task_id: str):
+    """MoEトレーニングのステータスを取得"""
+    if not hasattr(app.state, 'moe_tasks') or task_id not in app.state.moe_tasks:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task_info = app.state.moe_tasks[task_id]
+    
+    # 進捗計算
+    if task_info["status"] == "completed":
+        progress = 100
+    elif task_info["status"] == "running":
+        current_epoch = task_info.get("current_epoch", 0)
+        total_epochs = task_info["config"].get("epochs", 3)
+        progress = (current_epoch / total_epochs) * 100
+    else:
+        progress = 0
+    
+    return {
+        **task_info,
+        "progress": progress
+    }
+
+@app.post("/api/moe/training/stop/{task_id}")
+async def stop_moe_training(task_id: str):
+    """MoEトレーニングを停止"""
+    if not hasattr(app.state, 'moe_tasks') or task_id not in app.state.moe_tasks:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task_info = app.state.moe_tasks[task_id]
+    task_info["status"] = "stopped"
+    task_info["logs"].append(f"[{datetime.now(JST).strftime('%H:%M:%S')}] Training stopped by user")
+    
+    return {"status": "stopped", "task_id": task_id}
+
+@app.get("/api/moe/training/logs/{task_id}")
+async def get_moe_training_logs(task_id: str, tail: int = Query(50)):
+    """MoEトレーニングのログを取得"""
+    if not hasattr(app.state, 'moe_tasks') or task_id not in app.state.moe_tasks:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task_info = app.state.moe_tasks[task_id]
+    logs = task_info.get("logs", [])
+    
+    if tail > 0:
+        logs = logs[-tail:]
+    
+    return {"task_id": task_id, "logs": logs}
+
+@app.get("/api/moe/training/gpu-status")
+async def get_gpu_status():
+    """GPU状態を取得"""
+    try:
+        gpu_info = {
+            "gpus": [],
+            "cpu": None,
+            "memory": None
+        }
+        
+        # GPU情報
+        if torch.cuda.is_available():
+            for i in range(torch.cuda.device_count()):
+                gpu = {
+                    "id": i,
+                    "name": torch.cuda.get_device_name(i),
+                    "memory_used": torch.cuda.memory_allocated(i) // (1024**2),  # MB
+                    "memory_total": torch.cuda.get_device_properties(i).total_memory // (1024**2),  # MB
+                    "memory_percent": (torch.cuda.memory_allocated(i) / torch.cuda.get_device_properties(i).total_memory) * 100,
+                    "temperature": 0,  # nvidia-smiから取得する必要がある
+                    "gpu_load": 0  # nvidia-smiから取得する必要がある
+                }
+                gpu_info["gpus"].append(gpu)
+        
+        # CPU情報
+        gpu_info["cpu"] = {
+            "percent": psutil.cpu_percent(interval=1),
+            "cores": psutil.cpu_count()
+        }
+        
+        # メモリ情報
+        mem = psutil.virtual_memory()
+        gpu_info["memory"] = {
+            "total": mem.total,
+            "used": mem.used,
+            "percent": mem.percent
+        }
+        
+        return gpu_info
+        
+    except Exception as e:
+        logger.error(f"GPU status error: {str(e)}")
+        return {"error": str(e)}
+
+@app.get("/api/moe/training/history")
+async def get_moe_training_history(limit: int = Query(20)):
+    """MoEトレーニング履歴を取得"""
+    try:
+        if not hasattr(app.state, 'moe_tasks'):
+            return {"history": []}
+        
+        # タスクをリストに変換してソート
+        tasks = list(app.state.moe_tasks.values())
+        tasks.sort(key=lambda x: x.get("start_time", ""), reverse=True)
+        
+        # 制限を適用
+        if limit > 0:
+            tasks = tasks[:limit]
+        
+        return {"history": tasks}
+        
+    except Exception as e:
+        logger.error(f"History error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/moe/training/deploy/{task_id}")
+async def deploy_moe_model(task_id: str):
+    """MoEモデルをデプロイ"""
+    if not hasattr(app.state, 'moe_tasks') or task_id not in app.state.moe_tasks:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task_info = app.state.moe_tasks[task_id]
+    
+    if task_info["status"] != "completed":
+        raise HTTPException(status_code=400, detail="Training not completed")
+    
+    # デプロイロジック（実際の実装が必要）
+    model_path = f"outputs/moe_model_{task_id}"
+    
+    return {
+        "status": "deployed",
+        "model_path": model_path,
+        "task_id": task_id
+    }
 
 # WebSocketエンドポイント
 @app.websocket("/ws/continual-learning")

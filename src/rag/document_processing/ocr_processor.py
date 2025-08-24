@@ -3,7 +3,8 @@ OCR処理モジュール
 道路設計文書の図表・画像からテキストを抽出
 """
 
-import easyocr
+# EasyOCRの遅延インポート（大容量ファイル対応）
+# import easyocr  # 遅延インポートに変更
 import pytesseract
 from PIL import Image, ImageEnhance, ImageFilter
 import numpy as np
@@ -59,18 +60,10 @@ class OCRProcessor:
         self.confidence_threshold = confidence_threshold
         self.gpu = gpu
         
-        # EasyOCRの初期化
+        # EasyOCRの遅延初期化
+        self.easyocr_reader = None
         if self.use_easyocr:
-            try:
-                # Force CPU usage to avoid CUDA/NCCL errors
-                self.easyocr_reader = easyocr.Reader(
-                    languages, 
-                    gpu=False
-                )
-                logger.info(f"EasyOCR initialized with languages: {languages} (CPU mode)")
-            except Exception as e:
-                logger.warning(f"EasyOCR initialization failed: {e}")
-                self.use_easyocr = False
+            logger.info(f"EasyOCR will be initialized on first use with languages: {languages}")
                 
         # Tesseractの設定
         if self.use_tesseract:
@@ -187,9 +180,33 @@ class OCRProcessor:
             noise_reduction_applied=noise_reduced
         )
         
+    def _initialize_easyocr_if_needed(self):
+        """EasyOCRを必要に応じて初期化（遅延ロード）"""
+        if self.easyocr_reader is None and self.use_easyocr:
+            logger.info(f"Initializing EasyOCR with languages: {self.languages}")
+            try:
+                import easyocr
+                self.easyocr_reader = easyocr.Reader(
+                    self.languages,
+                    gpu=self.gpu,
+                    verbose=False
+                )
+                logger.info("EasyOCR initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize EasyOCR: {e}")
+                self.use_easyocr = False
+                raise
+    
     def _extract_with_easyocr(self, image: Image.Image) -> List[OCRResult]:
         """EasyOCRでテキスト抽出"""
         results = []
+        
+        # EasyOCRを遅延初期化
+        self._initialize_easyocr_if_needed()
+        
+        if not self.easyocr_reader:
+            logger.warning("EasyOCR reader not available, skipping EasyOCR extraction")
+            return results
         
         try:
             # PIL ImageをNumPy配列に変換

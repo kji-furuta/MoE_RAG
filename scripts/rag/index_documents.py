@@ -10,6 +10,7 @@ import argparse
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import json
+from datetime import datetime
 from loguru import logger
 import uuid
 
@@ -45,6 +46,25 @@ def setup_logging(log_level: str = "INFO"):
         retention="1 week",
         format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}"
     )
+
+
+def update_status(status_file: Optional[str], progress: int, message: str, status: str = "processing"):
+    """進捗ステータスをファイルに書き込む"""
+    if not status_file:
+        return
+    
+    try:
+        status_data = {
+            "progress": progress,
+            "message": message,
+            "status": status,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        with open(status_file, 'w') as f:
+            json.dump(status_data, f, ensure_ascii=False)
+    except Exception as e:
+        logger.debug(f"Could not update status file: {e}")
 
 
 def load_document_config(config_file: Optional[str] = None) -> Dict[str, Any]:
@@ -126,7 +146,8 @@ def index_single_document(pdf_path: Path,
                          vector_store: QdrantVectorStore,
                          embedding_model,
                          metadata_manager: MetadataManager,
-                         config: Dict[str, Any]) -> bool:
+                         config: Dict[str, Any],
+                         doc_id: Optional[str] = None) -> bool:
     """単一文書をインデックス化"""
     
     try:
@@ -135,10 +156,17 @@ def index_single_document(pdf_path: Path,
         # 1. 文書メタデータを作成
         doc_metadata = extract_document_metadata(pdf_path, config)
         
-        # 2. 文書を処理
+        # doc_idが指定されていれば使用
+        if doc_id:
+            doc_metadata.doc_id = doc_id
+        
+        # 2. 文書を処理（doc_idを含むメタデータを渡す）
+        document_metadata_dict = doc_metadata.to_dict()
+        document_metadata_dict['doc_id'] = doc_metadata.id  # 重要: MetadataManagerのIDを追加
+        
         processed_doc = processor.process_document(
             str(pdf_path), 
-            document_metadata=doc_metadata.to_dict()
+            document_metadata=document_metadata_dict
         )
         
         # 処理結果の確認
@@ -189,6 +217,7 @@ def index_single_document(pdf_path: Path,
                     ids=chunk_ids
                 )
                 logger.info(f"Successfully added {len(texts)} vectors to store")
+                print(f"Successfully added {len(texts)} chunks to vector store")  # stdout出力
                 
                 # 追加後にベクトル数を確認
                 try:
@@ -256,7 +285,10 @@ def index_documents(input_paths: List[str],
                    vector_store_path: str = "./qdrant_data",
                    metadata_db_path: str = "./metadata/metadata.db",
                    batch_size: int = 10,
-                   force_reindex: bool = False) -> Dict[str, Any]:
+                   force_reindex: bool = False,
+                   status_file: Optional[str] = None,
+                   doc_id: Optional[str] = None,
+                   no_ocr: bool = False) -> Dict[str, Any]:
     """複数文書をインデックス化"""
     
     # 出力ディレクトリの作成
@@ -270,8 +302,12 @@ def index_documents(input_paths: List[str],
     logger.info("Initializing components...")
     
     processor = RoadDesignDocumentProcessor(
-        output_dir=str(output_dir / "processed_documents")
+        output_dir=str(output_dir / "processed_documents"),
+        perform_ocr=not no_ocr  # no_ocrフラグの逆を渡す
     )
+    
+    if no_ocr:
+        logger.info("OCR processing is disabled")
     
     embedding_model = EmbeddingModelFactory.create(embedding_model_type)
     embedding_dim = EmbeddingModelFactory.get_embedding_dim(embedding_model_type)
@@ -323,6 +359,10 @@ def index_documents(input_paths: List[str],
     for i, pdf_file in enumerate(pdf_files):
         logger.info(f"Processing {i+1}/{len(pdf_files)}: {pdf_file}")
         
+        # 進捗を更新
+        progress = 60 + int(30 * i / len(pdf_files))  # 60%から90%まで
+        update_status(status_file, progress, f"文書処理中 ({i+1}/{len(pdf_files)})")
+        
         # 既存チェック（force_reindexがFalseの場合）
         if not force_reindex:
             # ファイルハッシュで既存文書をチェック
@@ -343,7 +383,7 @@ def index_documents(input_paths: List[str],
         # インデックス化実行
         success = index_single_document(
             pdf_file, processor, vector_store, embedding_model,
-            metadata_manager, config
+            metadata_manager, config, doc_id
         )
         
         if success:
@@ -362,6 +402,9 @@ def index_documents(input_paths: List[str],
     logger.info(f"Processed: {results['processed_files']}")
     logger.info(f"Failed: {results['failed_files']}")
     logger.info(f"Skipped: {results['skipped_files']}")
+    
+    # 処理完了を通知
+    update_status(status_file, 95, "インデックス化完了", status="completed")
     
     if results['processing_errors']:
         logger.warning(f"Failed files: {results['processing_errors']}")
@@ -515,11 +558,29 @@ def main():
     )
     
     parser.add_argument(
+        '--no-ocr',
+        action='store_true',
+        help='OCR処理を無効化（大容量ファイル用）'
+    )
+    
+    parser.add_argument(
         '--log-level',
         type=str,
         default='INFO',
         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
         help='ログレベル（デフォルト: INFO）'
+    )
+    
+    parser.add_argument(
+        '--doc-id',
+        type=str,
+        help='文書IDの指定'
+    )
+    
+    parser.add_argument(
+        '--status-file',
+        type=str,
+        help='進捗ステータスファイルのパス'
     )
     
     args = parser.parse_args()
@@ -541,18 +602,23 @@ def main():
             vector_store_path=args.vector_store_path,
             metadata_db_path=args.metadata_db_path,
             batch_size=args.batch_size,
-            force_reindex=args.force_reindex
+            force_reindex=args.force_reindex,
+            status_file=args.status_file,
+            doc_id=args.doc_id,
+            no_ocr=args.no_ocr
         )
         
         # 終了コードの決定
         if results['failed_files'] > 0:
             logger.warning("Some files failed to process")
+            print("Document processed successfully with warnings")  # stdout出力で完了を通知
             sys.exit(1)
         elif results['processed_files'] == 0:
             logger.warning("No files were processed")
             sys.exit(1)
         else:
             logger.info("All files processed successfully")
+            print("Document processed successfully")  # stdout出力で完了を通知
             sys.exit(0)
             
     except KeyboardInterrupt:

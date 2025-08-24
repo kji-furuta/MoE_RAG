@@ -150,9 +150,14 @@ class PDFProcessor:
                 if not page_text.strip():
                     logger.warning(f"Page {page_num + 1} has no text, may need OCR")
                     # 代替抽出方法を試行
-                    page_text = page.get_text("blocks")
-                    if page_text:
-                        page_text = '\n'.join([block[4] for block in page_text if block[6] == 0])
+                    blocks = page.get_text("blocks")
+                    if blocks:
+                        # blocksがリストの場合、テキスト部分を抽出
+                        text_parts = []
+                        for block in blocks:
+                            if len(block) > 6 and block[6] == 0:  # type 0 = text
+                                text_parts.append(block[4])
+                        page_text = '\n'.join(text_parts) if text_parts else ""
                 
                 page_texts.append(page_text)
                 

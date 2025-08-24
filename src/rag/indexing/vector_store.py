@@ -222,16 +222,41 @@ class QdrantVectorStore(VectorStore):
         # フィルタの構築
         qdrant_filter = None
         if filters:
-            conditions = []
+            must_conditions = []
+            should_conditions = []
+            
             for key, value in filters.items():
-                condition = FieldCondition(
-                    key=key,
-                    match=MatchValue(value=value)
-                )
-                conditions.append(condition)
-                
-            if conditions:
-                qdrant_filter = Filter(must=conditions)
+                if key == "document_ids" and isinstance(value, list) and len(value) > 0:
+                    # document_idsは文書のIDリストを示す（MetadataManagerのUUID）
+                    for doc_id in value:
+                        # doc_idでマッチング（MetadataManagerのID）
+                        doc_id_condition = FieldCondition(
+                            key="doc_id",
+                            match=MatchValue(value=doc_id)
+                        )
+                        should_conditions.append(doc_id_condition)
+                        
+                        # 後方互換性のためoriginal_idでもマッチング
+                        original_id_condition = FieldCondition(
+                            key="original_id", 
+                            match=MatchValue(value=doc_id)
+                        )
+                        should_conditions.append(original_id_condition)
+                else:
+                    # その他のフィルタは通常通り処理
+                    condition = FieldCondition(
+                        key=key,
+                        match=MatchValue(value=value)
+                    )
+                    must_conditions.append(condition)
+            
+            # フィルタを構築
+            if should_conditions and must_conditions:
+                qdrant_filter = Filter(must=must_conditions, should=should_conditions)
+            elif should_conditions:
+                qdrant_filter = Filter(should=should_conditions)
+            elif must_conditions:
+                qdrant_filter = Filter(must=must_conditions)
                 
         # 検索実行
         search_result = self.client.search(

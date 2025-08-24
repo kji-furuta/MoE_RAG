@@ -256,6 +256,22 @@
             <div class="card">
                 <div class="card-body">
                     <h3>🔍 ハイブリッド検索・質問応答</h3>
+                    
+                    <!-- 文書選択セクション -->
+                    <div class="card mb-3 bg-light">
+                        <div class="card-body">
+                            <h5>📄 検索対象文書の選択</h5>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="selectAllDocuments" checked>
+                                <label class="form-check-label" for="selectAllDocuments">
+                                    <strong>すべての文書を選択</strong>
+                                </label>
+                            </div>
+                            <div id="documentCheckboxList" class="row"></div>
+                            <small class="text-muted">※選択された文書のみから検索されます</small>
+                        </div>
+                    </div>
+                    
                     <form id="searchForm">
                         <div class="mb-3">
                             <label for="query" class="form-label">検索クエリ・質問</label>
@@ -360,13 +376,90 @@ document.getElementById('uploadForm')?.addEventListener('submit', async (e) => {
         const data = await response.json();
         
         if (response.ok) {
+            // アップロードは成功、処理状況を監視
+            const documentId = data.document_id;
+            
+            // プログレスバー表示
             resultDiv.innerHTML = `
-                <div class="alert alert-success">
-                    <h4>アップロード成功</h4>
-                    <p>文書ID: ${data.document_id}</p>
-                    <p>処理されたページ数: ${data.metadata.page_count}</p>
+                <div class="alert alert-info">
+                    <h4>アップロード完了 - 処理中...</h4>
+                    <p>文書ID: ${documentId}</p>
+                    <div class="progress">
+                        <div id="uploadProgress" class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%">0%</div>
+                    </div>
+                    <p id="statusMessage" class="mt-2">初期化中...</p>
                 </div>
             `;
+            
+            // ステータスチェック関数
+            async function checkStatus() {
+                try {
+                    const statusResponse = await fetch(`/rag/upload-status/${documentId}`);
+                    const statusData = await statusResponse.json();
+                    
+                    const progressBar = document.getElementById('uploadProgress');
+                    const statusMsg = document.getElementById('statusMessage');
+                    
+                    if (progressBar && statusMsg) {
+                        progressBar.style.width = `${statusData.progress}%`;
+                        progressBar.textContent = `${statusData.progress}%`;
+                        statusMsg.textContent = statusData.message || '処理中...';
+                        
+                        // ステータスに応じて処理
+                        if (statusData.status === 'completed') {
+                            resultDiv.innerHTML = `
+                                <div class="alert alert-success">
+                                    <h4>✅ 処理完了</h4>
+                                    <p>文書ID: ${documentId}</p>
+                                    <p>${statusData.message}</p>
+                                </div>
+                            `;
+                            // 文書リストを更新
+                            await loadDocumentCheckboxList();
+                            if (typeof loadDocuments === 'function') {
+                                await loadDocuments();
+                            }
+                            // フォームをリセット
+                            e.target.reset();
+                            return true; // 完了
+                        } else if (statusData.status === 'error' || statusData.status === 'timeout') {
+                            resultDiv.innerHTML = `
+                                <div class="alert alert-danger">
+                                    <h4>❌ 処理エラー</h4>
+                                    <p>文書ID: ${documentId}</p>
+                                    <p>${statusData.message}</p>
+                                </div>
+                            `;
+                            return true; // エラーで終了
+                        }
+                    }
+                    return false; // 継続
+                } catch (error) {
+                    console.error('Status check error:', error);
+                    return false; // エラーでも継続
+                }
+            }
+            
+            // 定期的にステータスをチェック
+            const intervalId = setInterval(async () => {
+                const isComplete = await checkStatus();
+                if (isComplete) {
+                    clearInterval(intervalId);
+                }
+            }, 2000); // 2秒ごとにチェック
+            
+            // 最大20分でタイムアウト
+            setTimeout(() => {
+                clearInterval(intervalId);
+                resultDiv.innerHTML = `
+                    <div class="alert alert-warning">
+                        <h4>⚠️ タイムアウト</h4>
+                        <p>処理の確認がタイムアウトしました。バックグラウンドで処理が継続している可能性があります。</p>
+                    </div>
+                `;
+            }, 1200000); // 20分
+            
         } else {
             throw new Error(data.detail || 'アップロードエラー');
         }
@@ -387,19 +480,55 @@ document.getElementById('searchForm')?.addEventListener('submit', async (e) => {
     const topK = document.getElementById('topK').value;
     const resultDiv = document.getElementById('searchResult');
     
+    // 選択された文書IDを取得
+    const selectedDocuments = [];
+    const selectAllCheckbox = document.getElementById('selectAllDocuments');
+    
+    // 「すべての文書を選択」がチェックされている場合は、document_idsを送信しない（全文書が対象）
+    if (!selectAllCheckbox || !selectAllCheckbox.checked) {
+        // 個別選択されている文書のみを取得
+        const checkboxes = document.querySelectorAll('.document-checkbox:checked');
+        checkboxes.forEach(checkbox => {
+            selectedDocuments.push(checkbox.value);
+        });
+        
+        // 何も選択されていない場合は警告
+        if (selectedDocuments.length === 0) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-warning">
+                    <strong>⚠️ 文書が選択されていません</strong><br>
+                    検索対象の文書を選択してください。
+                </div>
+            `;
+            return;
+        }
+    }
+    
     resultDiv.innerHTML = '<div class="alert alert-info">検索中...</div>';
     
     try {
+        const requestBody = {
+            query: query,
+            search_type: searchType,
+            top_k: parseInt(topK),
+            include_sources: true
+        };
+        
+        // 特定の文書が選択されている場合のみdocument_idsを追加
+        // 「すべての文書を選択」の場合はdocument_idsを送信しない
+        if (selectedDocuments.length > 0) {
+            requestBody.document_ids = selectedDocuments;
+            console.log('Filtering by documents:', selectedDocuments);
+        } else {
+            console.log('Searching all documents');
+        }
+        
         const response = await fetch('/rag/query', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                query: query,
-                search_type: searchType,
-                top_k: parseInt(topK)
-            })
+            body: JSON.stringify(requestBody)
         });
         
         const data = await response.json();
@@ -433,11 +562,42 @@ async function loadDocuments() {
             html += '<tbody>';
             
             data.documents.forEach(doc => {
+                // 日時の取得（created_at または processing_timestamp を使用）
+                let uploadDate = '-';
+                if (doc.created_at) {
+                    // ISOフォーマットまたは通常の日時形式をパース
+                    const date = new Date(doc.created_at);
+                    if (!isNaN(date)) {
+                        uploadDate = date.toLocaleString('ja-JP', { 
+                            timeZone: 'Asia/Tokyo',
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                        });
+                    }
+                } else if (doc.processing_timestamp) {
+                    const date = new Date(doc.processing_timestamp);
+                    if (!isNaN(date)) {
+                        uploadDate = date.toLocaleString('ja-JP', { 
+                            timeZone: 'Asia/Tokyo',
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                        });
+                    }
+                }
+                
                 html += `<tr id="doc-row-${doc.id}">
                     <td>${doc.title}</td>
                     <td>${doc.category}</td>
                     <td>${doc.page_count || '-'}</td>
-                    <td>${new Date(doc.created_at).toLocaleString('ja-JP')}</td>
+                    <td>${uploadDate}</td>
                     <td>
                         <button class="btn btn-sm btn-danger" onclick="deleteDocument('${doc.id}', '${doc.title}')">
                             削除
@@ -825,7 +985,15 @@ async function showSearchHistory() {
             html += `<td>${result.metadata?.name || '-'}</td>`;
             html += `<td>${result.query.substring(0, 50)}...</td>`;
             html += `<td>${(result.confidence_score * 100).toFixed(1)}%</td>`;
-            html += `<td>${new Date(result.saved_at).toLocaleString('ja-JP')}</td>`;
+            html += `<td>${new Date(result.saved_at).toLocaleString('ja-JP', { 
+                timeZone: 'Asia/Tokyo',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            })}</td>`;
             html += `<td><button class="btn btn-sm btn-info" onclick="viewSavedResult('${result.id}')">詳細</button></td>`;
             html += '</tr>';
         });
@@ -1053,7 +1221,14 @@ function displayHistoryList(data) {
         html += `<td>${result.metadata?.name || '-'}</td>`;
         html += `<td title="${result.query}">${result.query.substring(0, 50)}${result.query.length > 50 ? '...' : ''}</td>`;
         html += `<td><span class="badge bg-info">${(result.confidence_score * 100).toFixed(1)}%</span></td>`;
-        html += `<td><small>${new Date(result.saved_at).toLocaleString('ja-JP')}</small></td>`;
+        html += `<td><small>${new Date(result.saved_at).toLocaleString('ja-JP', { 
+            timeZone: 'Asia/Tokyo',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        })}</small></td>`;
         html += `<td>`;
         html += `<button class="btn btn-sm btn-info me-1" onclick="viewSavedResultInTab('${result.id}')">表示</button>`;
         html += `<button class="btn btn-sm btn-danger" onclick="deleteSearchResult('${result.id}')" title="削除">`;
@@ -1213,11 +1388,82 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
+// 文書チェックボックスリストを読み込む関数
+async function loadDocumentCheckboxList() {
+    const listDiv = document.getElementById('documentCheckboxList');
+    if (!listDiv) return;
+    
+    try {
+        const response = await fetch('/rag/documents');
+        const data = await response.json();
+        
+        if (response.ok && data.documents) {
+            if (data.documents.length === 0) {
+                listDiv.innerHTML = '<div class="col-12"><div class="alert alert-warning">アップロードされた文書がありません。</div></div>';
+                return;
+            }
+            
+            let html = '';
+            data.documents.forEach((doc, index) => {
+                const docId = doc.id || doc.filename?.replace('.pdf', '');
+                const title = doc.title || doc.filename || 'Untitled';
+                const truncatedTitle = title.length > 30 ? title.substring(0, 30) + '...' : title;
+                
+                html += `
+                    <div class="col-md-6 col-lg-4 mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input document-checkbox" 
+                                   type="checkbox" 
+                                   value="${docId}" 
+                                   id="doc_${index}"
+                                   checked>
+                            <label class="form-check-label" for="doc_${index}" title="${title}">
+                                ${truncatedTitle}
+                            </label>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            listDiv.innerHTML = html;
+            
+            // 全選択チェックボックスのイベントリスナー
+            const selectAllCheckbox = document.getElementById('selectAllDocuments');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.addEventListener('change', (e) => {
+                    const checkboxes = document.querySelectorAll('.document-checkbox');
+                    checkboxes.forEach(checkbox => {
+                        checkbox.checked = e.target.checked;
+                    });
+                });
+            }
+            
+            // 個別チェックボックスの変更時に全選択チェックボックスを更新
+            document.querySelectorAll('.document-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    const allCheckboxes = document.querySelectorAll('.document-checkbox');
+                    const checkedCheckboxes = document.querySelectorAll('.document-checkbox:checked');
+                    const selectAllCheckbox = document.getElementById('selectAllDocuments');
+                    
+                    if (selectAllCheckbox) {
+                        selectAllCheckbox.checked = allCheckboxes.length === checkedCheckboxes.length;
+                        selectAllCheckbox.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
+                    }
+                });
+            });
+        }
+    } catch (error) {
+        console.error('文書リスト取得エラー:', error);
+        listDiv.innerHTML = '<div class="col-12"><div class="alert alert-danger">文書リストの取得に失敗しました。</div></div>';
+    }
+}
+
 // ページ読み込み時に実行
 document.addEventListener('DOMContentLoaded', () => {
     // RAGが利用可能な場合のみ実行
     loadFinetunedModels();
     loadCurrentSettings();
+    loadDocumentCheckboxList();  // 文書チェックボックスリストを読み込む
 });
 </script>
 {% endblock %}

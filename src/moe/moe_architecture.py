@@ -391,7 +391,7 @@ def create_civil_engineering_moe(
     use_quantization: bool = False,
     use_lora: bool = False,
     model: Optional[nn.Module] = None
-) -> nn.Module:
+) -> CivilEngineeringMoEModel:
     """
     土木・建設分野MoEモデルの作成
     
@@ -442,7 +442,6 @@ def create_civil_engineering_moe(
         
         model = model.to(device)
         logger.info(f"Model moved to {device}")
-    
     logger.info(f"Created Civil Engineering MoE model with {num_experts} experts")
     
     return model

@@ -71,6 +71,10 @@ class MultilingualE5EmbeddingModel(EmbeddingModel):
         self.model.to(self.device)
         self.model.eval()
         
+        # embedding_dimを設定（モデルのhidden_sizeから取得）
+        self.embedding_dim = self.model.config.hidden_size
+        logger.info(f"Model embedding dimension: {self.embedding_dim}")
+        
         # E5モデルは特別なプレフィックスが必要
         self.query_prefix = "query: "
         self.passage_prefix = "passage: "
@@ -172,6 +176,10 @@ class SentenceTransformerEmbeddingModel(EmbeddingModel):
         
         logger.info(f"Loading SentenceTransformer model: {model_name}")
         self.model = SentenceTransformer(model_name, device=self.device)
+        
+        # embedding_dimを設定
+        self.embedding_dim = self.model.get_sentence_embedding_dimension()
+        logger.info(f"Model embedding dimension: {self.embedding_dim}")
         
     def encode(self,
               texts: Union[str, List[str]],

@@ -9,10 +9,13 @@ import uuid
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union, Tuple
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import hashlib
 from loguru import logger
 from enum import Enum
+
+# Japan Standard Time (JST) タイムゾーン
+JST = timezone(timedelta(hours=9))
 
 
 class DocumentType(Enum):
@@ -78,6 +81,10 @@ class DocumentMetadata:
     
     # カスタムメタデータ
     custom_fields: Dict[str, Any] = None
+    
+    # タイムスタンプ
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
     
     def __post_init__(self):
         if self.applicable_standards is None:
@@ -218,6 +225,9 @@ class MetadataManager:
                     'custom_fields': metadata.custom_fields
                 }, ensure_ascii=False)
                 
+                # 新規文書の場合はcreated_atも設定
+                now_jst = datetime.now(JST).isoformat()
+                
                 cursor.execute('''
                     INSERT OR REPLACE INTO document_metadata (
                         id, title, filename, file_path, file_hash,
@@ -226,8 +236,8 @@ class MetadataManager:
                         publisher, issued_by, approval_authority,
                         processing_timestamp, processing_version,
                         page_count, section_count, table_count, figure_count,
-                        metadata_json, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        metadata_json, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     metadata.id, metadata.title, metadata.filename, metadata.file_path,
                     metadata.file_hash, metadata.document_type.value, metadata.category,
@@ -236,7 +246,7 @@ class MetadataManager:
                     metadata.publisher, metadata.issued_by, metadata.approval_authority,
                     metadata.processing_timestamp, metadata.processing_version,
                     metadata.page_count, metadata.section_count, metadata.table_count,
-                    metadata.figure_count, metadata_json, datetime.now().isoformat()
+                    metadata.figure_count, metadata_json, now_jst, now_jst
                 ))
                 
                 # 関連文書を追加
@@ -329,7 +339,9 @@ class MetadataManager:
                     applicable_standards=metadata_json.get('applicable_standards', []),
                     related_documents=related_docs,
                     keywords=keywords,
-                    custom_fields=metadata_json.get('custom_fields', {})
+                    custom_fields=metadata_json.get('custom_fields', {}),
+                    created_at=row['created_at'],
+                    updated_at=row['updated_at']
                 )
                 
                 return metadata
@@ -446,7 +458,7 @@ class MetadataManager:
                     UPDATE document_metadata 
                     SET status = ?, updated_at = ?
                     WHERE id = ?
-                ''', (status.value, datetime.now().isoformat(), doc_id))
+                ''', (status.value, datetime.now(JST).isoformat(), doc_id))
                 
                 # バージョン履歴を記録
                 cursor.execute('''
@@ -533,7 +545,7 @@ class MetadataManager:
             documents = self.search_documents()
             
             export_data = {
-                'export_timestamp': datetime.now().isoformat(),
+                'export_timestamp': datetime.now(JST).isoformat(),
                 'total_documents': len(documents),
                 'documents': [doc.to_dict() for doc in documents]
             }
@@ -589,6 +601,8 @@ def create_road_design_metadata(filename: str,
         file_hash=kwargs.get('file_hash', ''),
         document_type=DocumentType.ROAD_STANDARD,
         category=category,
-        processing_timestamp=datetime.now().isoformat(),
+        processing_timestamp=datetime.now(JST).isoformat(),
+        created_at=datetime.now(JST).isoformat(),
+        updated_at=datetime.now(JST).isoformat(),
         **kwargs
     )

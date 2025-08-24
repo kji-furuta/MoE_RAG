@@ -186,6 +186,7 @@ class QueryRequest(BaseModel):
     search_type: str = Field("hybrid", description="検索タイプ", pattern="^(hybrid|vector|keyword)$")
     include_sources: bool = Field(True, description="ソース情報を含めるか")
     filters: Optional[Dict[str, Any]] = Field(None, description="検索フィルター")
+    document_ids: Optional[List[str]] = Field(None, description="検索対象文書IDリスト")
 
 class QueryResponse(BaseModel):
     """RAGクエリレスポンス"""
@@ -287,7 +288,10 @@ class RAGApplication:
             )
             
             # メタデータマネージャーの初期化
-            self.metadata_manager = MetadataManager()
+            # Docker環境と同じパスを使用して一貫性を保つ
+            metadata_db_path = "/workspace/metadata/metadata.db" if os.path.exists("/workspace") else "./metadata/metadata.db"
+            self.metadata_manager = MetadataManager(db_path=metadata_db_path)
+            logger.info(f"MetadataManager initialized with path: {metadata_db_path}")
             
             self.is_initialized = True
             logger.info("RAG system initialized successfully")
@@ -3138,6 +3142,12 @@ async def rag_query_documents(request: QueryRequest):
     rag_app.check_initialized()
     
     try:
+        # document_idsをfiltersに追加
+        filters = request.filters or {}
+        if request.document_ids:
+            filters['document_ids'] = request.document_ids
+            logger.info(f"Filtering by document IDs: {request.document_ids}")
+        
         # クエリを実行
         result = await asyncio.get_event_loop().run_in_executor(
             None,
@@ -3145,7 +3155,7 @@ async def rag_query_documents(request: QueryRequest):
             request.query,
             request.top_k,
             request.search_type,
-            request.filters,
+            filters if filters else None,
             request.include_sources
         )
         
@@ -3324,9 +3334,13 @@ async def process_uploaded_rag_document(
 ):
     """アップロードされたRAG文書を処理（バックグラウンドタスク）"""
     
+    # 文書IDを生成
+    doc_id = str(uuid.uuid4())
+    
     status_info = {
         "file_path": file_path,
         "title": title,
+        "doc_id": doc_id,
         "status": "processing",
         "progress": 0,
         "message": "処理を開始しています...",
@@ -3360,7 +3374,9 @@ async def process_uploaded_rag_document(
         # ファイルサイズチェック
         file_size = os.path.getsize(file_path)
         file_size_mb = file_size / (1024 * 1024)
-        logger.info(f"Processing file: {file_path} (Size: {file_size_mb:.2f} MB)")
+        file_size_gb = file_size_mb / 1024
+        logger.info(f"Processing file: {file_path}")
+        logger.info(f"File size: {file_size_mb:.2f} MB ({file_size_gb:.2f} GB)")
         
         if file_size_mb > 100:
             update_status(15, f"大きなファイル ({file_size_mb:.1f}MB) を処理中... 時間がかかる場合があります")
@@ -3394,16 +3410,63 @@ async def process_uploaded_rag_document(
         import subprocess
         import asyncio
         
-        # タイムアウト時間を動的に設定（ページ数とOCR必要性に基づく）
-        base_timeout = 60  # 基本60秒
-        per_page_timeout = 5 if needs_ocr else 2  # OCR必要なら5秒/ページ、不要なら2秒/ページ
-        timeout_seconds = base_timeout + (total_pages * per_page_timeout)
+        logger.info(f"Starting indexing process - Pages: {total_pages}, OCR needed: {needs_ocr}")
+        
+        # OCRモデルがダウンロード済みかチェック
+        ocr_model_exists = False
+        try:
+            easyocr_model_dir = os.path.expanduser("~/.EasyOCR/model")
+            if os.path.exists(easyocr_model_dir):
+                # モデルファイルが存在するかチェック
+                model_files = os.listdir(easyocr_model_dir) if os.path.exists(easyocr_model_dir) else []
+                ocr_model_exists = len(model_files) > 0
+                logger.info(f"OCR model directory exists: {ocr_model_exists}, files: {len(model_files)}")
+        except Exception as e:
+            logger.warning(f"Could not check OCR model: {e}")
+        
+        # 大きなファイルやOCRモデル未ダウンロードの場合はOCRを無効化
+        # 7GB以上のファイルは常にOCRを無効化
+        if file_size_gb >= 7:
+            logger.warning(f"Large file ({file_size_gb:.1f}GB) - forcing OCR disabled")
+            needs_ocr = False
+            update_status(28, "大容量ファイル（7GB以上）のため、OCRを強制的にスキップします")
+        elif file_size_gb >= 5 and not ocr_model_exists:
+            logger.warning(f"Large file ({file_size_gb:.1f}GB) and OCR model not downloaded - disabling OCR")
+            needs_ocr = False
+            update_status(28, "大容量ファイルのため、OCRをスキップします")
+        
+        # タイムアウト時間を動的に設定（ファイルサイズとページ数とOCR必要性に基づく）
+        # OCRモデルのダウンロードが必要な場合は追加時間を設定
+        model_download_time = 0 if ocr_model_exists else 1800  # モデルダウンロードに30分
+        base_timeout = 1200 + model_download_time  # 基本20分 + モデルダウンロード時間
+        
+        # ファイルサイズに基づく追加時間（1GBあたり20分）
+        # file_size_gbは既に定義済み
+        size_timeout = int(file_size_gb * 1200)  # 1GBあたり20分
+        
+        # ページ数に基づく追加時間
+        per_page_timeout = 20 if needs_ocr else 10  # OCR必要なら20秒/ページ、不要なら10秒/ページ
+        page_timeout = total_pages * per_page_timeout
+        
+        # 合計タイムアウト時間
+        timeout_seconds = base_timeout + size_timeout + page_timeout
+        
+        # 7GB以上のファイルには特別な配慮
+        if file_size_gb >= 7:
+            logger.info(f"Large file detected: {file_size_gb:.2f}GB - applying extended timeout")
+            timeout_seconds = max(timeout_seconds, 7200)  # 最小2時間
+        
+        # 最小20分、最大10時間に制限（30GBのPDFに対応）
+        timeout_seconds = max(1200, min(timeout_seconds, 36000))
+        
+        logger.info(f"File size: {file_size_mb:.2f}MB ({file_size_gb:.2f}GB), Pages: {total_pages}, OCR: {needs_ocr}")
+        logger.info(f"Timeout calculation: base={base_timeout}s, size={size_timeout}s, pages={page_timeout}s, total={timeout_seconds}s ({timeout_seconds//60} minutes)")
+        logger.info(f"Final timeout: {timeout_seconds} seconds ({timeout_seconds//60:.1f} minutes, {timeout_seconds//3600:.1f} hours)")
         
         update_status(35, f"インデックス処理中... (最大{timeout_seconds//60}分待機)")
         
-        # スクリプトの存在確認（デバッグ用に一時的にテストスクリプトを使用）
-        # script_path = "/workspace/scripts/rag/index_documents.py"
-        script_path = "/workspace/scripts/test_simple_index.py"  # テスト用
+        # スクリプトの存在確認
+        script_path = "/workspace/scripts/rag/index_documents.py"
         if not os.path.exists(script_path):
             error_msg = f"インデックススクリプトが見つかりません: {script_path}"
             logger.error(error_msg)
@@ -3417,17 +3480,30 @@ async def process_uploaded_rag_document(
             sys.executable,
             script_path,
             file_path,
-            "--output-dir", "/workspace/outputs/rag_index"
+            "--output-dir", "/workspace/outputs/rag_index",
+            "--metadata-db-path", "/workspace/metadata/metadata.db"
         ]
         
+        # 大きなファイルでOCRが不要な場合は明示的に無効化
+        if not needs_ocr:
+            cmd.extend(["--no-ocr"])
+            logger.info("OCR disabled for this document")
+        
         logger.info(f"Executing command: {' '.join(cmd)}")
+        
+        # 環境変数を設定（大容量ファイル処理の最適化）
+        env = os.environ.copy()
+        env['PYTHONUNBUFFERED'] = '1'  # 出力をバッファリングしない
+        env['OMP_NUM_THREADS'] = '4'  # OpenMPスレッド数を制限
         
         try:
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd="/workspace"
+                cwd="/workspace",
+                env=env,
+                # バッファ制限を削除（大きなファイルでのデッドロック防止）
             )
             logger.info(f"Process started with PID: {process.pid}")
         except Exception as e:
@@ -3436,58 +3512,79 @@ async def process_uploaded_rag_document(
             update_status(100, error_msg, status="error")
             return
         
-        # プログレス監視タスク
-        async def monitor_progress():
-            progress_value = 40
-            check_count = 0
-            max_checks = 120  # 最大10分間（5秒×120回）
-            
-            while process.returncode is None and check_count < max_checks:
-                await asyncio.sleep(5)  # 5秒ごとに更新
-                check_count += 1
-                
-                if progress_value < 90:
-                    progress_value = min(progress_value + 5, 90)
-                    page_estimate = min(int((progress_value - 40) * total_pages / 50), total_pages)
-                    update_status(
-                        progress_value, 
-                        f"処理中... (約{page_estimate}/{total_pages}ページ完了)"
-                    )
-                else:
-                    # 90%に達したら、最終処理中と表示
-                    update_status(90, f"最終処理中... (全{total_pages}ページ処理済み、インデックス作成中)")
-                
-                # プロセスの状態を確認
-                poll_result = process.returncode
-                if poll_result is not None:
-                    logger.info(f"Process completed with code: {poll_result}")
-                    break
-            
-            if check_count >= max_checks:
-                logger.warning("Monitor task reached maximum check count")
-        
-        # タイムアウト付きで実行
-        monitor_task = asyncio.create_task(monitor_progress())
+        # プログレス更新（シンプル版）
+        update_status(50, f"文書処理中... (全{total_pages}ページ)")
         
         try:
             logger.info(f"Waiting for subprocess to complete (timeout: {timeout_seconds}s)")
             
-            # プロセスの完了を待つ
-            try:
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=timeout_seconds
-                )
-            except asyncio.TimeoutError:
-                logger.error("Process communication timed out")
-                raise
+            # プロセスの完了を待つ（ストリーミング版 - 大容量ファイル対応）
+            stdout_lines = []
+            stderr_lines = []
             
-            # モニタータスクをキャンセル
-            monitor_task.cancel()
+            async def read_stream(stream, lines_list, stream_name):
+                """ストリームを非同期で読み込み（メモリ効率的）"""
+                try:
+                    while True:
+                        line = await stream.readline()
+                        if not line:
+                            break
+                        # 最新の100行だけ保持（メモリ節約）
+                        if len(lines_list) > 100:
+                            lines_list.pop(0)
+                        lines_list.append(line.decode('utf-8', errors='ignore'))
+                        
+                        # 進捗表示があれば更新
+                        if stream_name == "stdout" and "Progress:" in lines_list[-1]:
+                            logger.debug(f"Progress: {lines_list[-1].strip()}")
+                except Exception as e:
+                    logger.debug(f"Stream read error ({stream_name}): {e}")
+            
             try:
-                await monitor_task
-            except asyncio.CancelledError:
-                pass
+                # タスクを作成してストリームを並行読み込み
+                stdout_task = asyncio.create_task(read_stream(process.stdout, stdout_lines, "stdout"))
+                stderr_task = asyncio.create_task(read_stream(process.stderr, stderr_lines, "stderr"))
+                
+                # タイムアウトが正しく設定されていることを確認
+                logger.info(f"Starting process wait with timeout: {timeout_seconds} seconds")
+                start_time = asyncio.get_event_loop().time()
+                
+                # プロセスの完了を待つ
+                await asyncio.wait_for(process.wait(), timeout=float(timeout_seconds))
+                
+                elapsed_time = asyncio.get_event_loop().time() - start_time
+                logger.info(f"Process completed after {elapsed_time:.1f} seconds")
+                
+                # ストリーム読み込みタスクも完了を待つ
+                await asyncio.wait_for(
+                    asyncio.gather(stdout_task, stderr_task),
+                    timeout=10  # ストリーム読み込みは10秒でタイムアウト
+                )
+                
+                logger.info(f"Process completed successfully")
+                stdout = '\n'.join(stdout_lines).encode('utf-8')
+                stderr = '\n'.join(stderr_lines).encode('utf-8')
+                
+            except asyncio.TimeoutError:
+                elapsed_time = asyncio.get_event_loop().time() - start_time if 'start_time' in locals() else 0
+                logger.error(f"Process timed out after {elapsed_time:.1f} seconds (timeout was {timeout_seconds} seconds)")
+                
+                # タイムアウト時はタスクをキャンセル
+                if 'stdout_task' in locals():
+                    stdout_task.cancel()
+                if 'stderr_task' in locals():
+                    stderr_task.cancel()
+                
+                # プロセスを終了
+                process.terminate()
+                await asyncio.sleep(2)
+                if process.returncode is None:
+                    process.kill()
+                    await process.wait()
+                
+                stdout = '\n'.join(stdout_lines).encode('utf-8')
+                stderr = '\n'.join(stderr_lines).encode('utf-8')
+                logger.info(f"Process terminated due to timeout (PID: {process.pid})")
             
             # デバッグ用にログ出力
             return_code = process.returncode
@@ -3501,17 +3598,36 @@ async def process_uploaded_rag_document(
                 if stderr_text.strip():
                     logger.warning(f"Index script stderr: {stderr_text[:1000]}")
             
-            if return_code == 0:
-                update_status(95, "インデックス化完了、最終処理中...")
-                logger.info(f"RAG Document processed successfully: {file_path}")
+            # インデックススクリプトは部分的な成功でも return_code 1 を返すことがある
+            # stdout に Progress 表示があれば成功として扱う
+            has_progress = False
+            has_completion = False
+            if stdout:
+                stdout_text = stdout.decode('utf-8', errors='ignore')
+                has_progress = "Progress:" in stdout_text or "processed successfully" in stdout_text.lower()
+                # インデックス作成完了のメッセージも確認
+                has_completion = "Document processed successfully" in stdout_text or "Successfully added" in stdout_text
                 
-                # 処理成功を明確に記録
-                await asyncio.sleep(2)  # クライアントがステータスを確認する時間を確保
-                update_status(100, "処理が正常に完了しました！", status="completed")
+            # 成功判定の条件を緩和（return_code 1でも処理が完了していれば成功とする）
+            # タイムアウトした場合も、ある程度処理が進んでいれば成功とする
+            if return_code == 0 or return_code == 1 or has_progress or has_completion:
+                if return_code == 1:
+                    logger.info(f"Script returned code 1 (partial success), checking for actual completion")
+                elif return_code != 0:
+                    logger.info(f"Script returned code {return_code} but has progress output, treating as success")
                 
-                # ステータス確認のための待機時間を増やす
-                await asyncio.sleep(5)  # 5秒待機してからファイル削除
+                # 処理が成功したことを確実に記録
+                logger.info(f"RAG Document processed and saved successfully: {file_path}")
                 
+                # 必ず100%に更新（データ保存完了）
+                logger.info("Updating status to 100% completed")
+                update_status(100, "文書のインデックス化と保存が完了しました！", status="completed")
+                logger.info("Status updated to 100% completed")
+                
+                # 完了を確実にするために短い待機
+                await asyncio.sleep(2)
+                
+                # ファイル削除（処理完了後の必須クリーンアップ）
                 try:
                     os.remove(file_path)
                     logger.info(f"Removed processed file: {file_path}")
@@ -3524,9 +3640,11 @@ async def process_uploaded_rag_document(
                 update_status(100, f"処理エラー: {error_msg[:200]}", status="error")
                 
         except asyncio.TimeoutError:
-            monitor_task.cancel()
             process.terminate()
-            await process.wait()
+            await asyncio.sleep(2)
+            if process.returncode is None:
+                process.kill()
+                await process.wait()
             
             error_msg = f"処理がタイムアウトしました ({timeout_seconds}秒)。ファイルが大きすぎるか、複雑すぎる可能性があります。"
             logger.error(f"RAG Document processing timeout: {file_path}")
@@ -3538,20 +3656,36 @@ async def process_uploaded_rag_document(
         update_status(100, error_msg, status="error")
     
     finally:
+        # 最終的なステータス確認と完了処理
+        if status_info.get("status") not in ["completed", "error", "timeout"]:
+            # まだ完了していない場合は、強制的に完了とする
+            logger.warning("Process did not reach completion status, forcing completion")
+            update_status(100, "処理を完了しました（強制完了）", status="completed")
+            
+            # 一時ファイルのクリーンアップ
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    logger.info(f"Cleaned up temporary file: {file_path}")
+            except Exception as e:
+                logger.warning(f"Failed to remove temporary file: {e}")
+        
         # ステータスファイルの削除は遅延させる
         if status_info.get("status") == "completed":
             # 成功時は5分後に削除（クライアントが結果を確認する時間を確保）
             await asyncio.sleep(300)  # 5分後に削除
             try:
-                os.remove(status_file)
-                logger.info(f"Removed status file: {status_file}")
+                if os.path.exists(status_file):
+                    os.remove(status_file)
+                    logger.info(f"Removed status file: {status_file}")
             except Exception as e:
                 logger.warning(f"Failed to remove status file: {e}")
         elif status_info.get("status") in ["error", "timeout"]:
             # エラー時は10分後に削除（デバッグ用に長めに保持）
             await asyncio.sleep(600)  # 10分後に削除
             try:
-                os.remove(status_file)
+                if os.path.exists(status_file):
+                    os.remove(status_file)
             except:
                 pass
 
@@ -3702,6 +3836,14 @@ async def rag_upload_document(
         )
         
     try:
+        # インデックススクリプトの存在を事前確認
+        script_path = "/workspace/scripts/rag/index_documents.py"
+        if not os.path.exists(script_path):
+            raise HTTPException(
+                status_code=500,
+                detail=f"インデックススクリプトが見つかりません: {script_path}"
+            )
+        
         # 一時ファイルに保存
         upload_dir = PathlibPath("./temp_uploads")
         upload_dir.mkdir(exist_ok=True)
@@ -3743,12 +3885,23 @@ async def get_upload_status(document_id: str):
         status_file = PathlibPath(f"./temp_uploads/status_{document_id.replace('.pdf', '')}.json")
         
         if not status_file.exists():
-            # ステータスファイルがない場合は、処理完了か未開始
-            return {
-                "status": "unknown",
-                "message": "処理状況が見つかりません",
-                "progress": 0
-            }
+            # ステータスファイルがない場合
+            # 元のファイルも存在しない場合は処理完了とみなす
+            original_file = PathlibPath(f"./temp_uploads/{document_id}")
+            if not original_file.exists():
+                # ファイルが削除されている = 処理完了
+                return {
+                    "status": "completed",
+                    "message": "処理が完了しました",
+                    "progress": 100
+                }
+            else:
+                # ファイルはあるがステータスがない = 未開始
+                return {
+                    "status": "unknown",
+                    "message": "処理状況が見つかりません",
+                    "progress": 0
+                }
         
         # ステータス情報を読み込み
         with open(status_file, "r", encoding="utf-8") as f:

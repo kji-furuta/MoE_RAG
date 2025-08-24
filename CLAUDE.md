@@ -5,16 +5,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 AI Fine-tuning Toolkit (AI_FT_7) is a comprehensive Japanese LLM fine-tuning platform with integrated RAG (Retrieval-Augmented Generation) system specialized for civil engineering and road design. The project provides a unified web interface for both fine-tuning and RAG functionality through a single port (8050).
-<<<<<<< Updated upstream
-
 ## GitHub Repository
 
 **Main Repository**: https://github.com/kji-furuta/MoE_RAG.git
 - Remote name: `moe_rag`
 - Push command: `git push moe_rag main`
 - This is the primary repository for all development and production deployments
-=======
->>>>>>> Stashed changes
 
 ## Key Architecture Components
 
@@ -231,8 +227,8 @@ ollama list
 5. **Check GPU memory** before training large models: `nvidia-smi`
 6. **Backup trained models** from the `outputs/` directory regularly
 7. **Review task history** in `data/continual_learning/tasks_state.json` for continual learning
-<<<<<<< Updated upstream
 8. **Keep Ollama running** in a separate terminal for Ollama model integration
+
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.
@@ -241,6 +237,3 @@ NEVER proactively create documentation files (*.md) or README files. Only create
 
       
       IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.
-=======
-8. **Keep Ollama running** in a separate terminal for Ollama model integration
->>>>>>> Stashed changes

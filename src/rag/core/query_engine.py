@@ -11,7 +11,8 @@ from dataclasses import dataclass
 import yaml
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from loguru import logger
+import logging
+logger = logging.getLogger(__name__)
 
 # RAGコンポーネントのインポート
 from ..indexing.vector_store import QdrantVectorStore
@@ -21,6 +22,17 @@ from ..retrieval.hybrid_search import HybridSearchEngine, SearchQuery
 from ..retrieval.reranker import HybridReranker
 from ..core.citation_engine import CitationQueryEngine, GeneratedResponse
 from ..config.rag_config import RAGConfig, load_config
+from ..utils.exceptions import (
+    RAGException,
+    SearchError,
+    GenerationError,
+    VectorStoreError,
+    ModelLoadError,
+    ValidationError,
+    QueryTimeoutError,
+    LLMMemoryError,
+    VectorStoreConnectionError
+)
 
 
 @dataclass
@@ -977,8 +989,11 @@ class RoadDesignQueryEngine:
             logger.info(f"Query completed in {processing_time:.2f}s, confidence: {response.confidence_score:.3f}")
             return result
             
+        except (SearchError, GenerationError, VectorStoreError) as e:
+            logger.error(f"Query failed with known error: {e}")
+            raise
         except Exception as e:
-            logger.error(f"Query failed: {e}")
+            logger.error(f"Query failed with unexpected error: {e}")
             
             # エラー時はOllamaフォールバックを試行
             processing_time = time.time() - start_time

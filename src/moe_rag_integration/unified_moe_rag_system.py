@@ -17,15 +17,18 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 # RAGシステムのインポート
 try:
-    from src.rag.core.query_engine import QueryEngine
-    from src.rag.retrieval.hybrid_search import HybridSearcher
-    from src.rag.indexing.vector_store import VectorStore
+    # 正しいインポートパスを使用
+    from src.rag.core.query_engine import RoadDesignQueryEngine as QueryEngine
+    from src.rag.retrieval.hybrid_search import HybridSearchEngine as HybridSearcher
+    from src.rag.indexing.vector_store import QdrantVectorStore as VectorStore
     RAG_AVAILABLE = True
-except ImportError:
+    logger.info("RAG modules imported successfully")
+except ImportError as e:
     RAG_AVAILABLE = False
     QueryEngine = None
     HybridSearcher = None
     VectorStore = None
+    logger.warning(f"Failed to import RAG modules: {e}")
 
 # MoEシステムのインポート
 from src.moe.moe_architecture import MoEConfig, MoELayer
@@ -90,9 +93,25 @@ class UnifiedMoERAGSystem:
         
         # RAGシステムの初期化
         if RAG_AVAILABLE:
-            self.query_engine = QueryEngine(config_path=rag_config_path)
-            self.vector_store = VectorStore()
-            self.hybrid_searcher = HybridSearcher(self.vector_store)
+            try:
+                # QueryEngineの初期化
+                self.query_engine = QueryEngine(config_path=rag_config_path)
+                self.query_engine.initialize()
+                
+                # vector_storeとhybrid_searcherは query_engine から取得
+                if hasattr(self.query_engine, 'vector_store'):
+                    self.vector_store = self.query_engine.vector_store
+                else:
+                    from qdrant_client import QdrantClient
+                    client = QdrantClient(host='qdrant', port=6333)
+                    self.vector_store = VectorStore(client=client)
+                
+                if hasattr(self.query_engine, 'hybrid_search'):
+                    self.hybrid_searcher = self.query_engine.hybrid_search
+                else:
+                    from src.rag.indexing.embedding_model import MultilingualE5EmbeddingModel
+                    embedding_model = MultilingualE5EmbeddingModel()
+                    self.hybrid_searcher = HybridSearcher(self.vector_store, embedding_model)
             logger.info("RAG system initialized successfully")
         else:
             self.query_engine = None

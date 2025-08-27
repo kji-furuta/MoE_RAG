@@ -127,6 +127,21 @@ COPY scripts/setup_permissions.sh /workspace/scripts/
 # 権限を包括的に設定
 RUN chmod +x /workspace/scripts/setup_permissions.sh && \
     /workspace/scripts/setup_permissions.sh && \
+    # 追加のディレクトリ作成
+    mkdir -p /workspace/data/raw /workspace/data/processed /workspace/data/rag_documents /workspace/models/checkpoints && \
+    # パーミッション修正
+    chmod 777 /workspace/qdrant_data && \
+    chmod 775 /workspace/models && \
+    chmod 777 /workspace/outputs && \
+    chmod 775 /workspace/data && \
+    chmod 777 /workspace/logs && \
+    chmod 777 /workspace/temp_uploads && \
+    chmod 777 /workspace/data/continual_learning && \
+    chmod 777 /workspace/data/uploaded && \
+    chmod 775 /workspace/data/raw && \
+    chmod 775 /workspace/data/processed && \
+    chmod 775 /workspace/data/rag_documents && \
+    chmod 775 /workspace/models/checkpoints && \
     chown -R ai-user:ai-user /workspace
 
 # JupyterLabの設定

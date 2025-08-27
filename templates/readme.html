@@ -168,15 +168,31 @@
             <p><span class="emoji">💡</span>Dockerベースの統合Webインターフェースで、日本語大規模言語モデル（LLM）のファインチューニング、土木道路設計特化型RAGシステム、そしてEWCベースの継続学習を同一プラットフォームで実行できます。単一のポート（8050）で全機能にアクセス可能な革新的なツールキットです。</p>
         </div>
 
-        <h2>📢 最新の更新 (2025年8月13日)</h2>
+        <h2>📢 最新の更新 (2025年8月27日)</h2>
+        
+        <h3>🆕 最新実装機能</h3>
+        <ul>
+            <li><strong>Ollama完全統合</strong>: Llama 3.2 3Bモデルの完全動作確認とフォールバック機能実装</li>
+            <li><strong>開発環境管理</strong>: <code>start_dev_env.sh</code> / <code>stop_dev_env.sh</code> による簡単な環境制御</li>
+            <li><strong>MoE (Mixture of Experts) アーキテクチャ強化</strong>: メモリ最適化版実装により大規模モデルでの安定稼働を実現</li>
+            <li><strong>継続学習システム改善</strong>: タスク状態の永続化とエラーハンドリングを強化</li>
+            <li><strong>GPU メモリ最適化</strong>: 90-95%の効率的なGPUメモリ利用を実現（24GB GPUで20GB割り当て）</li>
+            <li><strong>統合APIエンドポイント</strong>: MoEトレーニングとRAGシステムの完全統合</li>
+            <li><strong>永続化機構</strong>: MoEモデルとタスク履歴の自動保存・復元機能</li>
+            <li><strong>DoRA (Weight-Decomposed Low-Rank Adaptation)</strong>: LoRAを超える高精度・高効率な新手法を実装</li>
+            <li><strong>vLLM統合</strong>: PagedAttentionによる高速推論エンジンを統合</li>
+            <li><strong>Serenaメモリシステム</strong>: プロジェクト知識管理の効率化</li>
+        </ul>
         
         <div class="success-box">
             <p><span class="emoji">✅</span><strong>全システム正常稼働確認済み</strong></p>
             <ul>
+                <li><strong>Ollama統合</strong>: Llama 3.2 3Bモデルによる高速推論とRAGフォールバック機能正常稼働</li>
                 <li><strong>ファインチューニング</strong>: cyberagent/calm3-22b-chatモデルで正常動作</li>
-                <li><strong>RAGシステム</strong>: Qdrantベクトルデータベース377件インデックス済み、Ollama統合による高速応答実現</li>
-                <li><strong>継続学習</strong>: EWCベース継続学習タスク管理システム正常稼働</li>
-                <li><strong>量子化モデル対応</strong>: Ollama（Llama 3.2 3B）による軽量・高速推論</li>
+                <li><strong>MoEシステム</strong>: 土木・道路設計エキスパートモデルの学習と展開済み（<code>/workspace/outputs/moe_civil</code>）</li>
+                <li><strong>RAGシステム</strong>: Qdrantベクトルデータベース377件インデックス済み、MoEモデル統合による専門的応答実現</li>
+                <li><strong>継続学習</strong>: EWCベース継続学習タスク管理システム正常稼働（タスク状態永続化対応）</li>
+                <li><strong>量子化モデル対応</strong>: Ollama（Llama 3.2 3B）+ AWQ 4bit量子化による超軽量・高速推論</li>
             </ul>
         </div>
 
@@ -341,11 +357,27 @@
 
         <h2>🚀 クイックスタート</h2>
         
-        <h3>1. リポジトリのクローン</h3>
-        <pre><code>git clone https://github.com/kji-furuta/AI_FT_3.git
-cd AI_FT_3</code></pre>
+        <h3>🎯 超簡単！3ステップで開始（NEW）</h3>
+        <pre><code># 1. リポジトリのクローン
+git clone https://github.com/kji-furuta/MoE_RAG.git
+cd MoE_RAG
 
-        <h3>2. Ollamaのインストール（初回のみ）</h3>
+# 2. 開発環境を起動（自動でOllamaモデルもダウンロード）
+./start_dev_env.sh
+
+# 3. ブラウザでアクセス
+# http://localhost:8050</code></pre>
+        
+        <p><strong>停止する場合：</strong></p>
+        <pre><code>./stop_dev_env.sh</code></pre>
+        
+        <h3>詳細な手順（手動セットアップの場合）</h3>
+        
+        <h4>1. リポジトリのクローン</h4>
+        <pre><code>git clone https://github.com/kji-furuta/MoE_RAG.git
+cd MoE_RAG</code></pre>
+
+        <h4>2. Ollamaのインストール（初回のみ）</h4>
         <pre><code># Ollamaをインストール
 curl -fsSL https://ollama.com/install.sh | sh
 
@@ -353,7 +385,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 ollama serve</code></pre>
         <p>※ 新しいターミナルウィンドウでOllamaを起動したままにしてください</p>
 
-        <h3>3. Docker環境の起動（RAG統合版）</h3>
+        <h4>3. Docker環境の起動（RAG統合版）</h4>
         
         <h4>自動ビルド（推奨）</h4>
         <pre><code># RAG依存関係も含めた完全ビルド＋起動＋テスト
@@ -367,7 +399,7 @@ docker-compose up -d --build
 # 2回目以降：通常起動（ビルド不要）
 docker-compose up -d</code></pre>
 
-        <h3>4. 統合Webインターフェースの起動</h3>
+        <h4>4. 統合Webインターフェースの起動</h4>
         
         <h4>方法1: 自動起動スクリプト（推奨）</h4>
         <pre><code># コンテナ内で統合インターフェース起動
@@ -390,7 +422,7 @@ docker cp src/ ai-ft-container:/workspace/
 # Webサーバーを起動
 docker exec -d ai-ft-container python -m uvicorn app.main_unified:app --host 0.0.0.0 --port 8050 --reload</code></pre>
 
-        <h3>5. ブラウザでアクセス</h3>
+        <h4>5. ブラウザでアクセス</h4>
         <ul>
             <li><strong>統合ダッシュボード</strong>: <a href="http://localhost:8050/" target="_blank">http://localhost:8050/</a></li>
             <li><strong>ファインチューニング</strong>: <a href="http://localhost:8050/finetune" target="_blank">http://localhost:8050/finetune</a></li>
@@ -706,13 +738,22 @@ docker exec -d ai-ft-container python -m uvicorn app.main_unified:app --host 0.0
 
         <h2>🔧 トラブルシューティング</h2>
 
-        <h3>Ollama接続エラーが発生する場合</h3>
-        <pre><code># Ollamaが起動しているか確認
+        <h3>Ollama「model not found」エラーが発生する場合</h3>
+        <pre><code># モデルがインストールされているか確認
+ollama list
+
+# Llama 3.2 3Bモデルをダウンロード
+ollama pull llama3.2:3b
+
+# Ollamaサービスが起動しているか確認
 curl http://localhost:11434/api/tags
 
-# Ollamaを再起動
+# 必要に応じてOllamaを再起動
 killall ollama
-ollama serve</code></pre>
+ollama serve
+
+# Dockerコンテナ内からモデルが見えるか確認
+docker exec ai-ft-container curl http://host.docker.internal:11434/api/tags</code></pre>
 
         <h3>ロゴが表示されない場合</h3>
         <pre><code># 静的ファイルの確認
@@ -789,8 +830,8 @@ print(f'検証結果: {result.is_valid}')
         <h2>🎯 今すぐ始める</h2>
         
         <pre><code># 1. クローン
-git clone https://github.com/kji-furuta/AI_FT_3.git
-cd AI_FT_3
+git clone https://github.com/kji-furuta/MoE_RAG.git
+cd MoE_RAG
 
 # 2. Ollamaをインストール・起動（新しいターミナルで）
 curl -fsSL https://ollama.com/install.sh | sh

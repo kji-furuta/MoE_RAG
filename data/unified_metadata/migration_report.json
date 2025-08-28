@@ -1,0 +1,20 @@
+{
+  "timestamp": "2025-08-27T22:10:34.511856",
+  "total_documents": 3,
+  "vectorized_documents": 0,
+  "status_distribution": {
+    "pending": 3
+  },
+  "category_distribution": {
+    "test": 1,
+    "施工": 1,
+    "設計基準": 1
+  },
+  "type_distribution": {
+    "other": 1,
+    "road_standard": 1,
+    "technical_manual": 1
+  },
+  "vectorization_rate": 0.0,
+  "migration_log": []
+}

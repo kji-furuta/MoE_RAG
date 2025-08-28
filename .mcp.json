@@ -37,6 +37,16 @@
     "playwright": {
       "command": "npx",
       "args": ["-y", "@playwright/mcp@latest"]
+    },
+    "cipher": {
+      "type": "stdio",
+      "command": "cipher",
+      "args": ["--mode", "mcp"],
+      "env": {
+        "CIPHER_WORKSPACE": "${workspaceFolder}/.cipher",
+        "OPENAI_API_KEY": "${OPENAI_API_KEY}",
+        "CIPHER_EMBEDDER": "local"
+      }
     }   
   }
 }

@@ -18,7 +18,7 @@ AI Fine-tuning Toolkit (AI_FT_7) is a comprehensive Japanese LLM fine-tuning pla
 - **Main Server**: `app/main_unified.py` - FastAPI application serving both fine-tuning and RAG APIs on port 8050
 - **Static Files**: Located in `app/static/` and `static/` directories
 - **Templates**: HTML templates in `templates/` directory with Bootstrap integration
-- **Logo Assets**: Teikoku University logo files (`logo_teikoku.png/jpg`) in multiple locations
+- **Logo Assets**: Teikoku.co logo files (`logo_teikoku.png/jpg`) in multiple locations
 
 ### 2. Core Systems
 

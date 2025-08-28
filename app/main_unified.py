@@ -6,7 +6,7 @@ AI Fine-tuning Toolkit Web API - Unified Implementation
 
 # PyTorchメモリ管理の最適化
 import os
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+# Removed: Environment variable now managed by memory_manager
 os.environ["TOKENIZERS_PARALLELISM"] = "false"  # トークナイザーの警告を抑制
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, Query, WebSocket, Form
@@ -753,6 +753,15 @@ async def run_training_task(task_id: str, request: TrainingRequest):
             original_rag_flag = os.environ.get("RAG_DISABLE_MODEL_LOAD", "")
             os.environ["RAG_DISABLE_MODEL_LOAD"] = "false"
             
+            # GPUメモリをクリア（モデルロード前）
+            if torch.cuda.is_available():
+                import gc
+                gc.collect()
+                for i in range(torch.cuda.device_count()):
+                    with torch.cuda.device(i):
+                        torch.cuda.empty_cache()
+                logger.info(f"Task {task_id}: Cleared GPU memory before model loading")
+            
             model, tokenizer = load_model_and_tokenizer(
                 model_name=request.model_name,
                 training_method=request.training_method,
@@ -803,9 +812,13 @@ async def run_training_task(task_id: str, request: TrainingRequest):
                     
                     logger.info(f"Task {task_id}: QLoRA準備完了、gradient checkpointing有効化")
                 except torch.cuda.OutOfMemoryError as e:
-                    logger.error(f"Task {task_id}: QLoRA準備中にメモリ不足: {str(e)}")
+                    # メモリモニターを使用して正確なエラー情報を取得
+                    from src.training.memory_monitor import MemoryMonitor
+                    formatted_error = MemoryMonitor.format_memory_error(e)
+                    logger.error(f"Task {task_id}: QLoRA準備中にメモリ不足:\n{formatted_error}")
+                    
                     # メモリをクリアして再試行
-                    torch.cuda.empty_cache()
+                    MemoryMonitor.clear_gpu_memory()
                     torch.cuda.synchronize()
                     
                     # より積極的なメモリ最適化を試みる
@@ -1640,7 +1653,7 @@ async def generate_text(request: GenerationRequest):
                     # フルファインチューニングの場合
                     if torch.cuda.is_available():
                         # メモリ管理の環境変数を設定
-                        os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+                        # Removed: Environment variable now managed by memory_manager
                         
                         # GPUメモリをクリア
                         torch.cuda.empty_cache()
@@ -1658,7 +1671,7 @@ async def generate_text(request: GenerationRequest):
                         
                         # 推論時は常に4bit量子化を使用（メモリ効率重視）
                         logger.info("推論時メモリ効率化: 4bit量子化を適用")
-                        quantization_config = BitsAndBytesConfig(
+                        quantization_config = UnifiedQuantizationConfig(
                             load_in_4bit=True,
                             bnb_4bit_compute_dtype=torch.float16,
                             bnb_4bit_use_double_quant=True,

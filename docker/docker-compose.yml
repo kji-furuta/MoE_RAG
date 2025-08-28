@@ -26,6 +26,9 @@ services:
       - HF_TOKEN=${HF_TOKEN:-}
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:512
+      - CUDA_LAUNCH_BLOCKING=0
+      - TOKENIZERS_PARALLELISM=false
     
     # Port mappings
     ports:

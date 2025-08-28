@@ -1,0 +1,32 @@
+{
+  "backup_name": "initial_backup_20250827_215956",
+  "original_name": "initial_backup",
+  "created_at": "2025-08-27T21:59:56.423684",
+  "document_count": 3,
+  "documents": [
+    {
+      "id": "f6f4b10d-478c-44f4-bd3c-6ba5ed25feb3",
+      "title": "道路設計基準書 第1章",
+      "category": "設計基準",
+      "file_path": null,
+      "created_at": "2025-08-27 12:44:20",
+      "status": "indexed"
+    },
+    {
+      "id": "b2cc09fd-b943-4a6a-87ca-f10805ae1538",
+      "title": "縦断勾配の制限",
+      "category": "設計基準",
+      "file_path": null,
+      "created_at": "2025-08-27 12:44:20",
+      "status": "indexed"
+    },
+    {
+      "id": "6a2a3ae6-d168-4ac6-b458-5e8c64c5c3e8",
+      "title": "横断勾配の基準",
+      "category": "設計基準",
+      "file_path": null,
+      "created_at": "2025-08-27 12:44:20",
+      "status": "indexed"
+    }
+  ]
+}

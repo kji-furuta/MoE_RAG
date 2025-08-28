@@ -134,7 +134,7 @@ def create_quantization_config(
     if "DeepSeek-R1-Distill-Qwen-32B" in model_name:
         if training_method == "qlora":
             # QLoRAの場合は最大限のメモリ最適化
-            return BitsAndBytesConfig(
+            return UnifiedQuantizationConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=torch.float16,
                 bnb_4bit_use_double_quant=True,
@@ -145,7 +145,7 @@ def create_quantization_config(
             )
         elif training_method == "lora":
             # 通常のLoRAでも4bit量子化を使用
-            return BitsAndBytesConfig(
+            return UnifiedQuantizationConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=torch.float16,
                 bnb_4bit_use_double_quant=True,
@@ -212,12 +212,12 @@ def get_device_map(model_name: str, model_size: Optional[str] = None) -> Any:
             gpu_count = torch.cuda.device_count()
             
             # DeepSeek-R1-Distill-Qwen-32Bの特別処理
-            if "DeepSeek-R1-Distill-Qwen-32B" in model_name:
+            if "DeepSeek-R1-Distill-Qwen-32B" in model_name or model_size == 'xlarge':
                 if gpu_count > 1:
-                    # マルチGPUの場合は自動配置
+                    # マルチGPUの場合は常に自動配置を使用
                     import logging
-                    logging.getLogger(__name__).info(f"Using auto device map for {gpu_count} GPUs")
-                    return "auto"
+                    logging.getLogger(__name__).info(f"Using auto device map for {gpu_count} GPUs with balanced distribution")
+                    return "balanced"  # より均等な分散を指定
                 else:
                     # シングルGPUの場合はCPUオフロード
                     return {
@@ -344,34 +344,47 @@ def load_model_and_tokenizer(
     
     # デバイスマップの追加
     if device_map is not None:
+        # "balanced"の場合は"auto"に変換（transformersが認識する形式）
+        if device_map == "balanced":
+            device_map = "auto"
+            
         model_kwargs["device_map"] = device_map
         
-        # 32Bモデルの場合、マルチGPU対応のmax_memory設定
-        if model_size == 'xlarge' and torch.cuda.is_available():
-            gpu_count = torch.cuda.device_count()
+        # GPUカウントを取得
+        gpu_count = torch.cuda.device_count() if torch.cuda.is_available() else 0
+        
+        # 32Bモデルまたは大規模モデルの場合、マルチGPU対応のmax_memory設定
+        if (model_size == 'xlarge' or gpu_count > 1) and torch.cuda.is_available():
             max_memory = {}
             
-            # 各GPUのメモリを確認して設定
+            # 各GPUのメモリを確認して設定（均等分散を促進）
+            total_model_memory = 0
             for i in range(gpu_count):
                 gpu_memory = torch.cuda.get_device_properties(i).total_memory / 1024**3
-                # 24GBのGPUには95%（約22.8GB）を割り当て
-                if gpu_memory >= 23.5:  # 24GB GPUの判定（浮動小数点誤差を考慮）
-                    allocated_gb = int(gpu_memory * 0.95)  # 95%使用
+                # 使用可能なメモリを計算（現在の使用量を考慮）
+                allocated = torch.cuda.memory_allocated(i) / 1024**3
+                free_memory = gpu_memory - allocated
+                
+                # 利用可能なメモリの90%を割り当て（安全マージン）
+                if free_memory > 2:  # 最低2GB以上の空きがある場合
+                    allocated_gb = int(free_memory * 0.9)
                     max_memory[i] = f"{allocated_gb}GB"
-                    logger.info(f"GPU {i}: Total {gpu_memory:.1f}GB, Allocated {allocated_gb}GB (95%)")
+                    total_model_memory += allocated_gb
+                    logger.info(f"GPU {i}: Total {gpu_memory:.1f}GB, Free {free_memory:.1f}GB, Allocated {allocated_gb}GB")
                 else:
-                    # それ以外のGPUは90%を使用
-                    allocated_gb = int(gpu_memory * 0.95)
-                    max_memory[i] = f"{allocated_gb}GB"
-                    logger.info(f"GPU {i}: Total {gpu_memory:.1f}GB, Allocated {allocated_gb}GB (90%)")
+                    # メモリが少ない場合は使用しない
+                    logger.warning(f"GPU {i}: Insufficient free memory ({free_memory:.1f}GB), skipping")
             
-            # CPUメモリも設定
-            max_memory["cpu"] = "100GB"
-            
-            model_kwargs["max_memory"] = max_memory
-            model_kwargs["offload_folder"] = "offload"
-            model_kwargs["offload_state_dict"] = True
-            logger.info(f"Set max_memory for xlarge model: {max_memory}")
+            # 少なくとも1つのGPUが使用可能な場合のみmax_memoryを設定
+            if max_memory:
+                # CPUメモリも設定（オフロード用）
+                max_memory["cpu"] = "100GB"
+                
+                model_kwargs["max_memory"] = max_memory
+                model_kwargs["offload_folder"] = "offload"
+                model_kwargs["offload_state_dict"] = True
+                logger.info(f"Set max_memory for model distribution: {max_memory}")
+                logger.info(f"Total allocated GPU memory: {total_model_memory}GB across {len(max_memory)-1} GPUs")
     
     # モデルの読み込み
     try:

@@ -80,14 +80,14 @@ class LoRAFinetuningTrainer:
     def _get_bnb_config(self) -> BitsAndBytesConfig:
         """BitsAndBytes設定の取得"""
         if self.lora_config.qlora_4bit:
-            return BitsAndBytesConfig(
+            return UnifiedQuantizationConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=torch.float16,
                 bnb_4bit_use_double_quant=True,
                 bnb_4bit_quant_type="nf4"
             )
         else:
-            return BitsAndBytesConfig(
+            return UnifiedQuantizationConfig(
                 load_in_8bit=True,
                 bnb_8bit_compute_dtype=torch.float16
             )

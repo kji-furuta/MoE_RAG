@@ -256,5 +256,115 @@
       },
       "task_history": "task_2"
     }
+  },
+  "363c88d0-3c43-42f1-9388-75d9f7c0031a": {
+    "task_id": "363c88d0-3c43-42f1-9388-75d9f7c0031a",
+    "task_name": "task_1",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-08-28T14:56:32.237594+09:00",
+    "config": {
+      "base_model": "outputs/フルファインチューニング_20250828_135711",
+      "task_name": "task_1",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/db62ced9-307e-4e06-b289-5ac972197bf0_conc_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: name 'UnifiedQuantizationConfig' is not defined",
+    "error": "トレーニングが失敗しました: モデル読み込みエラー: name 'UnifiedQuantizationConfig' is not defined"
+  },
+  "864db774-db8d-4f38-8935-1ebd372f1bdb": {
+    "task_id": "864db774-db8d-4f38-8935-1ebd372f1bdb",
+    "task_name": "task_12",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-08-28T15:08:05.810538+09:00",
+    "config": {
+      "base_model": "outputs/フルファインチューニング_20250828_135711",
+      "task_name": "task_12",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/9bda9c45-6b41-49d3-89a0-96ebff64a5a7_conc_data.jsonl",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-08-28T15:23:42.178973+09:00",
+    "output_path": "outputs/continual_task_12_20250828_152342",
+    "model_info": {
+      "name": "continual_task_12",
+      "path": "outputs/continual_task_12_20250828_152342",
+      "base_model": "outputs/フルファインチューニング_20250828_135711",
+      "training_method": "continual_ewc",
+      "created_at": "2025-08-28T15:23:42.180886+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 5000,
+        "use_previous_tasks": true
+      },
+      "task_history": "task_12"
+    }
+  },
+  "57a1b5f7-f5c8-4a2f-8e7c-b598ca6ebd10": {
+    "task_id": "57a1b5f7-f5c8-4a2f-8e7c-b598ca6ebd10",
+    "task_name": "task_2",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-08-28T16:30:57.247472+09:00",
+    "config": {
+      "base_model": "outputs/フルファインチューニング_20250828_154534",
+      "task_name": "task_2",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/4555bb78-5c70-436c-817c-7233b6ff476c_AI_FT_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: QLoRA準備中にメモリ不足が発生しました。より小さいモデルを選択してください。",
+    "error": "トレーニングが失敗しました: QLoRA準備中にメモリ不足が発生しました。より小さいモデルを選択してください。"
+  },
+  "14b4b8eb-9a7f-4cea-b433-8d50b3a3b4e7": {
+    "task_id": "14b4b8eb-9a7f-4cea-b433-8d50b3a3b4e7",
+    "task_name": "task_2",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-08-28T17:58:48.828293+09:00",
+    "config": {
+      "base_model": "outputs/フルファインチューニング_20250828_164752",
+      "task_name": "task_2",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/ae332363-5040-4391-a4f7-4ddee65e16cd_AI_FT_data.jsonl",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-08-28T18:00:29.081550+09:00",
+    "output_path": "outputs/continual_task_2_20250828_180029",
+    "model_info": {
+      "name": "continual_task_2",
+      "path": "outputs/continual_task_2_20250828_180029",
+      "base_model": "outputs/フルファインチューニング_20250828_164752",
+      "training_method": "continual_ewc",
+      "created_at": "2025-08-28T18:00:29.083830+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 5000,
+        "use_previous_tasks": true
+      },
+      "task_history": "task_2"
+    }
   }
 }

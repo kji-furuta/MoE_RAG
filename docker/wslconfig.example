@@ -1,0 +1,28 @@
+# WSL2 Configuration for High-Performance Docker
+# Save this file as C:\Users\[YourUsername]\.wslconfig
+
+[wsl2]
+# メモリ設定（システムRAMの80%程度）
+memory=80GB
+
+# CPU設定（利用可能なコア数）
+processors=16
+
+# スワップファイル設定
+swap=16GB
+swapfile=C:\\temp\\wsl-swap.vhdx
+
+# localhost転送を有効化
+localhostForwarding=true
+
+# ネストされた仮想化を有効化（オプション）
+nestedVirtualization=true
+
+# ページファイルの設定
+pageReporting=true
+
+# GPU対応（WSLg）
+gpuSupport=true
+
+# カーネルコマンドライン（必要に応じて）
+# kernelCommandLine = vsyscall=emulate

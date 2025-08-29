@@ -39,8 +39,8 @@ llm:
     0: 36GB
     1: 36GB
   max_new_tokens: 512
-  model_name: outputs/フルファインチューニング_20250828_164752
-  model_path: outputs/フルファインチューニング_20250828_164752
+  model_name: outputs/lora_20250829_170202
+  model_path: outputs/lora_20250829_170202
   moe_experts_per_token: 2
   moe_model_path: /workspace/outputs/moe_d63ec0db-4f34-48d2-89c1-35b485a819f1
   moe_num_experts: 2

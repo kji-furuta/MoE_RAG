@@ -134,18 +134,16 @@ def create_quantization_config(
     if "DeepSeek-R1-Distill-Qwen-32B" in model_name:
         if training_method == "qlora":
             # QLoRAの場合は最大限のメモリ最適化
-            return UnifiedQuantizationConfig(
+            return BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=torch.float16,
                 bnb_4bit_use_double_quant=True,
                 bnb_4bit_quant_type="nf4",
-                llm_int8_enable_fp32_cpu_offload=True,
-                llm_int8_has_fp16_weight=False,  # メモリ削減のため
-                bnb_4bit_quant_storage=torch.uint8  # ストレージを最小化
+                llm_int8_enable_fp32_cpu_offload=True
             )
         elif training_method == "lora":
             # 通常のLoRAでも4bit量子化を使用
-            return UnifiedQuantizationConfig(
+            return BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=torch.float16,
                 bnb_4bit_use_double_quant=True,

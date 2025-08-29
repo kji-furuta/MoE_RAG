@@ -270,6 +270,9 @@ async function loadSystemInfo() {
     }
 }
 
+// アップロードされたファイルのパスを保存
+let uploadedFilePath = null;
+
 // データアップロード処理
 document.getElementById('uploadForm').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -290,14 +293,65 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
         const result = await response.json();
         
         if (response.ok) {
-            resultDiv.innerHTML = `
-                <div style="background: #d4edda; color: #155724; padding: 15px; border-radius: 5px; margin-top: 10px;">
-                    <h3>Upload Successful!</h3>
-                    <p><strong>Filename:</strong> ${result.filename}</p>
-                    <p><strong>Data Count:</strong> ${result.data_count}</p>
-                    <p><strong>Size:</strong> ${result.size} bytes</p>
+            // 成功、警告、エラーで異なる表示
+            let bgColor, textColor, title;
+            if (result.status === 'success') {
+                bgColor = '#d4edda';
+                textColor = '#155724';
+                title = 'アップロード成功！';
+            } else if (result.status === 'warning') {
+                bgColor = '#fff3cd';
+                textColor = '#856404';
+                title = 'アップロード完了（警告あり）';
+            } else {
+                bgColor = '#f8d7da';
+                textColor = '#721c24';
+                title = 'データ検証エラー';
+            }
+            
+            let html = `
+                <div style="background: ${bgColor}; color: ${textColor}; padding: 15px; border-radius: 5px; margin-top: 10px;">
+                    <h3>${title}</h3>
+                    <p><strong>ファイル名:</strong> ${result.filename}</p>
+                    <p><strong>総行数:</strong> ${result.data_count}</p>
+                    <p><strong>有効な行数:</strong> ${result.valid_lines || result.data_count}</p>
+            `;
+            
+            // エラーがある場合は詳細を表示
+            if (result.error_count > 0) {
+                html += `
+                    <p><strong>エラー行数:</strong> ${result.error_count} (${result.error_rate || '0%'})</p>
+                `;
+                
+                if (result.fallback_warning) {
+                    html += `<p style="color: red; font-weight: bold;">⚠️ ${result.fallback_warning}</p>`;
+                } else if (result.warning) {
+                    html += `<p style="color: orange; font-weight: bold;">⚠️ ${result.warning}</p>`;
+                }
+                
+                // エラーの詳細を表示
+                if (result.errors && result.errors.length > 0) {
+                    html += '<div style="margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.05); border-radius: 3px;">';
+                    html += '<strong>エラー詳細（最初の10件）:</strong><ul style="margin: 5px 0; padding-left: 20px;">';
+                    result.errors.forEach(err => {
+                        html += `<li>行 ${err.line}: ${err.error}</li>`;
+                    });
+                    html += '</ul></div>';
+                }
+            }
+            
+            html += `
+                    <p><strong>サイズ:</strong> ${result.size} bytes</p>
                 </div>
             `;
+            
+            resultDiv.innerHTML = html;
+            
+            // アップロード成功時にファイルパスを保存
+            if (result.path) {
+                uploadedFilePath = result.path;
+                console.log('Uploaded file path saved:', uploadedFilePath);
+            }
         } else {
             resultDiv.innerHTML = `
                 <div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; margin-top: 10px;">
@@ -348,10 +402,13 @@ document.getElementById('trainingForm').addEventListener('submit', async functio
         }
     });
     
+    // アップロードされたファイルパスを使用、なければデフォルトパス
+    const dataPath = uploadedFilePath || "/workspace/data/uploaded/training_data.jsonl";
+    
     const trainingData = {
         model_name: modelName,
         training_method: trainingMethod,
-        training_data: ["/workspace/data/uploaded/training_data.jsonl"], // 固定パス
+        training_data: [dataPath], // アップロードされたファイルのパスを使用
         lora_config: {
             r: parseInt(formData.get('loraR')),
             alpha: parseInt(formData.get('loraAlpha')),

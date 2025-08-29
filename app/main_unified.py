@@ -864,19 +864,43 @@ async def run_training_task(task_id: str, request: TrainingRequest):
                     train_texts.append(f"{data['input']}\n{data['output']}")
         # 通常のトレーニングの場合、ファイルパスから読み込み
         else:
+            logger.info(f"Task {task_id}: トレーニングデータパス: {request.training_data}")
             for data_path in request.training_data:
+                # 絶対パスと相対パスの両方を試す
                 data_file = Path(data_path)
+                if not data_file.exists():
+                    # /workspace からの相対パスとして試す
+                    data_file = Path("/workspace") / data_path.lstrip("/")
+                    if not data_file.exists():
+                        # dataディレクトリからの相対パスとして試す
+                        data_file = Path("/workspace/data/uploaded") / Path(data_path).name
+                
+                logger.info(f"Task {task_id}: ファイルパスを確認: {data_file}, 存在: {data_file.exists()}")
+                
                 if data_file.exists() and data_file.suffix == '.jsonl':
+                    logger.info(f"Task {task_id}: JSONLファイル読み込み開始: {data_file}")
                     with open(data_file, 'r', encoding='utf-8') as f:
+                        line_count = 0
+                        valid_count = 0
                         for line in f:
+                            line_count += 1
                             try:
-                                data = json.loads(line.strip())
+                                line = line.strip()
+                                if not line:  # 空行をスキップ
+                                    continue
+                                data = json.loads(line)
                                 if 'text' in data:
                                     train_texts.append(data['text'])
+                                    valid_count += 1
                                 elif 'input' in data and 'output' in data:
                                     train_texts.append(f"{data['input']}\n{data['output']}")
-                            except json.JSONDecodeError:
+                                    valid_count += 1
+                            except json.JSONDecodeError as e:
+                                logger.warning(f"Task {task_id}: 行 {line_count} でJSONデコードエラー: {str(e)}")
                                 continue
+                        logger.info(f"Task {task_id}: {data_file}から{valid_count}/{line_count}行を読み込み")
+                else:
+                    logger.warning(f"Task {task_id}: ファイルが見つからないか、JSONLでない: {data_path}")
         
         if not train_texts:
             # フォールバック: サンプルデータを使用
@@ -1257,6 +1281,8 @@ async def upload_training_data(file: UploadFile = File(...)):
         # ファイル形式の検証
         sample_data = []
         data_count = 0
+        valid_lines = 0
+        error_lines = []
         
         if file.filename.endswith('.jsonl'):
             try:
@@ -1264,17 +1290,63 @@ async def upload_training_data(file: UploadFile = File(...)):
                     lines = f.readlines()
                     data_count = len(lines)
                     
-                    for i, line in enumerate(lines[:5]):  # 最初の5行をサンプルとして取得
+                    # 全行をチェックして有効性を検証
+                    for i, line in enumerate(lines):
                         line = line.strip()
-                        if line:  # 空行をスキップ
-                            try:
-                                data = json.loads(line)
-                                sample_data.append(data)
-                            except json.JSONDecodeError as je:
-                                logger.error(f"JSON parse error at line {i+1}: {str(je)}")
-                                raise HTTPException(status_code=400, detail=f"行 {i+1} でJSONパースエラー: {str(je)}")
+                        if not line:  # 空行をスキップ
+                            continue
+                            
+                        try:
+                            data = json.loads(line)
+                            # 必須フィールドのチェック
+                            if 'text' in data or ('input' in data and 'output' in data):
+                                valid_lines += 1
+                                # 最初の5件をサンプルとして保存
+                                if len(sample_data) < 5:
+                                    sample_data.append(data)
+                            else:
+                                error_lines.append({
+                                    "line": i + 1,
+                                    "error": "必須フィールド('text'または'input'と'output')が不足しています"
+                                })
+                        except json.JSONDecodeError as je:
+                            error_lines.append({
+                                "line": i + 1,
+                                "error": f"JSONパースエラー: {str(je)}"
+                            })
+                    
+                    # エラー率の計算
+                    total_non_empty_lines = data_count - lines.count('\n')
+                    if total_non_empty_lines > 0:
+                        error_rate = len(error_lines) / total_non_empty_lines * 100
+                    else:
+                        error_rate = 0
+                    
+                    logger.info(f"JSONL解析完了: 全{data_count}行, 有効{valid_lines}行, エラー{len(error_lines)}行")
+                    
+                    # エラー率が高い場合は警告を含めて返す
+                    if error_rate > 10:  # 10%以上のエラー
+                        logger.warning(f"高エラー率検出: {error_rate:.1f}%")
+                        # エラーが多すぎる場合は、最初の10個のエラーのみを返す
+                        displayed_errors = error_lines[:10]
+                        if len(error_lines) > 10:
+                            displayed_errors.append({
+                                "line": "...",
+                                "error": f"他{len(error_lines) - 10}件のエラーがあります"
+                            })
+                    
+                    # 有効な行が0の場合は明確にエラー
+                    if valid_lines == 0:
+                        logger.error(f"有効なトレーニングデータが見つかりません。エラー数: {len(error_lines)}")
+                        error_detail = "全ての行にエラーがあります。"
+                        if error_lines:
+                            error_detail += f"\n最初のエラー: 行{error_lines[0]['line']} - {error_lines[0]['error']}"
+                        raise HTTPException(
+                            status_code=400, 
+                            detail=f"有効なトレーニングデータが見つかりません。{error_detail}"
+                        )
                         
-                logger.info(f"JSONL解析完了: {data_count}行, サンプル: {len(sample_data)}件")
+                logger.info(f"JSONL検証完了: 有効{valid_lines}行, エラー{len(error_lines)}行")
                 
             except UnicodeDecodeError:
                 logger.error("ファイルエンコーディングエラー")
@@ -1302,14 +1374,26 @@ async def upload_training_data(file: UploadFile = File(...)):
         else:
             raise HTTPException(status_code=400, detail="サポートされていないファイル形式です (.jsonl または .json を使用してください)")
         
+        # 結果の構築（エラー情報を含む）
         result = {
-            "status": "success",
+            "status": "success" if len(error_lines) == 0 else "warning" if valid_lines > 0 else "error",
             "filename": file.filename,
             "path": str(file_path),
             "size": len(content),
             "data_count": data_count,
+            "valid_lines": valid_lines,
+            "error_count": len(error_lines),
             "sample_data": sample_data[:3]
         }
+        
+        # エラーがある場合は詳細を追加
+        if error_lines:
+            result["error_rate"] = f"{error_rate:.1f}%"
+            result["errors"] = error_lines[:10]  # 最初の10個のエラーを含める
+            if valid_lines == 0:
+                result["fallback_warning"] = "有効なデータがないため、トレーニング時にフォールバックデータが使用されます"
+            elif error_rate > 50:
+                result["warning"] = f"エラー率が高いです（{error_rate:.1f}%）。データの品質を確認してください"
         
         logger.info(f"アップロード成功: {result}")
         return result

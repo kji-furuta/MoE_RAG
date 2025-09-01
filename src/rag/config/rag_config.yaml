@@ -48,7 +48,7 @@ llm:
   temperature: 0.1
   top_p: 0.95
   torch_dtype: float16
-  use_finetuned: true
+  use_finetuned: false
   use_moe: false
   use_ollama_fallback: true
 performance:

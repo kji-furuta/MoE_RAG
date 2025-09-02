@@ -1,0 +1,20 @@
+# 量子化機能追加用のDockerfile拡張
+# メインのDockerfileの後に追加するか、別ステージとして使用
+
+# llama.cpp関連の依存関係をインストール
+RUN uv pip install --system \
+    gguf \
+    mistral-common \
+    sentencepiece \
+    protobuf
+
+# llama.cppをクローンしてビルド
+RUN cd /workspace && \
+    git clone https://github.com/ggerganov/llama.cpp && \
+    cd llama.cpp && \
+    cmake -B build -DLLAMA_CURL=OFF -DLLAMA_CUDA=ON && \
+    cmake --build build --config Release -j$(nproc) && \
+    cmake --build build --target llama-quantize -j$(nproc)
+
+# 権限設定
+RUN chown -R ai-user:ai-user /workspace/llama.cpp

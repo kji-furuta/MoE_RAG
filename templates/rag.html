@@ -175,6 +175,10 @@
                                     <optgroup label="ファインチューニング済みモデル">
                                         <!-- 動的に読み込まれます -->
                                     </optgroup>
+                                    <optgroup label="Ollamaモデル">
+                                        <option value="ollama:deepseek-32b-finetuned">DeepSeek-32B-Finetuned (ファインチューニング済み)</option>
+                                        <option value="ollama:llama3.2:3b">Llama 3.2 3B</option>
+                                    </optgroup>
                                     <optgroup label="ベースモデル">
                                         <option value="cyberagent/calm3-22b-chat">CALM3-22B-Chat (日本語特化)</option>
                                         <option value="microsoft/Phi-3.5-mini-instruct">Phi-3.5-mini (軽量)</option>
@@ -208,6 +212,69 @@
                             <button type="submit" class="btn btn-primary">設定を保存</button>
                             <div id="modelSettingsResult" class="mt-3"></div>
                         </form>
+                    </div>
+                    
+                    <!-- 自動量子化機能セクション -->
+                    <div class="mt-4">
+                        <h4>🔧 ファインチューニング済みモデル量子化</h4>
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <p class="text-muted">LoRAアダプタを量子化してOllamaで使用可能にします</p>
+                                
+                                <div id="quantizationForm">
+                                    <div class="form-group">
+                                        <label for="loraModel">LoRAモデル選択</label>
+                                        <select class="form-control" id="loraModel" name="loraModel" required>
+                                            <option value="">-- 読み込み中... --</option>
+                                        </select>
+                                        <small class="form-text text-muted" id="loraModelInfo"></small>
+                                    </div>
+                                    
+                                    <div class="form-group mt-3">
+                                        <label for="quantizationLevel">量子化レベル</label>
+                                        <select class="form-control" id="quantizationLevel" name="quantizationLevel">
+                                            <option value="Q4_K_M" selected>Q4_K_M (4-bit, ~16GB) - 推奨</option>
+                                            <option value="Q5_K_M">Q5_K_M (5-bit, ~20GB)</option>
+                                            <option value="Q8_0">Q8_0 (8-bit, ~32GB)</option>
+                                        </select>
+                                        <small class="form-text text-muted">
+                                            Q4_K_M: メモリ効率と品質のバランスが最適
+                                        </small>
+                                    </div>
+                                    
+                                    <div class="form-group mt-3">
+                                        <label for="modelName">Ollamaモデル名</label>
+                                        <input type="text" class="form-control" id="modelName" 
+                                               name="modelName" value="rag-deepseek-q4" placeholder="例: rag-deepseek-q4" required>
+                                        <small class="form-text text-muted">
+                                            Ollamaで使用するモデル名を指定（英数字とハイフンのみ）
+                                        </small>
+                                    </div>
+                                    
+                                    <button type="button" class="btn btn-warning" id="quantizeBtn" onclick="startQuantization()">
+                                        <i class="fas fa-compress"></i> 量子化開始
+                                    </button>
+                                    <button type="button" class="btn btn-secondary ml-2" id="checkStatusBtn" style="display:none;">
+                                        <i class="fas fa-sync"></i> 進捗確認
+                                    </button>
+                                </div>
+                                
+                                <!-- 量子化進捗表示 -->
+                                <div id="quantizationProgress" class="mt-3" style="display:none;">
+                                    <div class="progress">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                             role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                    <div id="quantizationStatus" class="mt-2 text-muted"></div>
+                                    <div id="quantizationLog" class="mt-2 p-2 bg-dark text-light" 
+                                         style="font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; display:none;">
+                                    </div>
+                                </div>
+                                
+                                <!-- 量子化結果 -->
+                                <div id="quantizationResult" class="mt-3"></div>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="mt-4">
@@ -654,6 +721,201 @@ async function deleteDocument(docId, docTitle) {
     }
 }
 
+// 量子化開始関数
+async function startQuantization() {
+    
+    const quantizeBtn = document.getElementById('quantizeBtn');
+    const checkStatusBtn = document.getElementById('checkStatusBtn');
+    const progressDiv = document.getElementById('quantizationProgress');
+    const statusDiv = document.getElementById('quantizationStatus');
+    const logDiv = document.getElementById('quantizationLog');
+    const resultDiv = document.getElementById('quantizationResult');
+    
+    // フォームデータを取得
+    const loraModel = document.getElementById('loraModel').value;
+    const quantizationLevel = document.getElementById('quantizationLevel').value;
+    const modelName = document.getElementById('modelName').value;
+    
+    // 入力検証
+    if (!loraModel || !modelName) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-warning">
+                <strong>入力エラー:</strong> LoRAモデルとモデル名を入力してください。
+            </div>
+        `;
+        return;
+    }
+    
+    // FormDataを手動で作成（フィールド名を明示的に設定）
+    const formData = new FormData();
+    formData.append('lora_path', loraModel);
+    formData.append('quantization_level', quantizationLevel);
+    formData.append('model_name', modelName);
+    
+    // UIをリセット
+    quantizeBtn.disabled = true;
+    checkStatusBtn.style.display = 'inline-block';
+    progressDiv.style.display = 'block';
+    resultDiv.innerHTML = '';
+    
+    try {
+        // 量子化開始
+        const response = await fetch('/rag/quantize-model', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // ステータス監視開始
+            const taskId = data.task_id;
+            statusDiv.textContent = data.message;
+            
+            // 定期的にステータスをチェック
+            const checkInterval = setInterval(async () => {
+                try {
+                    const statusResponse = await fetch(`/rag/quantization-status/${taskId}`);
+                    const statusData = await statusResponse.json();
+                    
+                    // プログレスバー更新
+                    const progressBar = progressDiv.querySelector('.progress-bar');
+                    progressBar.style.width = `${statusData.progress}%`;
+                    progressBar.textContent = `${statusData.progress}%`;
+                    
+                    // ステータステキスト更新
+                    statusDiv.textContent = statusData.message;
+                    
+                    // ログ表示
+                    if (statusData.logs && statusData.logs.length > 0) {
+                        logDiv.style.display = 'block';
+                        logDiv.innerHTML = statusData.logs.join('<br>');
+                        logDiv.scrollTop = logDiv.scrollHeight;
+                    }
+                    
+                    // 完了または エラー時
+                    if (statusData.status === 'completed') {
+                        clearInterval(checkInterval);
+                        quantizeBtn.disabled = false;
+                        checkStatusBtn.style.display = 'none';
+                        
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                <h5>✅ 量子化完了</h5>
+                                <p>${statusData.message}</p>
+                                <p>Ollamaモデル名: <code>${statusData.ollama_model}</code></p>
+                                <hr>
+                                <p>このモデルを使用してハイブリッド検索を実行できます。</p>
+                                <button class="btn btn-primary" onclick="updateModelSettings('${statusData.ollama_model}')">
+                                    このモデルを使用する
+                                </button>
+                            </div>
+                        `;
+                        
+                        // 現在の設定を更新
+                        loadCurrentSettings();
+                        
+                    } else if (statusData.status === 'error' || statusData.status === 'failed') {
+                        clearInterval(checkInterval);
+                        quantizeBtn.disabled = false;
+                        checkStatusBtn.style.display = 'none';
+                        
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-danger">
+                                <h5>❌ エラー</h5>
+                                <p>${statusData.message}</p>
+                            </div>
+                        `;
+                    }
+                    
+                } catch (error) {
+                    console.error('ステータス取得エラー:', error);
+                }
+            }, 2000); // 2秒ごとにチェック
+            
+            // 手動ステータスチェックボタン
+            checkStatusBtn.onclick = async () => {
+                try {
+                    const statusResponse = await fetch(`/rag/quantization-status/${taskId}`);
+                    const statusData = await statusResponse.json();
+                    
+                    // ステータスメッセージを表示
+                    statusDiv.innerHTML = `
+                        <div class="alert alert-info">
+                            <strong>状態:</strong> ${statusData.status}<br>
+                            <strong>メッセージ:</strong> ${statusData.message}
+                            ${statusData.current_step ? `<br><strong>現在のステップ:</strong> ${statusData.current_step}` : ''}
+                            ${statusData.progress ? `<br><strong>進捗:</strong> ${statusData.progress}%` : ''}
+                        </div>
+                    `;
+                    
+                    // 完了または失敗の場合は結果を表示
+                    if (statusData.status === 'completed') {
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                <strong>✅ 量子化完了！</strong><br>
+                                ${statusData.message}
+                            </div>
+                        `;
+                        checkStatusBtn.style.display = 'none';
+                        clearInterval(checkInterval);
+                    } else if (statusData.status === 'failed') {
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-danger">
+                                <strong>❌ エラー</strong><br>
+                                ${statusData.message}
+                            </div>
+                        `;
+                        checkStatusBtn.style.display = 'none';
+                        clearInterval(checkInterval);
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `
+                        <div class="alert alert-warning">
+                            <strong>進捗確認エラー:</strong> ${error.message}
+                        </div>
+                    `;
+                }
+            };
+            
+        } else {
+            throw new Error(data.detail || '量子化開始に失敗しました');
+        }
+        
+    } catch (error) {
+        quantizeBtn.disabled = false;
+        checkStatusBtn.style.display = 'none';
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <strong>エラー:</strong> ${error.message}
+            </div>
+        `;
+    }
+}
+
+// 量子化済みモデルを設定に適用
+async function updateModelSettings(modelName) {
+    try {
+        const response = await fetch('/rag/update-settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                'llm.use_ollama_fallback': true,
+                'llm.ollama_model': modelName
+            })
+        });
+        
+        if (response.ok) {
+            alert(`モデル '${modelName}' が設定されました。ハイブリッド検索で使用できます。`);
+            loadCurrentSettings();
+        }
+    } catch (error) {
+        alert(`設定更新エラー: ${error.message}`);
+    }
+}
+
 // 統計情報取得
 async function loadStatistics() {
     const statsDiv = document.getElementById('statisticsData');
@@ -789,6 +1051,155 @@ async function loadFinetunedModels() {
         }
     } catch (error) {
         console.error('Failed to load models:', error);
+    }
+}
+
+// LoRAモデルを動的に読み込む
+async function loadLoRAModels() {
+    try {
+        console.log('Loading LoRA models...');
+        const response = await fetch('/rag/list-lora-models');
+        const data = await response.json();
+        
+        const loraSelect = document.getElementById('loraModel');
+        const modelInfo = document.getElementById('loraModelInfo');
+        
+        if (!loraSelect) {
+            console.log('LoRA model select element not found');
+            return;
+        }
+        
+        // セレクトボックスをクリア
+        loraSelect.innerHTML = '';
+        
+        // デフォルトオプション
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = '-- LoRAモデルを選択 --';
+        loraSelect.appendChild(defaultOption);
+        
+        if (data.models && data.models.length > 0) {
+            // モデルタイプごとにグループ化
+            const modelGroups = {};
+            
+            data.models.forEach(model => {
+                const type = model.type || 'lora_adapter';
+                if (!modelGroups[type]) {
+                    modelGroups[type] = [];
+                }
+                modelGroups[type].push(model);
+            });
+            
+            // グループごとにオプションを追加
+            const typeLabels = {
+                'ollama_ready': '✅ 使用可能（Ollama登録済み）',
+                'gguf_model': '📦 GGUF形式',
+                'merged_model': '🔀 マージ済みモデル',
+                'lora_adapter': '🎯 LoRAアダプター',
+                'continual_model': '📚 継続学習モデル',
+                'auto': '🔍 自動検出'
+            };
+            
+            Object.keys(typeLabels).forEach(groupType => {
+                const modelsInGroup = modelGroups[groupType] || [];
+                
+                if (modelsInGroup.length > 0) {
+                    // グループラベルを追加
+                    const optgroup = document.createElement('optgroup');
+                    optgroup.label = typeLabels[groupType];
+                    
+                    modelsInGroup.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model.path;
+                        
+                        // 表示名を決定（display_nameがあればそれを使用）
+                        let displayName = model.display_name || model.name;
+                        
+                        // base_modelがある場合は追加情報として表示
+                        if (model.base_model && model.base_model !== 'Unknown' && model.base_model !== '自動') {
+                            const baseName = model.base_model.split('/').pop();
+                            if (!displayName.includes(baseName)) {
+                                displayName += ` (${baseName})`;
+                            }
+                        }
+                        
+                        // 推奨モデルにマーク
+                        if (model.recommended || model.ready_to_use) {
+                            option.textContent = `⭐ ${displayName}`;
+                            option.style.fontWeight = 'bold';
+                        } else {
+                            option.textContent = displayName;
+                        }
+                        
+                        // データ属性を追加（新旧両方の形式に対応）
+                        option.setAttribute('data-base-model', model.base_model || 'Unknown');
+                        option.setAttribute('data-size', model.size_mb || (model.size_gb ? model.size_gb * 1024 : 0));
+                        option.setAttribute('data-type', model.type || 'lora_adapter');
+                        option.setAttribute('data-needs-processing', model.needs_processing || 'none');
+                        
+                        optgroup.appendChild(option);
+                    });
+                    
+                    loraSelect.appendChild(optgroup);
+                }
+            });
+            
+            // 最初の推奨モデルを自動選択
+            const recommendedModel = data.models.find(m => m.ready_to_use || m.recommended);
+            if (recommendedModel) {
+                loraSelect.value = recommendedModel.path;
+                if (modelInfo) {
+                    const size = recommendedModel.size_mb || (recommendedModel.size_gb ? recommendedModel.size_gb * 1024 : 0);
+                    const baseModel = recommendedModel.base_model || recommendedModel.display_name || recommendedModel.name;
+                    modelInfo.textContent = `選択中: ${baseModel} (${size > 0 ? size.toFixed(2) + ' MB' : 'サイズ不明'})`;
+                }
+            }
+            
+            // 選択変更時の情報更新
+            loraSelect.addEventListener('change', function() {
+                const selected = loraSelect.options[loraSelect.selectedIndex];
+                if (selected && selected.value && modelInfo) {
+                    const baseModel = selected.getAttribute('data-base-model');
+                    const size = parseFloat(selected.getAttribute('data-size') || 0);
+                    const type = selected.getAttribute('data-type');
+                    const needsProcessing = selected.getAttribute('data-needs-processing');
+                    
+                    let info = `タイプ: ${typeLabels[type] || type}`;
+                    if (baseModel && baseModel !== 'Unknown') {
+                        info += ` | ベース: ${baseModel}`;
+                    }
+                    if (size > 0) {
+                        info += ` | サイズ: ${size.toFixed(2)} MB`;
+                    }
+                    if (needsProcessing && needsProcessing !== 'none') {
+                        info += ` | 要処理: ${needsProcessing}`;
+                    }
+                    
+                    modelInfo.textContent = info;
+                } else if (modelInfo) {
+                    modelInfo.textContent = '';
+                }
+            });
+        } else {
+            // モデルが見つからない場合でも自動検出オプションを追加
+            const option = document.createElement('option');
+            option.value = 'auto';
+            option.textContent = '🔍 最新のLoRAモデルを自動検出';
+            loraSelect.appendChild(option);
+            
+            if (modelInfo) {
+                modelInfo.textContent = 'ファインチューニング済みモデルが見つかりません。自動検出モードを使用します。';
+            }
+        }
+        
+        console.log(`Loaded ${data.count} LoRA models`);
+    } catch (error) {
+        console.error('Failed to load LoRA models:', error);
+        const loraSelect = document.getElementById('loraModel');
+        if (loraSelect) {
+            loraSelect.innerHTML = '<option value="">エラー: モデルの読み込みに失敗しました</option>';
+            loraSelect.disabled = true;
+        }
     }
 }
 
@@ -1091,6 +1502,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (historyTab) {
         historyTab.addEventListener('shown.bs.tab', function() {
             loadSearchHistory();
+        });
+    }
+    
+    // 設定タブがアクティブになったときにLoRAモデルを読み込む
+    const settingsTab = document.querySelector('a[href="#settings"]');
+    if (settingsTab) {
+        settingsTab.addEventListener('shown.bs.tab', function() {
+            loadLoRAModels();
         });
     }
 });
@@ -1464,6 +1883,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadFinetunedModels();
     loadCurrentSettings();
     loadDocumentCheckboxList();  // 文書チェックボックスリストを読み込む
+    loadLoRAModels();  // LoRAモデルリストを動的に読み込む
 });
 </script>
 {% endblock %}

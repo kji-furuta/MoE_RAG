@@ -31,36 +31,19 @@ evaluation:
   - relevance_score
   test_dataset_path: ./data/rag_documents/test_queries.json
 llm:
-  available_models:
-  - deepseek-32b-finetuned
-  - llama3.2:3b
-  - deepseek-r1:32b
-  base_model: null
+  base_model: cyberagent/calm3-22b-chat
   device_map: auto
-  finetuned_model_path: null
+  finetuned_model_path: ./outputs/latest
   load_in_8bit: true
   max_memory:
     0: 36GB
     1: 36GB
   max_new_tokens: 512
-  model_name: ollama:deepseek-32b-finetuned
-  model_path: null
+  model_name: outputs/lora_20250829_170202
+  model_path: outputs/lora_20250829_170202
   moe_experts_per_token: 2
   moe_model_path: /workspace/outputs/moe_d63ec0db-4f34-48d2-89c1-35b485a819f1
   moe_num_experts: 2
-  ollama:
-    base_url: http://localhost:11434
-    max_tokens: 2048
-    model: deepseek-32b-finetuned
-    temperature: 0.6
-    top_p: 0.9
-  ollama_host: http://localhost:11434
-  ollama_model: deepseek-32b-finetuned
-  provider: ollama
-  quantization:
-    compute_type: float16
-    enabled: true
-    method: q4_k_m
   repetition_penalty: 1.1
   temperature: 0.1
   top_p: 0.95
@@ -68,6 +51,8 @@ llm:
   use_finetuned: false
   use_moe: false
   use_ollama_fallback: true
+  ollama_model: qwen2.5:32b-instruct-q4_K_M  # 高性能32B量子化モデル
+  ollama_host: http://localhost:11434
 performance:
   batch_processing:
     batch_size: 50
@@ -118,12 +103,9 @@ specialized:
     enabled: true
     track_changes: true
 system:
-  gpu_memory_fraction: 0.95
   language: ja
   log_level: INFO
-  memory_optimization: true
   name: 土木道路設計特化型RAGシステム
-  use_dual_gpu: true
   version: 1.0.0
 ui:
   features:

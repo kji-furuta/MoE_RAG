@@ -31,32 +31,21 @@ evaluation:
   - relevance_score
   test_dataset_path: ./data/rag_documents/test_queries.json
 llm:
-  available_models:
-  - deepseek-32b-finetuned
-  - llama3.2:3b
-  - deepseek-r1:32b
-  base_model: null
+  base_model: cyberagent/calm3-22b-chat
   device_map: auto
-  finetuned_model_path: null
+  finetuned_model_path: ./outputs/latest
   load_in_8bit: true
   max_memory:
     0: 36GB
     1: 36GB
   max_new_tokens: 512
   model_name: ollama:deepseek-32b-finetuned
-  model_path: null
+  model_path: outputs/merged_model
   moe_experts_per_token: 2
   moe_model_path: /workspace/outputs/moe_d63ec0db-4f34-48d2-89c1-35b485a819f1
   moe_num_experts: 2
-  ollama:
-    base_url: http://localhost:11434
-    max_tokens: 2048
-    model: deepseek-32b-finetuned
-    temperature: 0.6
-    top_p: 0.9
   ollama_host: http://localhost:11434
   ollama_model: deepseek-32b-finetuned
-  provider: ollama
   quantization:
     compute_type: float16
     enabled: true
@@ -111,9 +100,9 @@ specialized:
     extract_units: true
     normalize_units: true
     unit_mapping:
-      キロメートル: km
-      パーセント: '%'
-      メートル: m
+      "\u30AD\u30ED\u30E1\u30FC\u30C8\u30EB": km
+      "\u30D1\u30FC\u30BB\u30F3\u30C8": '%'
+      "\u30E1\u30FC\u30C8\u30EB": m
   version_control:
     enabled: true
     track_changes: true
@@ -122,7 +111,8 @@ system:
   language: ja
   log_level: INFO
   memory_optimization: true
-  name: 土木道路設計特化型RAGシステム
+  name: "\u571F\u6728\u9053\u8DEF\u8A2D\u8A08\u7279\u5316\u578BRAG\u30B7\u30B9\u30C6\
+    \u30E0"
   use_dual_gpu: true
   version: 1.0.0
 ui:

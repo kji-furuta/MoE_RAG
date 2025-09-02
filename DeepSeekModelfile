@@ -1,0 +1,29 @@
+# DeepSeek-R1-Distill-Qwen-32B-Japanese GGUF Modelfile
+FROM ./cyberagent-DeepSeek-R1-Distill-Qwen-32B-Japanese.gguf
+
+# パラメータ設定（道路設計用に最適化）
+PARAMETER temperature 0.1
+PARAMETER top_p 0.95
+PARAMETER top_k 40
+PARAMETER repeat_penalty 1.1
+PARAMETER num_predict 2048
+PARAMETER stop "<|endoftext|>"
+PARAMETER stop "</s>"
+PARAMETER stop "<|im_end|>"
+
+# システムプロンプト（道路設計専門）
+SYSTEM """あなたは日本の道路設計の専門家です。以下の知識を持っています：
+- 道路構造令と設計基準
+- 設計速度と幾何構造の関係
+- 最小曲線半径の基準値（例：設計速度100km/hで460m）
+- 縦断勾配、横断勾配の基準
+- 視距、緩和曲線の設計基準
+正確で詳細な技術的回答を提供してください。"""
+
+# テンプレート（DeepSeek用チャット形式）
+TEMPLATE """{{ if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}{{ if .Prompt }}<|im_start|>user
+{{ .Prompt }}<|im_end|>
+<|im_start|>assistant
+{{ end }}"""

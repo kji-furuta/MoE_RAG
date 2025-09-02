@@ -3162,6 +3162,358 @@ async def rag_get_system_info():
             timestamp=datetime.now(JST).isoformat()
         )
 
+@app.post("/rag/quantize-model")
+async def quantize_finetuned_model(
+    background_tasks: BackgroundTasks,
+    lora_path: str = Form(...),
+    quantization_level: str = Form("Q4_K_M"),
+    model_name: str = Form(...)
+):
+    """ファインチューニング済みモデルを量子化してOllamaに登録"""
+    try:
+        import asyncio
+        import subprocess
+        from pathlib import Path
+        
+        # タスクIDを生成
+        task_id = str(uuid.uuid4())
+        
+        # 非同期で量子化を実行
+        async def run_quantization():
+            try:
+                # ステータス更新用ファイル
+                status_file = Path(f"/tmp/quantization_{task_id}.json")
+                
+                # 初期ステータス
+                status = {
+                    "task_id": task_id,
+                    "status": "running",
+                    "progress": 0,
+                    "message": "量子化処理を開始しています...",
+                    "logs": []
+                }
+                status_file.write_text(json.dumps(status))
+                
+                # 統合モデル処理スクリプトを実行
+                # モデルパスが指定されている場合はそれを処理、なければ最新モデルを自動検出
+                if lora_path and lora_path != "auto":
+                    cmd = [
+                        "python", "/workspace/scripts/unified_model_processor.py",
+                        "--model", lora_path
+                    ]
+                else:
+                    # 自動検出モード（最新のモデルを処理）
+                    cmd = [
+                        "python", "/workspace/scripts/qlora_to_ollama.py"
+                    ]
+                
+                logger.info(f"量子化コマンド実行: {' '.join(cmd)}")
+                
+                # プロセス実行
+                process = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                
+                # 出力を監視
+                logs = []
+                
+                # stdoutを読み取り
+                while True:
+                    line = await process.stdout.readline()
+                    if not line:
+                        break
+                    log_line = line.decode().strip()
+                    logs.append(log_line)
+                    logger.info(f"Quantization stdout: {log_line}")
+                    
+                    # ステータス更新
+                    if "Loading base model" in log_line:
+                        progress = 20
+                        message = "ベースモデルをロード中..."
+                    elif "Loading LoRA adapter" in log_line:
+                        progress = 40
+                        message = "LoRAアダプタをロード中..."
+                    elif "Merging" in log_line:
+                        progress = 60
+                        message = "モデルをマージ中..."
+                    elif "Quantizing" in log_line or "quantization" in log_line.lower():
+                        progress = 80
+                        message = "量子化を実行中..."
+                    elif "Saving" in log_line:
+                        progress = 90
+                        message = "量子化モデルを保存中..."
+                    else:
+                        continue
+                    
+                    status.update({
+                        "progress": progress,
+                        "message": message,
+                        "logs": logs[-10:]  # 最新10行のみ保持
+                    })
+                    status_file.write_text(json.dumps(status))
+                
+                # プロセス終了待ち
+                await process.wait()
+                
+                # stderrも読み取り
+                stderr = await process.stderr.read()
+                if stderr:
+                    stderr_text = stderr.decode()
+                    logger.error(f"Quantization stderr: {stderr_text}")
+                    logs.append(f"[ERROR] {stderr_text}")
+                
+                if process.returncode == 0:
+                    # Ollamaにモデルを登録
+                    ollama_cmd = ["ollama", "create", model_name, "-f", 
+                                 f"/workspace/outputs/quantized_{task_id}/Modelfile"]
+                    
+                    ollama_process = await asyncio.create_subprocess_exec(
+                        *ollama_cmd,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    
+                    await ollama_process.wait()
+                    
+                    if ollama_process.returncode == 0:
+                        # RAG設定を自動更新
+                        config_path = Path("/workspace/src/rag/config/rag_config.yaml")
+                        if config_path.exists():
+                            import yaml
+                            with open(config_path) as f:
+                                config = yaml.safe_load(f)
+                            
+                            config['llm']['use_ollama_fallback'] = True
+                            config['llm']['ollama_model'] = model_name
+                            
+                            with open(config_path, 'w') as f:
+                                yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
+                        
+                        status.update({
+                            "status": "completed",
+                            "progress": 100,
+                            "message": f"量子化完了！モデル '{model_name}' がOllamaに登録されました",
+                            "ollama_model": model_name
+                        })
+                    else:
+                        status.update({
+                            "status": "error",
+                            "message": "Ollamaへの登録に失敗しました"
+                        })
+                else:
+                    stderr = await process.stderr.read()
+                    status.update({
+                        "status": "error",
+                        "message": f"量子化に失敗しました: {stderr.decode()}"
+                    })
+                
+                status_file.write_text(json.dumps(status))
+                
+            except Exception as e:
+                logger.error(f"量子化エラー: {e}")
+                status = {
+                    "task_id": task_id,
+                    "status": "error",
+                    "message": str(e)
+                }
+                status_file.write_text(json.dumps(status))
+        
+        # バックグラウンドタスクとして実行
+        background_tasks.add_task(run_quantization)
+        
+        return {
+            "task_id": task_id,
+            "message": "量子化処理を開始しました",
+            "status_url": f"/rag/quantization-status/{task_id}"
+        }
+        
+    except Exception as e:
+        logger.error(f"量子化開始エラー: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/rag/quantization-status/{task_id}")
+async def get_quantization_status(task_id: str):
+    """量子化タスクのステータスを取得"""
+    try:
+        status_file = Path(f"/tmp/quantization_{task_id}.json")
+        if not status_file.exists():
+            raise HTTPException(status_code=404, detail="タスクが見つかりません")
+        
+        with open(status_file) as f:
+            status = json.load(f)
+        
+        return status
+        
+    except Exception as e:
+        logger.error(f"ステータス取得エラー: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/rag/list-lora-models")
+async def list_lora_models():
+    """利用可能なファインチューニング済みモデルをリスト（全種類）"""
+    try:
+        # モデル探索ユーティリティを使用
+        try:
+            from src.utils.model_discovery import ModelDiscovery
+            discovery = ModelDiscovery()
+            all_models = discovery.find_all_models()
+        except ImportError:
+            logger.warning("ModelDiscovery not available, using fallback method")
+            # フォールバック: 従来の方法でLoRAモデルを探す
+            all_models = {
+                "lora_adapters": [],
+                "merged_models": [],
+                "continual_models": [],
+                "gguf_models": [],
+                "ollama_ready": []
+            }
+            
+            # 簡易的なLoRAモデル検索
+            outputs_dir = Path("/workspace/outputs")
+            if outputs_dir.exists():
+                for dir_path in outputs_dir.glob("lora_*"):
+                    if dir_path.is_dir():
+                        adapter_config = dir_path / "adapter_config.json"
+                        if adapter_config.exists():
+                            try:
+                                with open(adapter_config) as f:
+                                    config = json.load(f)
+                                    model_info = {
+                                        "path": str(dir_path),
+                                        "name": dir_path.name,
+                                        "base_model": config.get("base_model_name_or_path", "Unknown"),
+                                        "type": "lora_adapter"
+                                    }
+                                    all_models["lora_adapters"].append(model_info)
+                            except Exception as e:
+                                logger.warning(f"Failed to read {adapter_config}: {e}")
+        
+        # 全モデルを統合リストに変換
+        unified_models = []
+        
+        # LoRAアダプター
+        for model in all_models["lora_adapters"]:
+            unified_models.append({
+                "path": model["path"],
+                "name": model["name"],
+                "type": "lora_adapter",
+                "base_model": model.get("base_model", "Unknown"),
+                "display_name": f"[LoRA] {model['name']}",
+                "size_mb": model.get("size_mb", 0),
+                "modified_date": model.get("modified_date"),
+                "needs_processing": "merge_and_quantize",
+                "recommended": "DeepSeek" in model.get("base_model", "") or "deepseek" in model.get("base_model", "").lower()
+            })
+        
+        # マージ済みモデル
+        for model in all_models["merged_models"]:
+            unified_models.append({
+                "path": model["path"],
+                "name": model["name"],
+                "type": "merged_model",
+                "display_name": f"[Merged] {model['name']}",
+                "size_gb": model.get("size_gb", 0),
+                "modified_date": model.get("modified_date"),
+                "needs_processing": "quantize",
+                "recommended": True
+            })
+        
+        # 継続学習モデル
+        for model in all_models["continual_models"]:
+            unified_models.append({
+                "path": model["path"],
+                "name": model["name"],
+                "type": "continual_model",
+                "task_name": model.get("task_name", "Unknown"),
+                "display_name": f"[Continual] {model.get('task_name', model['name'])}",
+                "modified_date": model.get("modified_date"),
+                "needs_processing": "quantize",
+                "recommended": False
+            })
+        
+        # GGUFモデル
+        for model in all_models["gguf_models"]:
+            unified_models.append({
+                "path": model["path"],
+                "name": model["name"],
+                "type": "gguf_model",
+                "display_name": f"[GGUF] {model['name']}",
+                "size_gb": model.get("size_gb", 0),
+                "quantization": model.get("quantization", "Unknown"),
+                "modified_date": model.get("modified_date"),
+                "needs_processing": "register_ollama" if model.get("has_modelfile") else "create_modelfile",
+                "recommended": model.get("ollama_ready", False)
+            })
+        
+        # Ollama登録済みモデル
+        for model in all_models["ollama_ready"]:
+            unified_models.append({
+                "path": model["path"],
+                "name": model["name"],
+                "type": "ollama_ready",
+                "display_name": f"[Ollama Ready] {model['name']}",
+                "size_gb": model.get("size_gb", 0),
+                "modified_date": model.get("modified_date"),
+                "needs_processing": None,
+                "ready_to_use": True,
+                "recommended": True
+            })
+        
+        # 推奨順・新しい順でソート
+        # 日付文字列を比較可能な形式に変換
+        def sort_key(model):
+            ready = not model.get("ready_to_use", False)
+            recommended = not model.get("recommended", False)
+            # 日付文字列を逆順にするため、存在しない場合は"0"、存在する場合は逆転
+            date_str = model.get("modified_date", "")
+            if date_str:
+                # ISO形式の日付文字列は直接比較可能、新しい順にするため反転
+                # 文字列の前に"-"を付けるのではなく、文字を反転させる
+                date_sort = "".join(chr(255 - ord(c)) for c in date_str)
+            else:
+                date_sort = "zzz"  # 日付がない場合は最後に
+            return (ready, recommended, date_sort)
+        
+        # ソート（モデルがある場合のみ）
+        if unified_models:
+            unified_models.sort(key=sort_key)
+        
+        # モデルが見つからない場合のデフォルトモデルを追加
+        if not unified_models:
+            logger.info("No finetuned models found, adding default entry")
+            unified_models.append({
+                "path": "auto",
+                "name": "自動検出",
+                "type": "auto",
+                "display_name": "最新のLoRAモデルを自動検出",
+                "base_model": "自動",
+                "needs_processing": "auto_detect",
+                "recommended": True
+            })
+        
+        return {
+            "models": unified_models,
+            "count": len(unified_models),
+            "summary": {
+                "total": len(unified_models),
+                "ready_to_use": sum(1 for m in unified_models if m.get("ready_to_use")),
+                "needs_quantization": sum(1 for m in unified_models if m.get("needs_processing") in ["quantize", "merge_and_quantize"]),
+                "lora_adapters": len(all_models.get("lora_adapters", [])),
+                "merged_models": len(all_models.get("merged_models", [])),
+                "continual_models": len(all_models.get("continual_models", [])),
+                "gguf_models": len(all_models.get("gguf_models", []))
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"LoRAモデルリスト取得エラー: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/rag/update-settings")
 async def rag_update_settings(settings: Dict[str, Any]):
     """RAGシステムの設定を更新"""

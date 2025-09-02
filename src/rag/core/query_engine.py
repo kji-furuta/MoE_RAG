@@ -72,7 +72,7 @@ class LLMGenerator:
         self.tokenizer = None
         self.model = None
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.use_ollama_fallback = True  # デフォルトでOllamaを使用
+        self.use_ollama_fallback = False  # デフォルトではフォールバックを無効
         self.ollama = None
         
         # 継続学習モデルマネージャーの初期化
@@ -93,8 +93,11 @@ class LLMGenerator:
                 logger.warning(f"Failed to initialize continual learning manager: {e}")
                 self.use_continual = False
         
-        # Ollamaモードを優先的に初期化
-        self._enable_ollama_fallback()
+        # 設定に基づいてOllamaモードを初期化
+        if hasattr(config.llm, 'provider') and config.llm.provider == 'ollama':
+            self._enable_ollama_fallback()
+        elif hasattr(config.llm, 'use_ollama_fallback') and config.llm.use_ollama_fallback:
+            self._enable_ollama_fallback()
         
         # 明示的にファインチューニングモデルが指定された場合のみローカルモデルを試行
         if load_model and hasattr(config.llm, 'use_finetuned') and config.llm.use_finetuned:
@@ -376,6 +379,12 @@ class LLMGenerator:
                         self.tokenizer = original_tokenizer
         
         # 通常のモデル選択ロジック
+        # Ollamaプロバイダーが設定されている場合は直接Ollamaを使用
+        if hasattr(self.config.llm, 'provider') and self.config.llm.provider == 'ollama':
+            if not self.use_ollama_fallback:
+                self._enable_ollama_fallback()
+            return self._ollama_generation(prompt, context)
+        
         # モデルが未ロードの場合、オンデマンドでロード
         if not self.model and not self.use_ollama_fallback:
             logger.info("Model not loaded, attempting on-demand loading...")
@@ -536,9 +545,22 @@ class LLMGenerator:
             # コンテキストとプロンプトを組み合わせ
             full_prompt = self._build_prompt(prompt, context)
             
+            # 設定からOllamaモデル名を取得（優先順位で試行）
+            ollama_model = 'deepseek-32b-finetuned'  # デフォルト値を変更
+            
+            # 複数の設定箇所から取得を試みる
+            if hasattr(self.config.llm, 'ollama') and hasattr(self.config.llm.ollama, 'model'):
+                ollama_model = self.config.llm.ollama.model
+            elif hasattr(self.config.llm, 'ollama_model'):
+                ollama_model = self.config.llm.ollama_model
+            elif hasattr(self.config.llm, 'model_name') and self.config.llm.model_name.startswith('ollama:'):
+                ollama_model = self.config.llm.model_name[7:]
+            
+            logger.info(f"Ollamaモデル使用: {ollama_model}")
+            
             # Ollamaで生成
             result = self.ollama.generate_text(
-                model_name="llama3.2:3b",
+                model_name=ollama_model,
                 prompt=full_prompt,
                 temperature=0.7,
                 top_p=0.9,
@@ -762,7 +784,9 @@ class RoadDesignQueryEngine:
             
             # 5. OllamaベースのLLM生成器
             self.llm_generator = LLMGenerator(self.config, load_model=False)
-            self.llm_generator._enable_ollama_fallback()  # 強制的にOllamaモード
+            # Ollama統合を有効化（フォールバックではなくメインモードとして）
+            if hasattr(self.config.llm, 'provider') and self.config.llm.provider == 'ollama':
+                self.llm_generator._enable_ollama_fallback()  # Ollamaをメインモードとして使用
             
             # 6. シンプルな引用エンジン
             self.citation_engine = CitationQueryEngine(
@@ -787,7 +811,9 @@ class RoadDesignQueryEngine:
         try:
             # Ollamaのみで動作するシンプルなモード
             self.llm_generator = LLMGenerator(self.config, load_model=False)
-            self.llm_generator._enable_ollama_fallback()
+            # 設定に基づいてOllamaを有効化
+            if hasattr(self.config.llm, 'provider') and self.config.llm.provider == 'ollama':
+                self.llm_generator._enable_ollama_fallback()
             
             # ダミーのメタデータマネージャー
             self.metadata_manager = MetadataManager(db_path=":memory:")  # インメモリデータベース
@@ -1080,8 +1106,21 @@ class RoadDesignQueryEngine:
                 # 拡張されたプロンプトで詳細な回答を生成
                 enhanced_prompt = self._build_enhanced_rag_prompt(query_text, "")
                 
+                # 設定からOllamaモデル名を取得（優先順位で試行）
+                ollama_model = 'deepseek-32b-finetuned'  # デフォルト値を変更
+                
+                # 複数の設定箇所から取得を試みる
+                if hasattr(self.config.llm, 'ollama') and hasattr(self.config.llm.ollama, 'model'):
+                    ollama_model = self.config.llm.ollama.model
+                elif hasattr(self.config.llm, 'ollama_model'):
+                    ollama_model = self.config.llm.ollama_model
+                elif hasattr(self.config.llm, 'model_name') and self.config.llm.model_name.startswith('ollama:'):
+                    ollama_model = self.config.llm.model_name[7:]
+                
+                logger.info(f"Ollamaモデル使用: {ollama_model}")
+                
                 result = self.llm_generator.ollama.generate_text(
-                    model_name="llama3.2:3b",
+                    model_name=ollama_model,
                     prompt=enhanced_prompt,
                     temperature=0.7,
                     top_p=0.9,
@@ -1169,8 +1208,21 @@ class RoadDesignQueryEngine:
                 # 拡張されたプロンプトで詳細な回答を生成
                 enhanced_prompt = self._build_enhanced_rag_prompt(query_text, context)
                 
+                # 設定からOllamaモデル名を取得（優先順位で試行）
+                ollama_model = 'deepseek-32b-finetuned'  # デフォルト値を変更
+                
+                # 複数の設定箇所から取得を試みる
+                if hasattr(self.config.llm, 'ollama') and hasattr(self.config.llm.ollama, 'model'):
+                    ollama_model = self.config.llm.ollama.model
+                elif hasattr(self.config.llm, 'ollama_model'):
+                    ollama_model = self.config.llm.ollama_model
+                elif hasattr(self.config.llm, 'model_name') and self.config.llm.model_name.startswith('ollama:'):
+                    ollama_model = self.config.llm.model_name[7:]
+                    
+                logger.info(f"Ollamaモデル使用: {ollama_model}")
+                
                 result = self.llm_generator.ollama.generate_text(
-                    model_name="llama3.2:3b",
+                    model_name=ollama_model,
                     prompt=enhanced_prompt,
                     temperature=0.7,
                     top_p=0.9,

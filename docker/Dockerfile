@@ -48,6 +48,11 @@ RUN rm -rf /var/lib/apt/lists/* && \
 # Ollamaをインストール
 RUN curl -fsSL https://ollama.com/install.sh | sh
 
+# CMakeの最新版をインストール（llama.cpp用）
+RUN apt-get update && \
+    apt-get install -y cmake && \
+    rm -rf /var/lib/apt/lists/*
+
 # 高速パッケージ管理ツールuvをインストール
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 # uvのパスを環境変数PATHに追加
@@ -71,6 +76,13 @@ RUN python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords')"
 
 # flash-attn（高速アテンション実装）をtorchと他の依存関係インストール後に個別インストール
 RUN uv pip install --system flash-attn>=2.0.0 --no-build-isolation
+
+# 量子化関連パッケージをインストール
+RUN uv pip install --system \
+    gguf \
+    mistral-common \
+    sentencepiece \
+    protobuf
 
 # 開発用およびWebインターフェース用の追加パッケージをインストール
 RUN uv pip install --system \
@@ -123,6 +135,13 @@ COPY *.bat /workspace/
 
 # 権限設定スクリプトをコピー
 COPY scripts/setup_permissions.sh /workspace/scripts/
+
+# llama.cppをプリビルド（オプション - ビルド時間を増やす代わりに実行時を短縮）
+# RUN cd /workspace && \
+#     git clone https://github.com/ggerganov/llama.cpp && \
+#     cd llama.cpp && \
+#     cmake -B build -DLLAMA_CURL=OFF -DLLAMA_CUDA=ON && \
+#     cmake --build build --config Release -j$(nproc)
 
 # 権限を包括的に設定
 RUN chmod +x /workspace/scripts/setup_permissions.sh && \

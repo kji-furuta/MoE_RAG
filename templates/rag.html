@@ -978,10 +978,12 @@ async function loadFinetunedModels() {
         const select = document.getElementById('ragModel');
         const finetunedOptgroup = select.querySelector('optgroup[label="ファインチューニング済みモデル"]');
         const moeOptgroup = select.querySelector('optgroup[label="MoE（Mixture of Experts）モデル"]');
+        const ollamaOptgroup = select.querySelector('optgroup[label="Ollamaモデル"]');
         
         // 既存のオプションをクリア
         finetunedOptgroup.innerHTML = '';
         moeOptgroup.innerHTML = '';
+        ollamaOptgroup.innerHTML = '';
         
         // MoEトレーニング履歴を取得
         try {
@@ -1049,6 +1051,46 @@ async function loadFinetunedModels() {
             option.disabled = true;
             finetunedOptgroup.appendChild(option);
         }
+        
+        // Ollamaモデルを追加
+        if (data.ollama_models && data.ollama_models.length > 0) {
+            data.ollama_models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = `ollama:${model.name}`;
+                
+                // モデル名の表示を調整
+                let displayName = model.name;
+                if (model.name.includes('deepseek-32b-finetuned')) {
+                    displayName = 'DeepSeek-32B (ファインチューニング済み)';
+                } else if (model.name.includes('llama3.2:3b')) {
+                    displayName = 'Llama 3.2 3B';
+                } else if (model.name.includes('llama3.2')) {
+                    displayName = `Llama 3.2 ${model.size || ''}`;
+                }
+                
+                // サイズ情報がある場合は追加
+                if (model.size) {
+                    displayName += ` (${model.size})`;
+                }
+                
+                option.textContent = displayName;
+                ollamaOptgroup.appendChild(option);
+            });
+        } else {
+            // デフォルトのOllamaモデルを表示
+            const defaultModels = [
+                { value: 'ollama:llama3.2:3b', text: 'Llama 3.2 3B (デフォルト)' },
+                { value: 'ollama:deepseek-32b-finetuned', text: 'DeepSeek-32B (ファインチューニング済み)' }
+            ];
+            
+            defaultModels.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.value;
+                option.textContent = model.text;
+                ollamaOptgroup.appendChild(option);
+            });
+        }
+        
     } catch (error) {
         console.error('Failed to load models:', error);
     }
@@ -1270,11 +1312,16 @@ document.getElementById('modelSettingsForm')?.addEventListener('submit', async (
     resultDiv.innerHTML = '<div class="alert alert-info">設定を保存中...</div>';
     
     try {
+        const selectedModel = formData.get('model');
+        console.log('選択されたモデル:', selectedModel);
+        
         const settings = {
-            llm_model: formData.get('model'),
+            llm_model: selectedModel,
             embedding_model: formData.get('embedding_model'),
             temperature: parseFloat(formData.get('temperature'))
         };
+        
+        console.log('送信する設定:', settings);
         
         const response = await fetch('/rag/update-settings', {
             method: 'POST',
@@ -1284,11 +1331,18 @@ document.getElementById('modelSettingsForm')?.addEventListener('submit', async (
             body: JSON.stringify(settings)
         });
         
-        if (response.ok) {
-            resultDiv.innerHTML = '<div class="alert alert-success">設定を保存しました。RAGシステムを再起動してください。</div>';
-            loadCurrentSettings();
+        const responseData = await response.json();
+        console.log('サーバーレスポンス:', responseData);
+        
+        if (response.ok && responseData.status === 'success') {
+            resultDiv.innerHTML = '<div class="alert alert-success">✅ 設定を保存しました。新しいモデルが有効になりました。</div>';
+            
+            // 設定を即座に反映させる
+            setTimeout(() => {
+                loadCurrentSettings();
+            }, 500);
         } else {
-            throw new Error('設定の保存に失敗しました');
+            throw new Error(responseData.message || '設定の保存に失敗しました');
         }
     } catch (error) {
         resultDiv.innerHTML = `<div class="alert alert-danger">エラー: ${error.message}</div>`;

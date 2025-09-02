@@ -51,6 +51,14 @@ class LLMConfig:
     moe_model_path: Optional[str] = None
     moe_num_experts: int = 8
     moe_experts_per_token: int = 2
+    # Ollama設定
+    provider: str = "local"
+    model_name: Optional[str] = None
+    model_path: Optional[str] = None
+    ollama_model: Optional[str] = None
+    ollama_host: str = "http://localhost:11434"
+    use_ollama_fallback: bool = False
+    ollama: Optional[Dict[str, Any]] = None
     
     def __post_init__(self):
         if self.max_memory is None:
@@ -195,8 +203,21 @@ def load_config(config_path: Optional[str] = None, resolve_model_paths: bool = T
                 use_moe=llm_config.get('use_moe', config.llm.use_moe),
                 moe_model_path=llm_config.get('moe_model_path', config.llm.moe_model_path),
                 moe_num_experts=llm_config.get('moe_num_experts', config.llm.moe_num_experts),
-                moe_experts_per_token=llm_config.get('moe_experts_per_token', config.llm.moe_experts_per_token)
+                moe_experts_per_token=llm_config.get('moe_experts_per_token', config.llm.moe_experts_per_token),
+                # Ollama設定
+                provider=llm_config.get('provider', 'local'),
+                model_name=llm_config.get('model_name'),
+                model_path=llm_config.get('model_path'),
+                ollama_model=llm_config.get('ollama_model'),
+                ollama_host=llm_config.get('ollama_host', 'http://localhost:11434'),
+                use_ollama_fallback=llm_config.get('use_ollama_fallback', False),
+                ollama=llm_config.get('ollama', {})
             )
+            
+            # ollamaをネストされたオブジェクトとして設定
+            if 'ollama' in llm_config and isinstance(llm_config['ollama'], dict):
+                from types import SimpleNamespace
+                config.llm.ollama = SimpleNamespace(**llm_config['ollama'])
             
         # 文書処理設定
         if 'document_processing' in config_data:

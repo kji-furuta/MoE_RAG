@@ -546,7 +546,7 @@ class LLMGenerator:
             full_prompt = self._build_prompt(prompt, context)
             
             # 設定からOllamaモデル名を取得（優先順位で試行）
-            ollama_model = 'deepseek-32b-finetuned'  # デフォルト値を変更
+            ollama_model = 'llama3.2:3b'  # デフォルトを一般的なモデルに変更
             
             # 複数の設定箇所から取得を試みる
             if hasattr(self.config.llm, 'ollama') and hasattr(self.config.llm.ollama, 'model'):
@@ -1107,7 +1107,7 @@ class RoadDesignQueryEngine:
                 enhanced_prompt = self._build_enhanced_rag_prompt(query_text, "")
                 
                 # 設定からOllamaモデル名を取得（優先順位で試行）
-                ollama_model = 'deepseek-32b-finetuned'  # デフォルト値を変更
+                ollama_model = 'llama3.2:3b'  # デフォルトを一般的なモデルに変更
                 
                 # 複数の設定箇所から取得を試みる
                 if hasattr(self.config.llm, 'ollama') and hasattr(self.config.llm.ollama, 'model'):
@@ -1209,7 +1209,7 @@ class RoadDesignQueryEngine:
                 enhanced_prompt = self._build_enhanced_rag_prompt(query_text, context)
                 
                 # 設定からOllamaモデル名を取得（優先順位で試行）
-                ollama_model = 'deepseek-32b-finetuned'  # デフォルト値を変更
+                ollama_model = 'llama3.2:3b'  # デフォルトを一般的なモデルに変更
                 
                 # 複数の設定箇所から取得を試みる
                 if hasattr(self.config.llm, 'ollama') and hasattr(self.config.llm.ollama, 'model'):

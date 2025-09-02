@@ -188,11 +188,18 @@ RUN python -c "import loguru; print('✅ loguru installed successfully')" && \
     python -c "import spacy; nlp = spacy.load('ja_core_news_lg'); print('✅ Japanese language model loaded successfully')" || \
     echo "⚠️ Some RAG dependencies may not be fully available"
 
+# エントリーポイントスクリプトをコピーして実行可能にする
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # 作業ユーザーを切り替え
 USER ai-user
 
 # ポートを公開
-EXPOSE 8888 6006 8050 8051
+EXPOSE 8888 6006 8050 8051 11434
+
+# エントリーポイントを設定
+ENTRYPOINT ["/entrypoint.sh"]
 
 # デフォルトコマンド（bashシェルを起動）
 CMD ["/bin/bash"]

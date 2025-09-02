@@ -12,14 +12,20 @@ if command -v ollama &> /dev/null; then
     sleep 3
     echo "✅ Ollamaサービスを起動しました (port 11434)"
     
-    # Ollamaモデルの確認と自動ダウンロード
-    echo "📦 Ollamaモデルを確認中..."
-    if ! ollama list | grep -q "llama3.2:3b"; then
-        echo "📥 llama3.2:3bモデルをダウンロード中..."
-        ollama pull llama3.2:3b
-        echo "✅ モデルのダウンロードが完了しました"
+    # Ollamaモデルの初期化スクリプトを実行
+    echo "📦 Ollamaモデルを初期化中..."
+    if [ -f /workspace/scripts/init_ollama_models.sh ]; then
+        /workspace/scripts/init_ollama_models.sh
     else
-        echo "✅ llama3.2:3bモデルが利用可能です"
+        # フォールバック: 基本的なモデル確認
+        echo "📦 Ollamaモデルを確認中..."
+        if ! ollama list | grep -q "llama3.2:3b"; then
+            echo "📥 llama3.2:3bモデルをダウンロード中..."
+            ollama pull llama3.2:3b
+            echo "✅ モデルのダウンロードが完了しました"
+        else
+            echo "✅ llama3.2:3bモデルが利用可能です"
+        fi
     fi
 fi
 

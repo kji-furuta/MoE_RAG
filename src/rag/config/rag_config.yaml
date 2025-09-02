@@ -43,7 +43,7 @@ llm:
     0: 36GB
     1: 36GB
   max_new_tokens: 512
-  model_name: ollama:deepseek-32b-finetuned
+  model_name: ollama:llama3.2:3b
   model_path: null
   moe_experts_per_token: 2
   moe_model_path: /workspace/outputs/moe_d63ec0db-4f34-48d2-89c1-35b485a819f1
@@ -51,11 +51,11 @@ llm:
   ollama:
     base_url: http://localhost:11434
     max_tokens: 2048
-    model: deepseek-32b-finetuned
+    model: llama3.2:3b
     temperature: 0.6
     top_p: 0.9
   ollama_host: http://localhost:11434
-  ollama_model: deepseek-32b-finetuned
+  ollama_model: llama3.2:3b
   provider: ollama
   quantization:
     compute_type: float16

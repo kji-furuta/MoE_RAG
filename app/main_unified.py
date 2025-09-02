@@ -3532,12 +3532,31 @@ async def rag_update_settings(settings: Dict[str, Any]):
             
             # LLMモデルの更新
             if 'llm_model' in settings and settings['llm_model']:
-                if settings['llm_model'].startswith('moe:'):
+                if settings['llm_model'].startswith('ollama:'):
+                    # Ollamaモデルの場合
+                    ollama_model = settings['llm_model'].replace('ollama:', '')
+                    config['llm']['provider'] = 'ollama'
+                    config['llm']['ollama_model'] = ollama_model
+                    config['llm']['model_name'] = f"ollama:{ollama_model}"
+                    
+                    # Ollama設定セクションを更新
+                    if 'ollama' not in config['llm']:
+                        config['llm']['ollama'] = {}
+                    config['llm']['ollama']['model'] = ollama_model
+                    config['llm']['ollama']['base_url'] = 'http://localhost:11434'
+                    
+                    config['llm']['use_finetuned'] = False
+                    config['llm']['use_moe'] = False
+                    config['llm']['use_ollama_fallback'] = True
+                    logger.info(f"Ollamaモデル設定を更新: {ollama_model}")
+                    
+                elif settings['llm_model'].startswith('moe:'):
                     # MoEモデルの場合
                     moe_task_id = settings['llm_model'].replace('moe:', '')
                     config['llm']['use_moe'] = True
                     config['llm']['moe_model_path'] = f"/workspace/outputs/moe_{moe_task_id}"
                     config['llm']['use_finetuned'] = False
+                    config['llm']['provider'] = 'local'
                     
                     # MoE設定を取得
                     try:
@@ -3558,11 +3577,13 @@ async def rag_update_settings(settings: Dict[str, Any]):
                     config['llm']['model_path'] = model_path
                     config['llm']['use_finetuned'] = True
                     config['llm']['use_moe'] = False
+                    config['llm']['provider'] = 'local'
                     logger.info(f"ファインチューニングモデル設定を更新: {model_path}")
                 else:
                     config['llm']['model_name'] = settings['llm_model']
                     config['llm']['use_finetuned'] = False
                     config['llm']['use_moe'] = False
+                    config['llm']['provider'] = 'local'
                     logger.info(f"ベースモデル設定を更新: {settings['llm_model']}")
             
             # 埋め込みモデルの更新
@@ -3576,6 +3597,18 @@ async def rag_update_settings(settings: Dict[str, Any]):
             # 設定を保存
             with open(config_path, 'w', encoding='utf-8') as f:
                 yaml.dump(config, f, allow_unicode=True, default_flow_style=False)
+            
+            # RAGシステムに設定を再読み込みさせる
+            try:
+                if hasattr(rag_app, 'query_engine') and rag_app.query_engine:
+                    # 設定を再読み込み
+                    from src.rag.config.rag_config import load_config
+                    new_config = load_config()
+                    rag_app.query_engine.config = new_config
+                    logger.info("RAGクエリエンジンの設定を再読み込みしました")
+            except Exception as reload_error:
+                logger.warning(f"設定の再読み込み中にエラー: {reload_error}")
+                # エラーが発生しても設定保存は成功とする
             
             return {"status": "success", "message": "設定を更新しました"}
         else:

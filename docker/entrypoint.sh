@@ -1,55 +1,55 @@
 #!/bin/bash
 
-# Docker用エントリーポイントスクリプト
-# メモリ管理の初期化問題を回避
+# Docker Entrypoint Script
+# Ollamaモデルの初期化とその他のスタートアップタスクを実行
 
-echo "🐳 Docker Container Starting..."
-echo "📦 Environment Setup..."
+echo "========================================="
+echo "Starting AI-FT Container..."
+echo "========================================="
 
-# Docker環境フラグを設定
-export DOCKER_CONTAINER=true
-export MEMORY_MANAGER_INITIALIZED=1
-
-# メモリ最適化設定（Docker用の控えめな設定）
-export PYTORCH_CUDA_ALLOC_CONF="max_split_size_mb:512"
-export OMP_NUM_THREADS=4
-export MKL_NUM_THREADS=4
-# CUDA_LAUNCH_BLOCKINGは設定しない（Docker内で問題を起こす可能性）
-
-# Pythonパスの設定
-export PYTHONPATH=/workspace:$PYTHONPATH
-
-# 作業ディレクトリ
-cd /workspace
-
-# 必要なディレクトリを作成
-mkdir -p outputs data logs temp_uploads config
-mkdir -p data/continual_learning data/uploaded
-
-# パーミッションの設定
-chmod -R 755 /workspace/scripts 2>/dev/null || true
-chmod -R 777 /workspace/outputs 2>/dev/null || true
-chmod -R 777 /workspace/data 2>/dev/null || true
-chmod -R 777 /workspace/logs 2>/dev/null || true
-
-echo "✅ Environment ready"
-
-# コマンド引数がある場合は実行
-if [ $# -gt 0 ]; then
-    echo "🚀 Executing: $@"
-    exec "$@"
-else
-    echo "🌐 Starting Web Interface..."
-    # Docker用の起動スクリプトを使用
-    if [ -f /workspace/scripts/start_web_interface_docker.sh ]; then
-        exec bash /workspace/scripts/start_web_interface_docker.sh
-    else
-        # フォールバック：直接起動
-        exec python3 -m uvicorn app.main_unified_docker:app \
-            --host 0.0.0.0 \
-            --port 8050 \
-            --workers 1 \
-            --loop asyncio \
-            --log-level info
+# Ollamaサービスの起動
+if command -v ollama &> /dev/null; then
+    echo "Starting Ollama service..."
+    nohup ollama serve > /var/log/ollama.log 2>&1 &
+    
+    # Ollamaが起動するまで待機
+    for i in {1..30}; do
+        if curl -s http://localhost:11434/api/tags &>/dev/null; then
+            echo "✅ Ollama service is ready!"
+            break
+        fi
+        echo "Waiting for Ollama... (attempt $i/30)"
+        sleep 2
+    done
+    
+    # Ollamaモデルの初期化
+    if [ -f /workspace/scripts/init_ollama_models.sh ]; then
+        echo "Initializing Ollama models..."
+        /workspace/scripts/init_ollama_models.sh
     fi
+fi
+
+# パーミッションの設定（必要に応じて）
+if [ -f /workspace/scripts/setup_permissions.sh ]; then
+    /workspace/scripts/setup_permissions.sh --check
+    if [ $? -ne 0 ]; then
+        echo "Setting up permissions..."
+        /workspace/scripts/setup_permissions.sh
+    fi
+fi
+
+# 継続学習用ディレクトリの作成
+mkdir -p /workspace/data/continual_learning
+mkdir -p /workspace/outputs/ewc_data
+mkdir -p /workspace/outputs/continual_task
+
+echo "========================================="
+echo "Container initialization complete!"
+echo "========================================="
+
+# コマンドが指定されていない場合はbashを起動
+if [ $# -eq 0 ]; then
+    exec /bin/bash
+else
+    exec "$@"
 fi

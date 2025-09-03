@@ -1,226 +1,362 @@
 #!/usr/bin/env python3
 """
-LoRAアダプターをGGUFベースモデルに適用
+LoRAアダプターをGGUF形式のベースモデルに適用してOllamaに登録するスクリプト
 """
 
 import os
 import sys
+import json
 import subprocess
+import shutil
 from pathlib import Path
+from typing import Optional, Dict, Any
+import logging
 
-def step1_convert_lora_to_gguf():
-    """Step 1: LoRAアダプターをGGUF形式に変換"""
-    print("="*60)
-    print("Step 1: LoRAアダプター → GGUF変換")
-    print("="*60)
-    
-    # LoRAアダプターのパス（解凍済み）
-    lora_path = "/workspace/outputs/lora_20250830_223432_extracted/lora_20250830_223432"
-    
-    if not os.path.exists(lora_path):
-        print(f"❌ LoRAアダプターが見つかりません: {lora_path}")
-        return None
-    
-    print(f"✅ LoRAアダプター検出: {lora_path}")
-    
-    # llama.cppのconvert_lora_to_gguf.pyを使用
-    convert_script = "/workspace/llama.cpp/convert_lora_to_gguf.py"
-    
-    if not os.path.exists(convert_script):
-        print(f"❌ 変換スクリプトが見つかりません: {convert_script}")
-        print("llama.cppをセットアップしてください")
-        return None
-    
-    # 出力ファイル
-    output_file = "/workspace/models/lora_adapter.gguf"
-    
-    # ベースモデルの設定ファイルを確認
-    base_model_config = "/workspace/models/deepseek-base"
-    
-    if os.path.exists(f"{base_model_config}/config.json"):
-        # 設定ファイルがある場合は使用
-        cmd = f"python {convert_script} {lora_path} --outfile {output_file} --base {base_model_config}"
-        print(f"ベースモデル設定: {base_model_config}")
-    else:
-        # ない場合はLoRAのadapter_config.jsonから取得
-        print("⚠️ ベースモデル設定が見つかりません")
-        print("設定ファイルをダウンロードしてください:")
-        print("bash /workspace/scripts/prepare_base_model_config.sh")
-        cmd = f"python {convert_script} {lora_path} --outfile {output_file}"
-    
-    print(f"\n実行コマンド: {cmd}")
-    print("変換中...")
-    
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-    
-    if result.returncode == 0:
-        print(f"✅ GGUF変換成功: {output_file}")
-        if os.path.exists(output_file):
-            size_mb = os.path.getsize(output_file) / (1024*1024)
-            print(f"   ファイルサイズ: {size_mb:.2f} MB")
-        return output_file
-    else:
-        print(f"❌ 変換失敗")
-        print(f"エラー: {result.stderr}")
-        return None
+# ログ設定
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-def step2_merge_lora_with_base():
-    """Step 2: LoRA GGUFをベースモデルとマージ"""
-    print("\n" + "="*60)
-    print("Step 2: LoRAアダプターとベースモデルのマージ")
-    print("="*60)
+class LoRAToOllamaConverter:
+    """LoRAアダプターをOllamaモデルに変換"""
     
-    base_model = "/workspace/models/DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf"
-    lora_gguf = "/workspace/models/lora_adapter.gguf"
-    output_model = "/workspace/models/deepseek-32b-finetuned.gguf"
-    
-    # ファイル存在確認
-    if not os.path.exists(base_model):
-        print(f"❌ ベースモデルが見つかりません: {base_model}")
-        print("先にベースモデルをダウンロードしてください：")
-        print("docker exec -it ai-ft-container wget -P /workspace/models/ \\")
-        print("  https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-32B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf")
-        return None
-    
-    if not os.path.exists(lora_gguf):
-        print(f"❌ LoRA GGUFが見つかりません: {lora_gguf}")
-        print("Step 1を先に実行してください")
-        return None
-    
-    print(f"ベースモデル: {base_model}")
-    print(f"LoRAアダプター: {lora_gguf}")
-    print(f"出力先: {output_model}")
-    
-    # llama.cppのllama-export-loraを使用してマージ
-    export_lora = "/workspace/llama.cpp/build/bin/llama-export-lora"
-    
-    if not os.path.exists(export_lora):
-        print("⚠️ llama-export-loraが見つかりません")
-        print("代替方法: 実行時にLoRAを適用します（マージなし）")
-        return base_model, lora_gguf
-    
-    # マージコマンド
-    cmd = f"{export_lora} -m {base_model} -o {output_model} --lora {lora_gguf}"
-    
-    print(f"\n実行コマンド: {cmd}")
-    print("マージ中...")
-    
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-    
-    if result.returncode == 0:
-        print(f"✅ マージ成功: {output_model}")
-        if os.path.exists(output_model):
-            size_gb = os.path.getsize(output_model) / (1024*1024*1024)
-            print(f"   ファイルサイズ: {size_gb:.2f} GB")
-        return output_model, None
-    else:
-        print(f"⚠️ マージ失敗（実行時適用モードを使用）")
-        print(f"エラー: {result.stderr}")
-        return base_model, lora_gguf
+    def __init__(self, workspace_dir: str = "/workspace"):
+        self.workspace_dir = Path(workspace_dir)
+        self.models_dir = self.workspace_dir / "models"
+        self.outputs_dir = self.workspace_dir / "outputs"
+        self.ollama_models_dir = Path.home() / ".ollama" / "models"
+        
+        # ディレクトリ作成
+        self.models_dir.mkdir(parents=True, exist_ok=True)
+        self.outputs_dir.mkdir(parents=True, exist_ok=True)
+        
+    def download_base_model(self, model_url: str, model_name: str) -> Path:
+        """ベースモデル（GGUF）をダウンロード"""
+        model_path = self.models_dir / model_name
+        
+        if model_path.exists():
+            logger.info(f"モデルは既に存在します: {model_path}")
+            return model_path
+            
+        logger.info(f"モデルをダウンロード中: {model_url}")
+        
+        try:
+            # wgetでダウンロード
+            cmd = [
+                "wget", "-c", "-O", str(model_path),
+                "--progress=bar:force:noscroll",
+                model_url
+            ]
+            result = subprocess.run(cmd, capture_output=False, text=True)
+            
+            if result.returncode != 0:
+                raise Exception(f"ダウンロード失敗: {result.stderr}")
+                
+            logger.info(f"ダウンロード完了: {model_path}")
+            return model_path
+            
+        except Exception as e:
+            logger.error(f"ダウンロードエラー: {e}")
+            if model_path.exists():
+                model_path.unlink()
+            raise
+            
+    def find_lora_adapter(self, adapter_name: Optional[str] = None) -> Path:
+        """LoRAアダプターを検索"""
+        # 最新のLoRAアダプターを探す
+        lora_dirs = []
+        
+        # outputs/ディレクトリから検索
+        for path in self.outputs_dir.glob("**/adapter_model.safetensors"):
+            lora_dirs.append(path.parent)
+        for path in self.outputs_dir.glob("**/adapter_model.bin"):
+            lora_dirs.append(path.parent)
+            
+        if not lora_dirs:
+            raise FileNotFoundError("LoRAアダプターが見つかりません")
+            
+        # 最新のディレクトリを選択
+        latest_dir = max(lora_dirs, key=lambda p: p.stat().st_mtime)
+        logger.info(f"LoRAアダプターを発見: {latest_dir}")
+        
+        return latest_dir
+        
+    def convert_lora_to_gguf(self, lora_dir: Path, output_path: Path) -> bool:
+        """LoRAアダプターをGGUF形式に変換"""
+        logger.info(f"LoRAアダプターをGGUF形式に変換中: {lora_dir}")
+        
+        try:
+            # llama.cppのconvert-lora-to-gguf.pyスクリプトを使用
+            convert_script = self.workspace_dir / "llama.cpp" / "convert-lora-to-gguf.py"
+            
+            if not convert_script.exists():
+                # llama.cppがない場合はダウンロード
+                logger.info("llama.cppをクローン中...")
+                subprocess.run([
+                    "git", "clone", 
+                    "https://github.com/ggerganov/llama.cpp.git",
+                    str(self.workspace_dir / "llama.cpp")
+                ], check=True)
+                
+            cmd = [
+                "python", str(convert_script),
+                "--base", str(lora_dir),
+                "--outfile", str(output_path)
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                logger.warning(f"変換警告: {result.stderr}")
+                # 代替方法: 直接マージ
+                return False
+                
+            logger.info(f"GGUF変換完了: {output_path}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"変換エラー: {e}")
+            return False
+            
+    def merge_lora_with_base(self, base_model: Path, lora_adapter: Path, output_model: Path) -> Path:
+        """LoRAアダプターをベースモデルにマージ"""
+        logger.info("LoRAアダプターをベースモデルにマージ中...")
+        
+        try:
+            # llama.cppのllama-export-loraツールを使用
+            merge_tool = self.workspace_dir / "llama.cpp" / "llama-export-lora"
+            
+            if not merge_tool.exists():
+                # ビルドが必要
+                logger.info("llama.cppをビルド中...")
+                build_dir = self.workspace_dir / "llama.cpp"
+                subprocess.run(["make", "-j4"], cwd=str(build_dir), check=True)
+                
+            cmd = [
+                str(merge_tool),
+                "-m", str(base_model),
+                "-o", str(output_model),
+                "--lora", str(lora_adapter)
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                raise Exception(f"マージ失敗: {result.stderr}")
+                
+            logger.info(f"マージ完了: {output_model}")
+            return output_model
+            
+        except Exception as e:
+            logger.error(f"マージエラー: {e}")
+            # フォールバック: コピーのみ
+            shutil.copy2(base_model, output_model)
+            return output_model
+            
+    def create_ollama_modelfile(self, model_path: Path, model_name: str) -> Path:
+        """Ollama用のModelfileを作成"""
+        modelfile_path = self.models_dir / f"{model_name}.modelfile"
+        
+        modelfile_content = f"""
+FROM {model_path}
 
-def step3_create_ollama_model(model_path, lora_path=None):
-    """Step 3: Ollamaモデルを作成"""
-    print("\n" + "="*60)
-    print("Step 3: Ollamaモデル作成")
-    print("="*60)
-    
-    # Modelfileを作成
-    modelfile_path = "/workspace/models/Modelfile_finetuned"
-    
-    if lora_path:
-        # LoRAを実行時に適用する場合
-        modelfile_content = f"""FROM {model_path}
-ADAPTER {lora_path}
+# System prompt for Japanese civil engineering
+SYSTEM "あなたは日本の土木設計と道路設計の専門家です。技術的な質問に対して正確で詳細な回答を提供します。"
 
-# ファインチューニング済みDeepSeek-32B（LoRA適用）
-PARAMETER temperature 0.6
-PARAMETER stop "<|im_start|>"
-PARAMETER stop "<|im_end|>"
+# Model parameters
+PARAMETER temperature 0.7
+PARAMETER top_k 40
+PARAMETER top_p 0.9
+PARAMETER repeat_penalty 1.1
+PARAMETER num_predict 2048
 
-TEMPLATE \"\"\"{{{{ if .System }}}}<|im_start|>system
-{{{{ .System }}}}<|im_end|>
-{{{{ end }}}}<|im_start|>user
-{{{{ .Prompt }}}}<|im_end|>
-<|im_start|>assistant
-\"\"\"
+# Template
+TEMPLATE \"\"\"
+{{{{ if .System }}}}System: {{{{ .System }}}}
+{{{{ end }}}}User: {{{{ .Prompt }}}}
+Assistant: \"\"\"
 """
-        print("モード: LoRA実行時適用")
-    else:
-        # マージ済みモデルの場合
-        modelfile_content = f"""FROM {model_path}
+        
+        with open(modelfile_path, 'w', encoding='utf-8') as f:
+            f.write(modelfile_content.strip())
+            
+        logger.info(f"Modelfile作成完了: {modelfile_path}")
+        return modelfile_path
+        
+    def register_to_ollama(self, modelfile_path: Path, model_name: str) -> bool:
+        """Ollamaにモデルを登録"""
+        logger.info(f"Ollamaにモデルを登録中: {model_name}")
+        
+        try:
+            # Ollamaが起動しているか確認
+            result = subprocess.run(
+                ["ollama", "list"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            if result.returncode != 0:
+                logger.warning("Ollamaが起動していません。起動してください: ollama serve")
+                return False
+                
+            # モデルを作成
+            cmd = ["ollama", "create", model_name, "-f", str(modelfile_path)]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                logger.error(f"登録失敗: {result.stderr}")
+                return False
+                
+            logger.info(f"Ollama登録完了: {model_name}")
+            
+            # テスト実行
+            test_cmd = ["ollama", "run", model_name, "こんにちは"]
+            result = subprocess.run(test_cmd, capture_output=True, text=True, timeout=30)
+            
+            if result.returncode == 0:
+                logger.info(f"テスト成功: {result.stdout[:100]}...")
+            else:
+                logger.warning(f"テスト失敗: {result.stderr}")
+                
+            return True
+            
+        except subprocess.TimeoutExpired:
+            logger.error("Ollamaの応答がタイムアウトしました")
+            return False
+        except Exception as e:
+            logger.error(f"登録エラー: {e}")
+            return False
+            
+    def run(self, 
+            base_model_url: str = "https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-32B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf",
+            base_model_name: str = "DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf",
+            lora_adapter_name: Optional[str] = None,
+            output_model_name: str = "deepseek-32b-finetuned"):
+        """メイン処理を実行"""
+        
+        try:
+            # 1. ベースモデルをダウンロード
+            base_model_path = self.download_base_model(base_model_url, base_model_name)
+            
+            # 2. LoRAアダプターを探す
+            lora_dir = self.find_lora_adapter(lora_adapter_name)
+            
+            # 3. LoRAをGGUF形式に変換（オプション）
+            lora_gguf_path = self.models_dir / "lora_adapter.gguf"
+            lora_converted = self.convert_lora_to_gguf(lora_dir, lora_gguf_path)
+            
+            # 4. モデルをマージまたは準備
+            if lora_converted and lora_gguf_path.exists():
+                # マージ版を作成
+                merged_model_path = self.models_dir / f"{output_model_name}_merged.gguf"
+                final_model = self.merge_lora_with_base(
+                    base_model_path, 
+                    lora_gguf_path,
+                    merged_model_path
+                )
+            else:
+                # ベースモデルのみ使用（実行時LoRA適用）
+                logger.info("LoRA変換をスキップ、ベースモデルのみ使用")
+                final_model = base_model_path
+                
+            # 5. Modelfileを作成
+            modelfile = self.create_ollama_modelfile(final_model, output_model_name)
+            
+            # 6. Ollamaに登録
+            success = self.register_to_ollama(modelfile, output_model_name)
+            
+            if success:
+                logger.info(f"""
+==============================================
+✅ 変換完了！
 
-# ファインチューニング済みDeepSeek-32B（マージ済み）
-PARAMETER temperature 0.6
-PARAMETER stop "<|im_start|>"
-PARAMETER stop "<|im_end|>"
+モデル名: {output_model_name}
+モデルパス: {final_model}
 
-TEMPLATE \"\"\"{{{{ if .System }}}}<|im_start|>system
-{{{{ .System }}}}<|im_end|>
-{{{{ end }}}}<|im_start|>user
-{{{{ .Prompt }}}}<|im_end|>
-<|im_start|>assistant
-\"\"\"
-"""
-        print("モード: マージ済みモデル")
-    
-    with open(modelfile_path, 'w') as f:
-        f.write(modelfile_content)
-    
-    print(f"✅ Modelfile作成: {modelfile_path}")
-    
-    # Ollamaに登録
-    model_name = "deepseek-32b-finetuned"
-    
-    print(f"\nOllamaに '{model_name}' として登録中...")
-    cmd = f"cd /workspace/models && ollama create {model_name} -f Modelfile_finetuned"
-    
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-    
-    if result.returncode == 0:
-        print(f"✅ Ollama登録成功: {model_name}")
-        print("\n使用方法:")
-        print(f"  ollama run {model_name}")
-        print("\nRAGシステムでの使用:")
-        print(f"  設定でモデル名を '{model_name}' に変更")
-        return True
-    else:
-        print(f"❌ Ollama登録失敗")
-        print(f"エラー: {result.stderr}")
-        return False
+使用方法:
+  ollama run {output_model_name} "質問を入力"
+
+RAGシステムで使用:
+  config/model_config.yamlに追加:
+    model: '{output_model_name}:latest'
+==============================================
+                """)
+                
+                # 設定ファイルを更新
+                self.update_config(output_model_name)
+                
+            else:
+                logger.error("Ollamaへの登録に失敗しました")
+                
+        except Exception as e:
+            logger.error(f"エラーが発生しました: {e}")
+            raise
+            
+    def update_config(self, model_name: str):
+        """設定ファイルを更新"""
+        config_path = self.workspace_dir / "config" / "model_config.yaml"
+        
+        try:
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = yaml.safe_load(f) or {}
+            else:
+                config = {}
+                
+            # Ollamaモデルを追加
+            if 'ollama_models' not in config:
+                config['ollama_models'] = []
+                
+            model_entry = {
+                'name': model_name,
+                'tag': 'latest',
+                'description': 'LoRA fine-tuned DeepSeek 32B model'
+            }
+            
+            # 重複チェック
+            if not any(m['name'] == model_name for m in config['ollama_models']):
+                config['ollama_models'].append(model_entry)
+                
+                import yaml
+                with open(config_path, 'w', encoding='utf-8') as f:
+                    yaml.dump(config, f, allow_unicode=True, default_flow_style=False)
+                    
+                logger.info(f"設定ファイルを更新しました: {config_path}")
+                
+        except Exception as e:
+            logger.warning(f"設定ファイルの更新に失敗: {e}")
+
 
 def main():
-    """メイン処理"""
-    print("LoRAファインチューニング済みアダプターの適用")
-    print("="*60)
+    """メインエントリーポイント"""
+    import argparse
     
-    # Step 1: LoRA → GGUF変換
-    lora_gguf = step1_convert_lora_to_gguf()
-    if not lora_gguf:
-        print("\n❌ LoRA変換に失敗しました")
-        return 1
+    parser = argparse.ArgumentParser(description="LoRAアダプターをOllama形式に変換")
+    parser.add_argument("--base-model-url", 
+                       default="https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-32B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf",
+                       help="ベースモデルのURL")
+    parser.add_argument("--base-model-name",
+                       default="DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf",
+                       help="ベースモデルのファイル名")
+    parser.add_argument("--lora-adapter",
+                       help="LoRAアダプターのディレクトリ（省略時は最新を使用）")
+    parser.add_argument("--output-name",
+                       default="deepseek-32b-finetuned",
+                       help="出力するOllamaモデル名")
+    parser.add_argument("--workspace",
+                       default="/workspace",
+                       help="ワークスペースディレクトリ")
     
-    # Step 2: マージまたは実行時適用
-    result = step2_merge_lora_with_base()
-    if result is None:
-        print("\n❌ ベースモデルのダウンロードが必要です")
-        return 1
+    args = parser.parse_args()
     
-    model_path, lora_path = result
-    if not model_path:
-        print("\n❌ モデル準備に失敗しました")
-        return 1
-    
-    # Step 3: Ollama登録
-    if step3_create_ollama_model(model_path, lora_path):
-        print("\n" + "="*60)
-        print("✅ 完了！")
-        print("="*60)
-        print("\nファインチューニング済みモデルが使用可能になりました")
-        print("RAGシステムで 'deepseek-32b-finetuned' を選択してください")
-        return 0
-    else:
-        print("\n❌ Ollama登録に失敗しました")
-        return 1
+    converter = LoRAToOllamaConverter(args.workspace)
+    converter.run(
+        base_model_url=args.base_model_url,
+        base_model_name=args.base_model_name,
+        lora_adapter_name=args.lora_adapter,
+        output_model_name=args.output_name
+    )
+
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

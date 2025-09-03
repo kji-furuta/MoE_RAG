@@ -2481,6 +2481,94 @@ async def convert_finetuned_to_ollama(request: dict):
         logger.error(f"変換エラー: {str(e)}")
         return {"success": False, "error": str(e)}
 
+@app.post("/api/apply-lora-to-ollama")
+async def apply_lora_to_ollama(request: dict, background_tasks: BackgroundTasks):
+    """LoRAアダプターをGGUFベースモデルに適用してOllamaに登録（改善版）"""
+    try:
+        # パラメータ取得
+        base_model_url = request.get("base_model_url")  # オプション（Noneの場合は自動検索）
+        base_model_name = request.get("base_model_name", "DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf")
+        lora_adapter_path = request.get("lora_adapter_path")  # オプション
+        output_model_name = request.get("output_model_name", "deepseek-32b-finetuned")
+        use_improved_version = request.get("use_improved_version", True)  # 改善版を使用するか
+        
+        # タスクIDを生成
+        task_id = str(uuid.uuid4())
+        
+        # バックグラウンドタスクとして実行
+        async def run_conversion():
+            try:
+                # 使用するスクリプトを選択
+                if use_improved_version:
+                    script_path = "/workspace/scripts/apply_lora_to_gguf_improved.py"
+                else:
+                    script_path = "/workspace/scripts/apply_lora_to_gguf.py"
+                
+                # スクリプトを実行
+                import subprocess
+                cmd = ["python", script_path]
+                
+                # パラメータを追加
+                if base_model_url:
+                    cmd.extend(["--base-model-url", base_model_url])
+                    
+                cmd.extend([
+                    "--base-model-name", base_model_name,
+                    "--output-name", output_model_name
+                ])
+                
+                if lora_adapter_path:
+                    cmd.extend(["--lora-adapter", lora_adapter_path])
+                
+                # 改善版の場合は一時ディレクトリを使用
+                if use_improved_version:
+                    # デフォルトで一時ディレクトリを使用（--no-tempを指定しない）
+                    pass
+                
+                logger.info(f"LoRA to Ollama変換開始: {' '.join(cmd)}")
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                
+                if result.returncode == 0:
+                    # 成功
+                    if task_id in training_tasks:
+                        training_tasks[task_id]["status"] = "completed"
+                        training_tasks[task_id]["message"] = f"Model {output_model_name} created successfully"
+                        training_tasks[task_id]["model_name"] = output_model_name
+                        logger.info(f"LoRA to Ollama変換成功: {output_model_name}")
+                else:
+                    # エラー
+                    if task_id in training_tasks:
+                        training_tasks[task_id]["status"] = "error"
+                        training_tasks[task_id]["message"] = result.stderr
+                        logger.error(f"LoRA to Ollama変換失敗: {result.stderr}")
+                        
+            except Exception as e:
+                if task_id in training_tasks:
+                    training_tasks[task_id]["status"] = "error"
+                    training_tasks[task_id]["message"] = str(e)
+                logger.error(f"LoRA to Ollama変換エラー: {str(e)}")
+        
+        # タスクを登録
+        training_tasks[task_id] = {
+            "status": "running",
+            "message": "Converting LoRA adapter to Ollama format...",
+            "progress": 0,
+            "task_id": task_id
+        }
+        
+        # バックグラウンドで実行
+        background_tasks.add_task(run_conversion)
+        
+        return {
+            "status": "started",
+            "task_id": task_id,
+            "message": "LoRA to Ollama conversion started"
+        }
+        
+    except Exception as e:
+        logger.error(f"LoRA to Ollama conversion error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/convert-to-ollama-wsl")
 async def convert_finetuned_to_ollama_wsl(request: dict):
     """WSL環境用：ファインチューニング済みモデルをOllama形式に変換"""
@@ -2533,6 +2621,92 @@ async def convert_finetuned_to_ollama_wsl(request: dict):
     except Exception as e:
         logger.error(f"WSL変換エラー: {str(e)}")
         return {"success": False, "error": str(e)}
+
+@app.get("/api/finetuned-lora-models")
+async def get_finetuned_lora_models():
+    """ファインチューニング済みのLoRAアダプターモデルを取得"""
+    try:
+        models = []
+        outputs_dir = Path("/workspace/outputs")
+        
+        if outputs_dir.exists():
+            # LoRAアダプターを含むディレクトリを検索
+            for path in outputs_dir.rglob("adapter_model.safetensors"):
+                model_dir = path.parent
+                config_path = model_dir / "adapter_config.json"
+                
+                # モデル情報を取得
+                model_info = {
+                    "path": str(model_dir),
+                    "name": model_dir.name,
+                    "type": "lora",
+                    "format": "safetensors"
+                }
+                
+                # 設定ファイルから情報を読み取る
+                if config_path.exists():
+                    try:
+                        with open(config_path, 'r') as f:
+                            config = json.load(f)
+                            model_info["base_model"] = config.get("base_model_name_or_path", "unknown")
+                            model_info["r"] = config.get("r", "unknown")
+                            model_info["alpha"] = config.get("lora_alpha", "unknown")
+                    except:
+                        pass
+                
+                # 作成日時を取得
+                model_info["created"] = datetime.fromtimestamp(
+                    model_dir.stat().st_mtime
+                ).strftime("%Y-%m-%d %H:%M:%S")
+                
+                models.append(model_info)
+            
+            # binフォーマットのアダプターも検索
+            for path in outputs_dir.rglob("adapter_model.bin"):
+                model_dir = path.parent
+                # safetensorsが既に追加されている場合はスキップ
+                if not any(m["path"] == str(model_dir) for m in models):
+                    config_path = model_dir / "adapter_config.json"
+                    
+                    model_info = {
+                        "path": str(model_dir),
+                        "name": model_dir.name,
+                        "type": "lora",
+                        "format": "bin"
+                    }
+                    
+                    if config_path.exists():
+                        try:
+                            with open(config_path, 'r') as f:
+                                config = json.load(f)
+                                model_info["base_model"] = config.get("base_model_name_or_path", "unknown")
+                                model_info["r"] = config.get("r", "unknown")
+                                model_info["alpha"] = config.get("lora_alpha", "unknown")
+                        except:
+                            pass
+                    
+                    model_info["created"] = datetime.fromtimestamp(
+                        model_dir.stat().st_mtime
+                    ).strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    models.append(model_info)
+        
+        # 作成日時でソート（新しいものが先）
+        models.sort(key=lambda x: x["created"], reverse=True)
+        
+        return {
+            "success": True,
+            "models": models,
+            "count": len(models)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting finetuned LoRA models: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "models": []
+        }
 
 @app.get("/api/available-models")
 async def get_available_models():

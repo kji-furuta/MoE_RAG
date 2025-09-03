@@ -331,22 +331,43 @@ docker-compose up -d
 
 #### 4. 統合Webインターフェースの起動
 
-##### 方法1: 自動起動スクリプト（推奨）
+##### 🚀 本番モード vs 開発モード
+
+**本番モード（推奨：重い処理を実行する場合）**
 ```bash
-# コンテナ内で統合インターフェース起動
+# 自動リロード無効・安定動作
+docker exec ai-ft-container bash /workspace/scripts/start_web_interface.sh production
+```
+- ✅ LoRAアダプター適用、量子化処理時に使用
+- ✅ ファイル変更による再起動なし
+- ✅ 処理中断のリスクなし
+
+**開発モード（コード開発時）**
+```bash
+# 自動リロード有効
 docker exec ai-ft-container bash /workspace/scripts/start_web_interface.sh
 ```
+- ✅ コード変更が即座に反映
+- ⚠️ llama.cpp作業時に再起動の可能性
 
 ##### 方法2: 手動起動（トラブルシューティング用）
 ```bash
-# コンテナ内で直接起動（ログ確認用）
-docker exec ai-ft-container python -m uvicorn app.main_unified:app --host 0.0.0.0 --port 8050 --reload
+# 本番モード（リロード無効）
+docker exec ai-ft-container python -m uvicorn app.main_unified:app \
+  --host 0.0.0.0 --port 8050 --workers 1
+
+# 開発モード（リロード有効）
+docker exec ai-ft-container python -m uvicorn app.main_unified:app \
+  --host 0.0.0.0 --port 8050 --reload \
+  --reload-exclude "**/llama.cpp/**" \
+  --reload-exclude "**/outputs/**"
 ```
 
 ##### 方法3: バックグラウンド起動
 ```bash
-# バックグラウンドで起動
-docker exec -d ai-ft-container python -m uvicorn app.main_unified:app --host 0.0.0.0 --port 8050 --reload
+# バックグラウンドで起動（本番モード推奨）
+docker exec -d ai-ft-container python -m uvicorn app.main_unified:app \
+  --host 0.0.0.0 --port 8050 --workers 1
 ```
 
 ##### 方法4: ファイル不足時の対処法
@@ -556,7 +577,23 @@ print(f"妥当性: {'○' if result.is_valid else '×'}")
 print(f"メッセージ: {result.message}")
 ```
 
-#### 3. バージョン管理
+#### 3. LoRAアダプターのGGUF/Ollama変換（改善版）
+```bash
+# 改善版スクリプトの使用（サーバー再起動を防ぐ）
+docker exec ai-ft-container python /workspace/scripts/apply_lora_to_gguf_improved.py \
+  --output-name "my-finetuned-model"
+
+# 旧版スクリプト（互換性のため残存）
+docker exec ai-ft-container python /workspace/scripts/apply_lora_to_gguf.py
+```
+
+**特徴:**
+- `/tmp`ディレクトリでの作業により、ファイル監視による再起動を防止
+- 自動クリーンアップ機能
+- 既存のビルド済みllama.cppの再利用
+- メタデータからベースモデルを自動検索
+
+#### 4. バージョン管理
 ```python
 from src.rag.specialized import create_version_manager
 
@@ -1209,6 +1246,30 @@ docker logs ai-ft-container --tail 20
 ```
 
 ### 🔧 トラブルシューティング
+
+#### サーバーが予期せず再起動する場合（LoRA適用時など）
+
+**原因**: FastAPIの自動リロード機能がllama.cppのファイル変更を検知
+
+**解決策1: 本番モードで実行**
+```bash
+# 本番モードで起動（推奨）
+docker exec ai-ft-container bash /workspace/scripts/start_web_interface.sh production
+```
+
+**解決策2: 改善版スクリプトを使用**
+```bash
+# 改善版apply_lora_to_gguf_improved.pyを使用
+docker exec ai-ft-container python /workspace/scripts/apply_lora_to_gguf_improved.py
+```
+
+**解決策3: 手動で除外設定を追加**
+```bash
+docker exec ai-ft-container python -m uvicorn app.main_unified:app \
+  --host 0.0.0.0 --port 8050 --reload \
+  --reload-exclude "**/llama.cpp/**" \
+  --reload-exclude "**/tmp/**"
+```
 
 #### Ollama「model not found」エラーが発生する場合
 ```bash

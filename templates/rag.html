@@ -581,6 +581,13 @@ document.getElementById('searchForm')?.addEventListener('submit', async (e) => {
             include_sources: true
         };
         
+        // 選択されたモデルを追加
+        const selectedModel = document.getElementById('ragModel')?.value;
+        if (selectedModel && selectedModel !== '') {
+            requestBody.model = selectedModel;
+            console.log('Using model:', selectedModel);
+        }
+        
         // 特定の文書が選択されている場合のみdocument_idsを追加
         // 「すべての文書を選択」の場合はdocument_idsを送信しない
         if (selectedDocuments.length > 0) {
@@ -1060,16 +1067,20 @@ async function loadFinetunedModels() {
                 
                 // モデル名の表示を調整
                 let displayName = model.name;
-                if (model.name.includes('deepseek-32b-finetuned')) {
+                if (model.name.includes('deepseek-32b-rag')) {
+                    displayName = 'DeepSeek-32B RAG (Q4_K_M量子化)';
+                } else if (model.name.includes('deepseek-32b-finetuned')) {
                     displayName = 'DeepSeek-32B (ファインチューニング済み)';
                 } else if (model.name.includes('llama3.2:3b')) {
                     displayName = 'Llama 3.2 3B';
                 } else if (model.name.includes('llama3.2')) {
                     displayName = `Llama 3.2 ${model.size || ''}`;
+                } else if (model.name.includes('deepseek-r1:32b')) {
+                    displayName = 'DeepSeek-R1 32B';
                 }
                 
-                // サイズ情報がある場合は追加
-                if (model.size) {
+                // サイズ情報がある場合は追加（ただしConfiguredとFrom configは除く）
+                if (model.size && model.size !== 'Configured' && model.size !== 'From config') {
                     displayName += ` (${model.size})`;
                 }
                 
@@ -1080,7 +1091,8 @@ async function loadFinetunedModels() {
             // デフォルトのOllamaモデルを表示
             const defaultModels = [
                 { value: 'ollama:llama3.2:3b', text: 'Llama 3.2 3B (デフォルト)' },
-                { value: 'ollama:deepseek-32b-finetuned', text: 'DeepSeek-32B (ファインチューニング済み)' }
+                { value: 'ollama:deepseek-32b-finetuned', text: 'DeepSeek-32B (ファインチューニング済み)' },
+                { value: 'ollama:deepseek-32b-rag', text: 'DeepSeek-32B RAG (Q4_K_M量子化)' }
             ];
             
             defaultModels.forEach(model => {

@@ -187,6 +187,7 @@ class QueryRequest(BaseModel):
     include_sources: bool = Field(True, description="ソース情報を含めるか")
     filters: Optional[Dict[str, Any]] = Field(None, description="検索フィルター")
     document_ids: Optional[List[str]] = Field(None, description="検索対象文書IDリスト")
+    model: Optional[str] = Field(None, description="使用するLLMモデル (例: ollama:deepseek-32b-rag)")
 
 class QueryResponse(BaseModel):
     """RAGクエリレスポンス"""
@@ -2811,6 +2812,29 @@ async def get_available_models():
                 # エラーが発生しても空のリストを返す（アプリケーションを停止させない）
                 models["ollama_models"] = []
         
+        # RAG設定ファイルから利用可能なモデルを追加
+        try:
+            rag_config_path = Path("src/rag/config/rag_config.yaml")
+            if rag_config_path.exists():
+                import yaml
+                with open(rag_config_path, 'r', encoding='utf-8') as f:
+                    rag_config = yaml.safe_load(f)
+                    
+                # 設定ファイルから利用可能なモデルリストを取得
+                available_models = rag_config.get('llm', {}).get('available_models', [])
+                for model_name in available_models:
+                    # 既にリストにない場合のみ追加
+                    if not any(m['name'] == model_name for m in models['ollama_models']):
+                        models["ollama_models"].append({
+                            "name": model_name,
+                            "type": "ollama",
+                            "size": "Configured",
+                            "modified": "From config"
+                        })
+                        logger.info(f"RAG設定からモデルを追加: {model_name}")
+        except Exception as e:
+            logger.warning(f"RAG設定ファイル読み込みエラー: {e}")
+        
         return models
         
     except Exception as e:
@@ -3798,6 +3822,38 @@ async def rag_query_documents(request: QueryRequest):
     rag_app.check_initialized()
     
     try:
+        # モデル選択がある場合、RAG設定を一時的に更新
+        original_model = None
+        if request.model:
+            try:
+                # 現在の設定を保存
+                original_model = rag_app.config.get('llm', {}).get('model_name')
+                
+                # モデル名を解析 (例: "ollama:deepseek-32b-rag")
+                if request.model.startswith("ollama:"):
+                    model_name = request.model.replace("ollama:", "")
+                    # RAG設定を一時的に更新
+                    rag_app.config['llm']['model_name'] = f"ollama:{model_name}:latest"
+                    rag_app.config['llm']['ollama']['model'] = f"{model_name}:latest"
+                    rag_app.config['llm']['ollama_model'] = f"{model_name}:latest"
+                    logger.info(f"RAGクエリで使用するモデルを切り替え: {model_name}")
+                elif request.model.startswith("finetuned:"):
+                    # ファインチューニングモデルの場合
+                    model_path = request.model.replace("finetuned:", "")
+                    rag_app.config['llm']['model_name'] = model_path
+                    rag_app.config['llm']['use_finetuned'] = True
+                    logger.info(f"RAGクエリでファインチューニングモデルを使用: {model_path}")
+                else:
+                    # その他のモデル
+                    rag_app.config['llm']['model_name'] = request.model
+                    logger.info(f"RAGクエリでモデルを使用: {request.model}")
+                    
+                # クエリエンジンを再初期化（必要な場合）
+                if hasattr(rag_app, '_reinitialize_query_engine'):
+                    rag_app._reinitialize_query_engine()
+            except Exception as e:
+                logger.warning(f"モデル切り替えに失敗、デフォルトを使用: {e}")
+        
         # document_idsをfiltersに追加
         filters = request.filters or {}
         if request.document_ids:
@@ -3814,6 +3870,12 @@ async def rag_query_documents(request: QueryRequest):
             filters if filters else None,
             request.include_sources
         )
+        
+        # 元のモデル設定を復元
+        if original_model and request.model:
+            rag_app.config['llm']['model_name'] = original_model
+            if hasattr(rag_app, '_reinitialize_query_engine'):
+                rag_app._reinitialize_query_engine()
         
         return QueryResponse(**result.to_dict())
         

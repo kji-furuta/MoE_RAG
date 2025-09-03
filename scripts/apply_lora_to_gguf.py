@@ -40,16 +40,47 @@ class LoRAToOllamaConverter:
         logger.info(f"モデルをダウンロード中: {model_url}")
         
         try:
-            # wgetでダウンロード
-            cmd = [
-                "wget", "-c", "-O", str(model_path),
-                "--progress=bar:force:noscroll",
-                model_url
-            ]
+            # wgetがインストールされているか確認
+            wget_check = subprocess.run(["which", "wget"], capture_output=True, text=True)
+            if wget_check.returncode != 0:
+                # wgetがない場合はcurlを試す
+                logger.info("wgetが見つからないため、curlを使用します")
+                cmd = [
+                    "curl", "-L", "-C", "-", "-o", str(model_path),
+                    "--progress-bar",
+                    model_url
+                ]
+            else:
+                # wgetでダウンロード
+                cmd = [
+                    "wget", "-c", "-O", str(model_path),
+                    "--progress=bar:force:noscroll",
+                    model_url
+                ]
+            
+            logger.info(f"ダウンロードコマンド: {' '.join(cmd)}")
             result = subprocess.run(cmd, capture_output=False, text=True)
             
             if result.returncode != 0:
-                raise Exception(f"ダウンロード失敗: {result.stderr}")
+                # Python requestsライブラリを使用してダウンロード
+                logger.info("コマンドラインツールが失敗したため、Pythonでダウンロードを試みます")
+                import requests
+                
+                response = requests.get(model_url, stream=True)
+                response.raise_for_status()
+                
+                total_size = int(response.headers.get('content-length', 0))
+                downloaded_size = 0
+                
+                with open(model_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded_size += len(chunk)
+                            if total_size > 0:
+                                progress = (downloaded_size / total_size) * 100
+                                print(f"\rダウンロード中: {progress:.1f}%", end='', flush=True)
+                print()  # 改行
                 
             logger.info(f"ダウンロード完了: {model_path}")
             return model_path
@@ -60,19 +91,21 @@ class LoRAToOllamaConverter:
                 model_path.unlink()
             raise
             
-    def find_lora_adapter(self, adapter_name: Optional[str] = None) -> Path:
-        """LoRAアダプターを検索"""
+    def find_lora_adapter(self, adapter_name: Optional[str] = None) -> Optional[Path]:
+        """LoRAアダプターを検索（オプショナル）"""
         # 最新のLoRAアダプターを探す
         lora_dirs = []
         
         # outputs/ディレクトリから検索
-        for path in self.outputs_dir.glob("**/adapter_model.safetensors"):
-            lora_dirs.append(path.parent)
-        for path in self.outputs_dir.glob("**/adapter_model.bin"):
-            lora_dirs.append(path.parent)
+        if self.outputs_dir.exists():
+            for path in self.outputs_dir.glob("**/adapter_model.safetensors"):
+                lora_dirs.append(path.parent)
+            for path in self.outputs_dir.glob("**/adapter_model.bin"):
+                lora_dirs.append(path.parent)
             
         if not lora_dirs:
-            raise FileNotFoundError("LoRAアダプターが見つかりません")
+            logger.info("LoRAアダプターが見つかりません - ベースモデルのみを使用します")
+            return None
             
         # 最新のディレクトリを選択
         latest_dir = max(lora_dirs, key=lambda p: p.stat().st_mtime)
@@ -97,8 +130,9 @@ class LoRAToOllamaConverter:
                     str(self.workspace_dir / "llama.cpp")
                 ], check=True)
                 
+            # python3を使用（python2との競合を避ける）
             cmd = [
-                "python", str(convert_script),
+                "python3", str(convert_script),
                 "--base", str(lora_dir),
                 "--outfile", str(output_path)
             ]
@@ -238,25 +272,30 @@ Assistant: \"\"\"
             # 1. ベースモデルをダウンロード
             base_model_path = self.download_base_model(base_model_url, base_model_name)
             
-            # 2. LoRAアダプターを探す
+            # 2. LoRAアダプターを探す（オプション）
             lora_dir = self.find_lora_adapter(lora_adapter_name)
             
-            # 3. LoRAをGGUF形式に変換（オプション）
-            lora_gguf_path = self.models_dir / "lora_adapter.gguf"
-            lora_converted = self.convert_lora_to_gguf(lora_dir, lora_gguf_path)
-            
-            # 4. モデルをマージまたは準備
-            if lora_converted and lora_gguf_path.exists():
-                # マージ版を作成
-                merged_model_path = self.models_dir / f"{output_model_name}_merged.gguf"
-                final_model = self.merge_lora_with_base(
-                    base_model_path, 
-                    lora_gguf_path,
-                    merged_model_path
-                )
+            # 3. LoRAがある場合はGGUF形式に変換
+            if lora_dir:
+                lora_gguf_path = self.models_dir / "lora_adapter.gguf"
+                lora_converted = self.convert_lora_to_gguf(lora_dir, lora_gguf_path)
+                
+                # 4. モデルをマージまたは準備
+                if lora_converted and lora_gguf_path.exists():
+                    # マージ版を作成
+                    merged_model_path = self.models_dir / f"{output_model_name}_merged.gguf"
+                    final_model = self.merge_lora_with_base(
+                        base_model_path, 
+                        lora_gguf_path,
+                        merged_model_path
+                    )
+                else:
+                    # ベースモデルのみ使用（LoRA変換失敗）
+                    logger.info("LoRA変換失敗、ベースモデルのみ使用")
+                    final_model = base_model_path
             else:
-                # ベースモデルのみ使用（実行時LoRA適用）
-                logger.info("LoRA変換をスキップ、ベースモデルのみ使用")
+                # ベースモデルのみ使用（LoRAなし）
+                logger.info("ベースモデルのみでOllamaモデルを作成")
                 final_model = base_model_path
                 
             # 5. Modelfileを作成
@@ -344,10 +383,23 @@ def main():
                        default="deepseek-32b-finetuned",
                        help="出力するOllamaモデル名")
     parser.add_argument("--workspace",
-                       default="/workspace",
+                       default=None,
                        help="ワークスペースディレクトリ")
     
     args = parser.parse_args()
+    
+    # ワークスペースディレクトリの自動検出
+    if args.workspace is None:
+        # 現在のディレクトリまたは親ディレクトリから適切なワークスペースを見つける
+        current_dir = Path.cwd()
+        if (current_dir / "outputs").exists() or current_dir.name == "MoE_RAG":
+            args.workspace = str(current_dir)
+        elif (current_dir.parent / "outputs").exists():
+            args.workspace = str(current_dir.parent)
+        else:
+            # デフォルトとして現在のディレクトリを使用
+            args.workspace = str(current_dir)
+            logger.info(f"ワークスペースを現在のディレクトリに設定: {args.workspace}")
     
     converter = LoRAToOllamaConverter(args.workspace)
     converter.run(

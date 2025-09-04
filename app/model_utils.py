@@ -273,7 +273,8 @@ def load_model_and_tokenizer(
     trust_remote_code: bool = True,
     low_cpu_mem_usage: bool = True,
     skip_if_rag_active: bool = True,
-    use_memory_efficient: bool = False
+    use_memory_efficient: bool = False,
+    existing_lora_path: Optional[str] = None
 ) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
     """
     モデルとトークナイザーを統一的に読み込む
@@ -398,6 +399,23 @@ def load_model_and_tokenizer(
     except Exception as e:
         logger.error(f"Failed to load model {model_name}: {str(e)}")
         raise
+    
+    # 継続学習の場合、既存のLoRAアダプタをロード
+    if training_method == "continual" and existing_lora_path and os.path.exists(existing_lora_path):
+        try:
+            from peft import PeftModel
+            logger.info(f"Loading existing LoRA adapter for continual learning: {existing_lora_path}")
+            model = PeftModel.from_pretrained(model, existing_lora_path)
+            logger.info("Successfully loaded existing LoRA adapter")
+            
+            # 継続学習のために再度trainableにする
+            for param in model.parameters():
+                param.requires_grad = True
+            model.train()
+            
+        except Exception as e:
+            logger.warning(f"Failed to load existing LoRA adapter: {e}")
+            logger.info("Will proceed with new LoRA adapter for continual learning")
     
     return model, tokenizer
 

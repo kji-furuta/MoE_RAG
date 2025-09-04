@@ -43,27 +43,34 @@ llm:
   max_memory:
     0: 36GB
     1: 36GB
-  max_new_tokens: 1024  # 増やす場合はここを変更
-  model_name: ollama:deepseekrag:latest
+  max_new_tokens: 1024
+  model_name: ollama:task1_deepseek-32b-finetuned:latest
   model_path: null
   moe_experts_per_token: 2
   moe_model_path: /workspace/outputs/moe_d63ec0db-4f34-48d2-89c1-35b485a819f1
   moe_num_experts: 2
   ollama:
     base_url: http://localhost:11434
-    max_tokens: 4096  # Ollamaモデルの場合はここを変更
-    model: deepseekrag:latest
+    max_tokens: 4096
+    model: task1_deepseek-32b-finetuned:latest
     temperature: 0.6
     top_p: 0.9
   ollama_host: http://localhost:11434
-  ollama_model: deepseekrag:latest
+  ollama_model: task1_deepseek-32b-finetuned:latest
+  ollama_models:
+  - description: LoRA fine-tuned model
+    name: 1_deepseek-32b-finetuned
+    tag: latest
+  - description: LoRA fine-tuned model
+    name: task1_deepseek-32b-finetuned
+    tag: latest
   provider: ollama
   quantization:
     compute_type: float16
     enabled: true
     method: q4_k_m
   repetition_penalty: 1.1
-  temperature: 0.1
+  temperature: 0
   top_p: 0.95
   torch_dtype: float16
   use_finetuned: false

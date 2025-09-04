@@ -86,33 +86,38 @@ class ImprovedLoRAToOllamaConverter:
             if not (build_dir / "bin/llama-quantize").exists():
                 logger.info("llama.cppをビルド中...")
                 
-                # CMakeビルド
+                # ビルドディレクトリが存在する場合は削除
+                if build_dir.exists():
+                    shutil.rmtree(build_dir)
+                
+                # CMakeビルド設定
                 cmake_cmd = [
                     "cmake", "-B", str(build_dir),
                     "-S", str(self.llama_cpp_dir),
                     "-DLLAMA_CUDA=OFF",  # CPU版でビルド（高速化）
+                    "-DLLAMA_CURL=OFF",  # CURLを無効化（依存関係を減らす）
                     "-DCMAKE_BUILD_TYPE=Release"
                 ]
-                result = subprocess.run(cmake_cmd, capture_output=True, text=True)
+                
+                logger.info(f"CMake設定中: {' '.join(cmake_cmd)}")
+                result = subprocess.run(cmake_cmd, capture_output=True, text=True, cwd=str(self.llama_cpp_dir))
                 
                 if result.returncode != 0:
-                    # Makefileでビルド（フォールバック）
-                    logger.info("CMakeビルド失敗、Makeでビルド中...")
-                    make_cmd = ["make", "-j4", "-C", str(self.llama_cpp_dir)]
-                    result = subprocess.run(make_cmd, capture_output=True, text=True)
-                    
-                    if result.returncode != 0:
-                        raise Exception(f"ビルド失敗: {result.stderr}")
-                else:
-                    # CMakeビルドを実行
-                    build_cmd = [
-                        "cmake", "--build", str(build_dir),
-                        "--config", "Release", "-j", "4"
-                    ]
-                    result = subprocess.run(build_cmd, capture_output=True, text=True)
-                    
-                    if result.returncode != 0:
-                        raise Exception(f"ビルド失敗: {result.stderr}")
+                    logger.error(f"CMake設定失敗: {result.stderr}")
+                    raise Exception(f"CMake設定失敗: {result.stderr}")
+                
+                # CMakeビルドを実行
+                build_cmd = [
+                    "cmake", "--build", str(build_dir),
+                    "--config", "Release", "-j", "4"
+                ]
+                
+                logger.info(f"CMakeビルド中: {' '.join(build_cmd)}")
+                result = subprocess.run(build_cmd, capture_output=True, text=True)
+                
+                if result.returncode != 0:
+                    logger.error(f"CMakeビルド失敗: {result.stderr}")
+                    raise Exception(f"CMakeビルド失敗: {result.stderr}")
                         
             logger.info(f"llama.cppセットアップ完了: {self.llama_cpp_dir}")
             return self.llama_cpp_dir

@@ -762,13 +762,38 @@ async def run_training_task(task_id: str, request: TrainingRequest):
                     with torch.cuda.device(i):
                         torch.cuda.empty_cache()
                 logger.info(f"Task {task_id}: Cleared GPU memory before model loading")
+                
+                # 継続学習の場合、空いているGPUを選択
+                if request.training_method == "continual" and torch.cuda.device_count() > 1:
+                    # 各GPUの空きメモリを確認
+                    gpu_free_memory = []
+                    for i in range(torch.cuda.device_count()):
+                        total_memory = torch.cuda.get_device_properties(i).total_memory
+                        allocated_memory = torch.cuda.memory_allocated(i)
+                        free_memory = (total_memory - allocated_memory) / 1024**3  # GB単位
+                        gpu_free_memory.append((i, free_memory))
+                        logger.info(f"GPU {i}: {free_memory:.1f}GB free")
+                    
+                    # 最も空きメモリが多いGPUを選択
+                    gpu_free_memory.sort(key=lambda x: x[1], reverse=True)
+                    best_gpu = gpu_free_memory[0][0]
+                    
+                    # 環境変数でGPUを指定
+                    os.environ["CUDA_VISIBLE_DEVICES"] = str(best_gpu)
+                    logger.info(f"Task {task_id}: Selected GPU {best_gpu} for continual learning (free: {gpu_free_memory[0][1]:.1f}GB)")
+            
+            # 継続学習の場合、existing_lora_pathを渡す
+            existing_lora_path = None
+            if request.training_method == "continual" and hasattr(request, 'training_config'):
+                existing_lora_path = request.training_config.get("existing_lora_path")
             
             model, tokenizer = load_model_and_tokenizer(
                 model_name=request.model_name,
                 training_method=request.training_method,
                 cache_dir=cache_dir,
                 use_memory_efficient=use_memory_efficient,
-                skip_if_rag_active=False  # ファインチューニング時は必ずロード
+                skip_if_rag_active=False,  # ファインチューニング時は必ずロード
+                existing_lora_path=existing_lora_path  # 継続学習用
             )
             
             # 環境変数を復元
@@ -791,13 +816,25 @@ async def run_training_task(task_id: str, request: TrainingRequest):
             training_tasks[task_id].message = handle_model_loading_error(e, request.model_name, task_id)
             return
         
+        # 継続学習の場合のログ（既存のLoRAアダプタ処理はmodel_utilsに移動）
+        if request.training_method == "continual":
+            existing_lora_path = request.training_config.get("existing_lora_path")
+            if existing_lora_path and os.path.exists(existing_lora_path):
+                training_tasks[task_id].message = f"既存のLoRAアダプターを使用: {existing_lora_path}"
+                logger.info(f"Task {task_id}: 継続学習モードで既存のLoRAアダプターを使用: {existing_lora_path}")
+            
+            # 継続学習の場合、gradient checkpointingのみ有効化（メモリ節約）
+            if hasattr(model, 'gradient_checkpointing_enable'):
+                model.gradient_checkpointing_enable()
+                logger.info(f"Task {task_id}: Gradient checkpointing有効化（継続学習用）")
+        
         # LoRA設定（継続学習も含む）
         if request.training_method in ["lora", "qlora", "continual"]:
             training_tasks[task_id].message = "LoRAアダプターを設定中..."
             training_tasks[task_id].progress = 30.0
             
-            # QLoRAまたは継続学習（量子化モデル）の場合はモデルを準備（メモリ最適化付き）
-            if request.training_method == "qlora" or (request.training_method == "continual" and use_memory_efficient):
+            # QLoRAの場合はモデルを準備（継続学習は除外 - 既にLoRAアダプタが設定されているため）
+            if request.training_method == "qlora":
                 try:
                     # GPUメモリのクリア
                     if torch.cuda.is_available():
@@ -1092,9 +1129,18 @@ async def run_training_task(task_id: str, request: TrainingRequest):
             )
         
         # Trainer作成と実行
-        # 継続学習の場合はEWCを使用
+        # 継続学習の場合はEWCを使用（ただし既存LoRAアダプタがある場合は軽量化のため無効化可能）
         use_ewc = request.training_method == "continual"
-        ewc_lambda = 5000.0 if use_ewc else 0.0
+        existing_lora = request.training_config.get("existing_lora_path") if hasattr(request, 'training_config') else None
+        
+        # 既存のLoRAアダプタがある場合、EWCを軽量化または無効化
+        if use_ewc and existing_lora:
+            ewc_lambda = 1000.0  # 通常の5000から減らす
+            logger.info(f"Task {task_id}: 既存LoRAアダプタ使用のため、EWC lambdaを{ewc_lambda}に調整")
+        elif use_ewc:
+            ewc_lambda = 5000.0
+        else:
+            ewc_lambda = 0.0
         
         if use_ewc:
             logger.info(f"Task {task_id}: 継続学習モード - EWC有効 (λ={ewc_lambda})")
@@ -1131,9 +1177,16 @@ async def run_training_task(task_id: str, request: TrainingRequest):
             pretrain_loader = DataLoader(pretrain_dataset, batch_size=1, shuffle=False)
             
             # Fisher行列の計算（最適化版）
-            logger.info(f"Task {task_id}: Fisher行列の計算開始 (最大{30}バッチ)")
-            trainer.ewc_helper.compute_fisher_matrix(pretrain_loader, max_batches=30)
-            logger.info(f"Task {task_id}: Fisher行列の計算完了")
+            try:
+                logger.info(f"Task {task_id}: Fisher行列の計算開始 (最大{30}バッチ)")
+                trainer.ewc_helper.compute_fisher_matrix(pretrain_loader, max_batches=30)
+                logger.info(f"Task {task_id}: Fisher行列の計算完了")
+            except RuntimeError as e:
+                logger.warning(f"Task {task_id}: Fisher行列計算失敗: {e}")
+                logger.info(f"Task {task_id}: EWCなしで継続学習を続行します")
+                # EWCを無効化
+                trainer.ewc_lambda = 0.0
+                trainer.ewc_helper = None
         
         # トレーニング実行
         logger.info(f"Task {task_id}: 実際のトレーニング開始 (メソッド: {request.training_method})")
@@ -4846,15 +4899,43 @@ async def run_continual_learning_background(task_id: str, config: dict, dataset_
         if not base_model_path:
             raise ValueError("ベースモデルが指定されていません")
         
-        # ファインチューニング済みモデルの場合はパスを確認
-        if "/" not in base_model_path and os.path.exists(base_model_path):
-            logger.info(f"ファインチューニング済みモデルを使用: {base_model_path}")
+        # ファインチューニング済みモデルの場合はベースモデル情報を取得
+        actual_base_model = base_model_path
+        # ローカルパス（outputsディレクトリなど）の場合
+        if not base_model_path.startswith("http") and os.path.exists(base_model_path):
+            logger.info(f"ファインチューニング済みモデルのパス: {base_model_path}")
+            # training_info.jsonからベースモデル情報を取得
+            training_info_path = Path(base_model_path) / "training_info.json"
+            if training_info_path.exists():
+                try:
+                    with open(training_info_path, 'r', encoding='utf-8') as f:
+                        training_info = json.load(f)
+                        actual_base_model = training_info.get("base_model", base_model_path)
+                        logger.info(f"ベースモデル情報を取得: {actual_base_model}")
+                except Exception as e:
+                    logger.warning(f"training_info.jsonの読み込みに失敗: {e}")
+                    # デフォルトのベースモデルを使用
+                    actual_base_model = "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese"
+                    logger.info(f"デフォルトのベースモデルを使用: {actual_base_model}")
+            else:
+                # training_info.jsonがない場合はデフォルトモデルを使用
+                actual_base_model = "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese"
+                logger.info(f"training_info.jsonが見つからないため、デフォルトモデルを使用: {actual_base_model}")
         else:
-            logger.info(f"ベースモデルを使用: {base_model_path}")
+            logger.info(f"ベースモデルを使用: {actual_base_model}")
+        
+        # 既存のLoRAアダプタパスを保存（継続学習で使用）
+        existing_lora_path = None
+        # ローカルパス（outputsディレクトリなど）でLoRAアダプタが存在する場合
+        if not base_model_path.startswith("http") and os.path.exists(base_model_path):
+            # training_info.jsonがあればLoRAアダプタと判定
+            if (Path(base_model_path) / "training_info.json").exists():
+                existing_lora_path = base_model_path
+                logger.info(f"既存のLoRAアダプタを継続学習に使用: {existing_lora_path}")
         
         # TrainingRequestオブジェクトを作成して既存のトレーニング関数を使用
         training_request = TrainingRequest(
-            model_name=base_model_path,
+            model_name=actual_base_model,  # ベースモデルを使用
             training_data=[],  # データは後で設定
             training_method="continual",  # 継続学習を指定
             lora_config={
@@ -4870,7 +4951,8 @@ async def run_continual_learning_background(task_id: str, config: dict, dataset_
                 "warmup_steps": config.get("warmup_steps", 20),
                 "max_length": config.get("max_length", 512),
                 "ewc_lambda": config.get("ewc_lambda", 5000),
-                "use_memory_efficient": config.get("use_memory_efficient", True)  # メモリ効率化を有効化
+                "use_memory_efficient": config.get("use_memory_efficient", True),  # メモリ効率化を有効化
+                "existing_lora_path": existing_lora_path  # 既存のLoRAアダプタパスを追加
             }
         )
         

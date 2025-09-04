@@ -109,12 +109,27 @@ class EWCHelper:
                 
             try:
                 print(f"Processing batch {batch_count + 1}/{max_batches}")
-                batch = {k: v.to(self.device) for k, v in batch.items()}
+                # バッチデータの準備（継続学習対応）
+                if isinstance(batch, dict):
+                    batch = {k: v.to(self.device) if hasattr(v, 'to') else v 
+                            for k, v in batch.items()}
+                else:
+                    # データローダーの形式が異なる場合の対処
+                    batch = {'input_ids': batch[0].to(self.device), 
+                            'attention_mask': batch[1].to(self.device) if len(batch) > 1 else None,
+                            'labels': batch[0].to(self.device)}
+                
                 self.model.zero_grad()
                 
                 # 通常の損失計算（勾配計算を有効にする）
-                outputs = self.model(**batch)
-                loss = outputs.loss
+                # LoRAアダプタ付きモデルの場合の対処
+                try:
+                    outputs = self.model(**batch)
+                    loss = outputs.loss if hasattr(outputs, 'loss') else outputs[0]
+                except Exception as e:
+                    print(f"Model forward pass error: {e}")
+                    # スキップして次のバッチへ
+                    continue
                 
                 # 勾配計算
                 loss.backward()

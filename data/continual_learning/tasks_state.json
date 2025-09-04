@@ -404,5 +404,250 @@
     "dataset_path": "/workspace/data/continual_learning/857721b0-2ba4-40b7-8984-7c7af4bbc13e_conc_data.jsonl",
     "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: !handles_.at(i) INTERNAL ASSERT FAILED at \"../c10/cuda/CUDACachingAllocator.cpp\":393, please report a bug to PyTorch. ",
     "error": "トレーニングが失敗しました: モデル読み込みエラー: !handles_.at(i) INTERNAL ASSERT FAILED at \"../c10/cuda/CUDACachingAllocator.cpp\":393, please report a bug to PyTorch. "
+  },
+  "39414d15-c3d4-4872-8758-f80dfaa4740d": {
+    "task_id": "39414d15-c3d4-4872-8758-f80dfaa4740d",
+    "task_name": "タスク1",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-09-04T11:50:07.399105+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250904_101907",
+      "task_name": "タスク1",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/a747c44a-28f2-4248-a21b-35427803129c_AI_FT_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: CUDA driver error: out of memory",
+    "error": "トレーニングが失敗しました: モデル読み込みエラー: CUDA driver error: out of memory"
+  },
+  "209a6e54-3153-405b-a556-1289fd72863d": {
+    "task_id": "209a6e54-3153-405b-a556-1289fd72863d",
+    "task_name": "タスク1",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-09-04T11:56:25.623274+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250904_101907",
+      "task_name": "タスク1",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/41622a1c-e19e-4deb-bec5-c59dc1ffa76b_AI_FT_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: !handles_.at(i) INTERNAL ASSERT FAILED at \"../c10/cuda/CUDACachingAllocator.cpp\":393, please report a bug to PyTorch. ",
+    "error": "トレーニングが失敗しました: モデル読み込みエラー: !handles_.at(i) INTERNAL ASSERT FAILED at \"../c10/cuda/CUDACachingAllocator.cpp\":393, please report a bug to PyTorch. "
+  },
+  "60dd60df-1b3e-4926-a0b0-ccb4da696f2f": {
+    "task_id": "60dd60df-1b3e-4926-a0b0-ccb4da696f2f",
+    "task_name": "タスク1",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-09-04T12:07:38.975168+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250904_101907",
+      "task_name": "タスク1",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/304649eb-11a9-45c4-b5d9-bff0d0f56835_AI_FT_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: [Errno 32] Broken pipe",
+    "error": "トレーニングが失敗しました: モデル読み込みエラー: [Errno 32] Broken pipe"
+  },
+  "3f45e7d7-80f9-4238-a34c-d5137de2c971": {
+    "task_id": "3f45e7d7-80f9-4238-a34c-d5137de2c971",
+    "task_name": "タスク1",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-09-04T12:12:49.457219+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250904_101907",
+      "task_name": "タスク1",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/ea4d4d60-f20e-43e5-83fb-aacdd437aa64_AI_FT_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: CUDA driver error: out of memory",
+    "error": "トレーニングが失敗しました: モデル読み込みエラー: CUDA driver error: out of memory"
+  },
+  "e7458520-b672-4bf5-a36a-3d84ba5acfe4": {
+    "task_id": "e7458520-b672-4bf5-a36a-3d84ba5acfe4",
+    "task_name": "タスク1",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-09-04T14:29:21.347720+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250904_101907",
+      "task_name": "タスク1",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/397b1f1f-feba-4c58-af7f-226480da2db7_AI_FT_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: CUDA driver error: out of memory",
+    "error": "トレーニングが失敗しました: モデル読み込みエラー: CUDA driver error: out of memory"
+  },
+  "1019531a-f799-4d5a-8758-a403ff7f8d67": {
+    "task_id": "1019531a-f799-4d5a-8758-a403ff7f8d67",
+    "task_name": "タスク1",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-09-04T14:35:52.424406+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250904_101907",
+      "task_name": "タスク1",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/6269676b-207e-461b-a7cc-cb6b7de4aceb_AI_FT_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: CUDA driver error: out of memory",
+    "error": "トレーニングが失敗しました: モデル読み込みエラー: CUDA driver error: out of memory"
+  },
+  "26b80a73-cce0-4dbd-9555-eb0d76fa9b95": {
+    "task_id": "26b80a73-cce0-4dbd-9555-eb0d76fa9b95",
+    "task_name": "タスク1",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-09-04T14:54:13.261886+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250904_101907",
+      "task_name": "タスク1",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/459cb49a-6e2d-4556-a3e3-5ee9cd8dbdf2_AI_FT_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: エラー: CUDA driver error: out of memory",
+    "error": "トレーニングが失敗しました: エラー: CUDA driver error: out of memory"
+  },
+  "b915f7bb-abe8-4847-acfa-975295d54702": {
+    "task_id": "b915f7bb-abe8-4847-acfa-975295d54702",
+    "task_name": "タスク1",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-09-04T15:14:01.026947+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250904_101907",
+      "task_name": "タスク1",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/cf73c454-4a7d-46ff-a275-9ad269d15f97_AI_FT_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: エラー: CUDA driver error: out of memory",
+    "error": "トレーニングが失敗しました: エラー: CUDA driver error: out of memory"
+  },
+  "8a249246-e5d5-4516-a52e-8928b011632d": {
+    "task_id": "8a249246-e5d5-4516-a52e-8928b011632d",
+    "task_name": "タスク1",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-09-04T16:08:27.260115+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250904_101907",
+      "task_name": "タスク1",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/353aeb9a-5972-4b15-b1ae-ba0fb690c394_AI_FT_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: エラー: Failed to compute Fisher matrix: No batches processed successfully",
+    "error": "トレーニングが失敗しました: エラー: Failed to compute Fisher matrix: No batches processed successfully"
+  },
+  "2b091dc8-0211-48fe-b29b-7a6078f80a86": {
+    "task_id": "2b091dc8-0211-48fe-b29b-7a6078f80a86",
+    "task_name": "タスク1",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-09-04T17:04:15.874567+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250904_101907",
+      "task_name": "タスク1",
+      "use_previous_tasks": false,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/14405d57-95b6-4481-87d1-66500c543301_AI_FT_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: CUDA driver error: out of memory",
+    "error": "トレーニングが失敗しました: モデル読み込みエラー: CUDA driver error: out of memory"
+  },
+  "392f5f3d-2999-46f8-9d5b-3dc89eaba511": {
+    "task_id": "392f5f3d-2999-46f8-9d5b-3dc89eaba511",
+    "task_name": "タスク1",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-09-04T17:05:02.612168+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250904_101907",
+      "task_name": "タスク1",
+      "use_previous_tasks": false,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/52bb0a65-cbe0-4309-a851-1046e4b1ee91_AI_FT_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: !handles_.at(i) INTERNAL ASSERT FAILED at \"../c10/cuda/CUDACachingAllocator.cpp\":393, please report a bug to PyTorch. ",
+    "error": "トレーニングが失敗しました: モデル読み込みエラー: !handles_.at(i) INTERNAL ASSERT FAILED at \"../c10/cuda/CUDACachingAllocator.cpp\":393, please report a bug to PyTorch. "
+  },
+  "fb549951-361a-4059-add8-d7ff9a77bb8b": {
+    "task_id": "fb549951-361a-4059-add8-d7ff9a77bb8b",
+    "task_name": "タスク1",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-09-04T17:25:23.794415+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250904_101907",
+      "task_name": "タスク1",
+      "use_previous_tasks": true,
+      "ewc_lambda": 1000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/1e6cec9d-b28e-4270-931d-f0de51cabf58_AI_FT_data.jsonl",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-09-04T17:40:46.798401+09:00",
+    "output_path": "outputs/continual_タスク1_20250904_174046",
+    "model_info": {
+      "name": "continual_タスク1",
+      "path": "outputs/continual_タスク1_20250904_174046",
+      "base_model": "outputs/lora_20250904_101907",
+      "training_method": "continual_ewc",
+      "created_at": "2025-09-04T17:40:46.804206+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 1000,
+        "use_previous_tasks": true
+      },
+      "task_history": "タスク1"
+    }
   }
 }

@@ -1,0 +1,206 @@
+# Training Configuration for 32B Models
+# This configuration file provides default settings for full fine-tuning
+
+model:
+  # Supported 32B models
+  available_models:
+    - "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
+    - "cyberagent/calm3-DeepSeek-R1-Distill-Qwen-32B"
+    - "Qwen/Qwen2.5-32B"
+    - "01-ai/Yi-34B"
+  
+  # Default model
+  default_model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
+  
+  # Model loading options
+  trust_remote_code: true
+  low_cpu_mem_usage: true
+  torch_dtype: "float16"  # Options: float32, float16, bfloat16
+
+dataset:
+  # Maximum sequence length
+  max_seq_length: 2048
+  
+  # Data preprocessing
+  preprocessing:
+    remove_columns: []
+    batched: true
+    num_proc: 4
+  
+  # Validation split
+  validation_split: 0.1
+  
+  # Data format (jsonl, csv, parquet, huggingface)
+  format: "jsonl"
+
+training:
+  # Basic hyperparameters
+  num_epochs: 3
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 16
+  
+  # Learning rate settings
+  learning_rate: 2.0e-5
+  lr_scheduler_type: "cosine"  # Options: linear, cosine, cosine_with_restarts, polynomial, constant
+  warmup_steps: 100
+  warmup_ratio: 0.0
+  
+  # Optimizer settings
+  optimizer: "adamw_torch"  # Options: adamw_torch, adamw_hf, sgd, adafactor
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1.0e-8
+  weight_decay: 0.01
+  
+  # Gradient settings
+  max_grad_norm: 1.0
+  gradient_checkpointing: true
+  
+  # Evaluation and saving
+  evaluation_strategy: "steps"  # Options: no, steps, epoch
+  eval_steps: 100
+  save_strategy: "steps"  # Options: no, steps, epoch
+  save_steps: 500
+  save_total_limit: 3
+  load_best_model_at_end: true
+  metric_for_best_model: "loss"
+  greater_is_better: false
+  
+  # Early stopping
+  early_stopping: false
+  early_stopping_patience: 3
+  early_stopping_threshold: 0.0
+  
+  # Logging
+  logging_dir: "./logs"
+  logging_strategy: "steps"
+  logging_steps: 10
+  report_to: ["tensorboard"]  # Options: tensorboard, wandb, comet_ml, mlflow, none
+  
+  # Other settings
+  seed: 42
+  data_seed: null
+  dataloader_num_workers: 4
+  dataloader_pin_memory: true
+  remove_unused_columns: false
+  label_names: ["labels"]
+
+memory_optimization:
+  # Quantization settings
+  quantization:
+    use_4bit: false
+    use_8bit: false
+    bnb_4bit_compute_dtype: "float16"
+    bnb_4bit_use_double_quant: true
+    bnb_4bit_quant_type: "nf4"  # Options: nf4, fp4
+  
+  # Mixed precision
+  mixed_precision:
+    enabled: true
+    type: "fp16"  # Options: no, fp16, bf16
+    
+  # CPU offloading
+  cpu_offload:
+    enabled: false
+    offload_optimizer: true
+    offload_param: true
+  
+  # Gradient checkpointing
+  gradient_checkpointing:
+    enabled: true
+    use_reentrant: false
+
+distributed_training:
+  # DeepSpeed configuration
+  deepspeed:
+    enabled: false
+    config_file: "configs/deepspeed_zero3.json"
+    zero_stage: 3  # Options: 0, 1, 2, 3
+    
+  # FSDP (Fully Sharded Data Parallel)
+  fsdp:
+    enabled: false
+    sharding_strategy: "full_shard"  # Options: full_shard, shard_grad_op, no_shard
+    
+  # Multi-GPU settings
+  multi_gpu:
+    enabled: "auto"  # Automatically detect multiple GPUs
+    backend: "nccl"  # Options: nccl, gloo, mpi
+    
+monitoring:
+  # Weights & Biases
+  wandb:
+    enabled: false
+    project: "32b-finetuning"
+    entity: null
+    name: null
+    tags: []
+    
+  # TensorBoard
+  tensorboard:
+    enabled: true
+    log_dir: "./tensorboard_logs"
+    
+  # System monitoring
+  gpu_monitoring:
+    enabled: true
+    log_interval: 30  # seconds
+    
+  # Checkpointing
+  checkpoint:
+    resume_from_checkpoint: false
+    checkpoint_path: null
+
+inference:
+  # Generation parameters (for evaluation)
+  generation:
+    max_new_tokens: 512
+    temperature: 0.7
+    top_p: 0.95
+    top_k: 50
+    do_sample: true
+    num_beams: 1
+    repetition_penalty: 1.1
+    
+  # Batch generation
+  batch_size: 4
+  
+output:
+  # Output directory structure
+  output_dir: "./outputs"
+  create_subdirs: true
+  
+  # Model saving
+  save_model: true
+  save_tokenizer: true
+  save_config: true
+  save_training_args: true
+  
+  # Metrics and logs
+  save_metrics: true
+  save_logs: true
+  
+  # Model format
+  save_format: "pytorch"  # Options: pytorch, safetensors
+  push_to_hub: false
+  hub_model_id: null
+  hub_token: null
+
+# Hardware requirements and recommendations
+hardware_requirements:
+  minimum:
+    gpu_memory: "80GB"  # A100 80GB or equivalent
+    system_ram: "256GB"
+    storage: "500GB"
+    
+  recommended:
+    gpu_memory: "160GB"  # 2x A100 80GB
+    system_ram: "512GB"
+    storage: "1TB"
+    
+  notes:
+    - "For 32B models, at least one A100 80GB GPU is required"
+    - "With 4-bit quantization, can run on A100 40GB or 2x A6000"
+    - "DeepSpeed ZeRO-3 enables training on multiple smaller GPUs"
+    - "CPU offloading reduces GPU memory requirements but increases training time"

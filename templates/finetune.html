@@ -111,6 +111,7 @@
                             <option value="microsoft/Orca-2-13b">Microsoft Orca-2 13B</option>
                         </optgroup>
                         <optgroup label="Very Large Models (High Performance)">
+                            <option value="EleutherAI/gpt-neox-20b">GPT-NeoX-20B (EleutherAI)</option>
                             <option value="Qwen/Qwen2.5-32B-Instruct">Qwen 2.5 32B Instruct</option>
                             <option value="cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese">CyberAgent DeepSeek-R1 Distill Qwen 32B Japanese</option>
                             <option value="meta-llama/Llama-3.1-8B-Instruct">Meta Llama 3.1 8B Instruct</option>
@@ -199,6 +200,8 @@
                 <div class="form-group">
                     <label for="baseModelSelect">Base Model (GGUF):</label>
                     <select id="baseModelSelect" name="baseModelSelect" required>
+                        <option value="llama3.2-3b">Llama 3.2 3B (Ollama)</option>
+                        <option value="gpt-neox-20b">GPT-NeoX-20B (Q4_K_M, TensorBlock)</option>
                         <option value="deepseek-32b">DeepSeek-R1-Distill-Qwen-32B (Q4_K_M)</option>
                         <option value="custom">Custom Model URL</option>
                     </select>
@@ -664,12 +667,22 @@ document.getElementById('loraApplyForm').addEventListener('submit', async functi
         return;
     }
     
-    // デフォルトのモデルURLとファイル名
-    let baseModelUrl = "https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-32B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf";
-    let baseModelName = "DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf";
+    // モデルごとのURLとファイル名を設定
+    let baseModelUrl = "";
+    let baseModelName = "";
     
-    // カスタムモデルの場合
-    if (baseModelSelect === 'custom') {
+    if (baseModelSelect === 'llama3.2-3b') {
+        // Ollama内のモデルを使用（URLは不要）
+        baseModelUrl = "ollama://llama3.2:3b";
+        baseModelName = "llama3.2-3b";
+    } else if (baseModelSelect === 'gpt-neox-20b') {
+        // ローカルのGGUFファイルを使用
+        baseModelUrl = "local:///workspace/models/gpt-neox-20b.Q4_K_M.gguf";
+        baseModelName = "gpt-neox-20b.Q4_K_M.gguf";
+    } else if (baseModelSelect === 'deepseek-32b') {
+        baseModelUrl = "https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-32B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf";
+        baseModelName = "DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf";
+    } else if (baseModelSelect === 'custom') {
         const customUrl = document.getElementById('customModelUrl').value;
         const customName = document.getElementById('customModelName').value;
         

@@ -82,11 +82,11 @@ def get_model_size_category(model_name: str) -> str:
             except Exception:
                 pass  # エラーの場合は通常の判定にフォールバック
     
-    # Extra large models (32B+)
-    if any(size in model_name_lower for size in ['70b', '32b', '22b']):
+    # Extra large models (20B+)
+    if any(size in model_name_lower for size in ['70b', '32b', '22b', '20b']):
         return 'xlarge'
     
-    # Large models (13B-20B)
+    # Large models (10B-19B)
     if any(size in model_name_lower for size in ['17b', '13b', '10b']):
         return 'large'
     
@@ -129,6 +129,17 @@ def create_quantization_config(
     # フルファインチューニング/継続学習の場合、量子化なし（force_4bitの場合を除く）
     if training_method in ["full", "continual"] and not force_4bit:
         return None
+    
+    # GPT-NeoX-20Bの特別処理（メモリ最適化）
+    if "gpt-neox-20b" in model_name.lower() or "gpt-neox/20b" in model_name.lower():
+        # 常に4bit量子化を使用してメモリを節約
+        return BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+            llm_int8_enable_fp32_cpu_offload=True  # CPUオフロードを有効化
+        )
     
     # DeepSeek-R1-Distill-Qwen-32Bの特別処理（強化されたメモリ最適化）
     if "DeepSeek-R1-Distill-Qwen-32B" in model_name:

@@ -152,6 +152,9 @@ class LoRAFinetuningTrainer:
         
         if "llama" in model_type:
             return ["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+        elif "gpt-neox" in model_type or "gptneox" in model_type:
+            # GPT-NeoX specific modules
+            return ["attention.query_key_value", "attention.dense", "mlp.dense_h_to_4h", "mlp.dense_4h_to_h"]
         elif "gpt" in model_type:
             return ["c_attn", "c_proj", "c_fc"]
         elif "bloom" in model_type:

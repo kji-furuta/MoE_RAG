@@ -4,7 +4,7 @@ document_processing:
     min_chunk_size: 100
     overlap: 128
     semantic:
-      model: gpt-neox-20b-lora-20250906_104924:latest
+      model: ja_core_news_lg
       threshold: 0.7
     strategy: semantic
   ocr:
@@ -36,7 +36,7 @@ llm:
   - deepseek-32b-finetuned
   - llama3.2:3b
   - deepseek-r1:32b
-  base_model: gpt-neox-20b-lora-20250906_104924:latest
+  base_model: null
   device_map: auto
   finetuned_model_path: null
   load_in_8bit: true
@@ -44,7 +44,7 @@ llm:
     0: 36GB
     1: 36GB
   max_new_tokens: 1024
-  model_name: ollama:00_deepseek-32b-finetuned:latest
+  model_name: outputs/lora_20250906_104924
   model_path: outputs/lora_20250906_104924
   moe_experts_per_token: 2
   moe_model_path: /workspace/outputs/moe_d63ec0db-4f34-48d2-89c1-35b485a819f1
@@ -52,11 +52,11 @@ llm:
   ollama:
     base_url: http://localhost:11434
     max_tokens: 4096
-    model: 00_deepseek-32b-finetuned:latest
+    model: gpt-neox:20b
     temperature: 0.6
     top_p: 0.9
   ollama_host: http://localhost:11434
-  ollama_model: 00_deepseek-32b-finetuned:latest
+  ollama_model: gpt-neox:20b
   ollama_models:
   - description: LoRA fine-tuned model
     name: 1_deepseek-32b-finetuned
@@ -70,10 +70,7 @@ llm:
   - description: LoRA fine-tuned model
     name: gpt-neox-20b-finetuned
     tag: latest
-  - description: LoRA fine-tuned model
-    name: 00_deepseek-32b-finetuned
-    tag: latest
-  provider: ollama
+  provider: local
   quantization:
     compute_type: float16
     enabled: true
@@ -82,7 +79,7 @@ llm:
   temperature: 0
   top_p: 0.95
   torch_dtype: float16
-  use_finetuned: false
+  use_finetuned: true
   use_moe: false
   use_ollama_fallback: true
 performance:
@@ -108,7 +105,7 @@ retrieval:
   rerank_top_k: 5
   reranking:
     enabled: true
-    model: gpt-neox-20b-lora-20250906_104924:latest
+    model: cross-encoder/ms-marco-MiniLM-L-12-v2
   top_k: 10
 security:
   auth:

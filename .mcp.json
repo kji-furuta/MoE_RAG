@@ -44,8 +44,10 @@
       "args": ["--mode", "mcp"],
       "env": {
         "CIPHER_WORKSPACE": "${workspaceFolder}/.cipher",
-        "OPENAI_API_KEY": "${OPENAI_API_KEY}",
-        "CIPHER_EMBEDDER": "local"
+        "CIPHER_EMBEDDER": "local",
+        "CIPHER_PERSISTENT_MEMORY": "true",
+        "CIPHER_DB_PATH": "${workspaceFolder}/data/cipher-sessions.db",
+        "CIPHER_ENABLE_LONG_TERM_MEMORY": "true"
       }
     }   
   }

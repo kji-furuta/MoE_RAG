@@ -43,6 +43,54 @@ else
     echo "⚠️  DeepSeek-32B model files not found. Skipping..."
 fi
 
+# GPT-NeoX-20Bモデルの確認と取得
+echo "Checking GPT-NeoX-20B model..."
+# Dockerコンテナ内で実行されているか確認
+if [ -f /.dockerenv ] || [ -n "$DOCKER_CONTAINER" ]; then
+    # Dockerコンテナ内の場合、直接ollamaコマンドを使用
+    if ollama list 2>/dev/null | grep -q "gpt-neox:20b"; then
+        echo "✅ GPT-NeoX-20B model already available in Ollama"
+    else
+        echo "ℹ️  GPT-NeoX-20B not found in Ollama. Checking if GGUF file exists..."
+        # GGUFファイルが存在する場合は登録を試みる
+        if [ -f "/workspace/models/gpt-neox-20b.Q4_K_M.gguf" ]; then
+            echo "Found GGUF file. Registering in Ollama..."
+            # Modelfileを作成
+            cat > /workspace/models/Modelfile_gpt_neox_20b << EOF
+FROM /workspace/models/gpt-neox-20b.Q4_K_M.gguf
+
+# GPT-NeoX-20B Base Model (TensorBlock GGUF)
+PARAMETER temperature 0.7
+PARAMETER top_p 0.95
+PARAMETER top_k 40
+PARAMETER repeat_penalty 1.1
+
+SYSTEM """You are GPT-NeoX, a 20B parameter language model trained by EleutherAI. 
+You are designed to be helpful, harmless, and honest in your responses."""
+EOF
+            # Ollamaに登録
+            cd /workspace/models
+            ollama create gpt-neox:20b -f Modelfile_gpt_neox_20b
+            if [ $? -eq 0 ]; then
+                echo "✅ GPT-NeoX-20B registered in Ollama successfully!"
+            else
+                echo "⚠️  Failed to register GPT-NeoX-20B in Ollama"
+            fi
+        else
+            echo "ℹ️  GPT-NeoX-20B GGUF file not found. TensorBlock version can be downloaded."
+            echo "    URL: https://huggingface.co/tensorblock/gpt-neox-20b-GGUF/"
+        fi
+    fi
+else
+    # ホストマシンから実行されている場合
+    if docker exec ai-ft-container ollama list 2>/dev/null | grep -q "gpt-neox:20b"; then
+        echo "✅ GPT-NeoX-20B model already available in Ollama (Docker container)"
+    else
+        echo "ℹ️  GPT-NeoX-20B not found in Docker container's Ollama"
+        echo "    Run inside container to register: docker exec ai-ft-container bash scripts/init_ollama_models.sh"
+    fi
+fi
+
 # Llama 3.2 3Bモデルの確認と取得
 echo "Checking Llama 3.2 3B model..."
 if ! ollama list | grep -q "llama3.2:3b"; then

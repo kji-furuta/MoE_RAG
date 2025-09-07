@@ -37,6 +37,14 @@ models:
     description: "ELYZA's Japanese Llama-3 8B model"
 
   # Large Models (17B-32B)
+  gpt-neox-20b:
+    name: "GPT-NeoX 20B"
+    model_id: "EleutherAI/gpt-neox-20b"
+    type: "base"
+    size: "20B"
+    gpu_required: "40GB"
+    description: "EleutherAI's GPT-NeoX 20B base model"
+    
   llama-3.1-17b:
     name: "Meta Llama 3.1 17B Instruct"
     model_id: "meta-llama/Llama-3.1-17B-Instruct"

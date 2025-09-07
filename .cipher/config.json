@@ -1,0 +1,31 @@
+{
+  "memory": {
+      "system1": {
+        "enabled": true,
+        "maxEntries": 1000,
+        "retentionDays": 90
+      },
+      "system2": {
+        "enabled": true,
+        "trackReasoningSteps": true
+      }
+    },
+    "workspace": {
+      "sharedMemory": true,
+      "teamId": "your-team-id"
+    },
+    "embedder": {
+      "type": "openai",
+      "model": "text-embedding-ada-002"
+    },
+    "privacy": {
+      "localOnly": false,
+      "encryptMemory": true
+    },
+    "performance": {
+      "indexing": "incremental",
+      "searchStrategy": "hybrid",
+      "cacheExpiry": 3600
+  }
+}
+  

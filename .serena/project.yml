@@ -65,4 +65,4 @@ excluded_tools: []
 # (contrary to the memories, which are loaded on demand).
 initial_prompt: ""
 
-project_name: "AI_FT_3"
+project_name: "MoE_RAG"

@@ -12,21 +12,21 @@ if command -v ollama &> /dev/null; then
     sleep 3
     echo "✅ Ollamaサービスを起動しました (port 11434)"
     
-    # Ollamaモデルの初期化スクリプトを実行
-    echo "📦 Ollamaモデルを初期化中..."
-    if [ -f /workspace/scripts/init_ollama_models.sh ]; then
-        /workspace/scripts/init_ollama_models.sh
+    # Ollamaモデルの確認と自動ダウンロード
+    echo "📦 Ollamaモデルを確認中..."
+    if ! ollama list | grep -q "llama3.2:3b"; then
+        echo "📥 llama3.2:3bモデルをダウンロード中..."
+        ollama pull llama3.2:3b
+        echo "✅ モデルのダウンロードが完了しました"
     else
-        # フォールバック: 基本的なモデル確認
-        echo "📦 Ollamaモデルを確認中..."
-        if ! ollama list | grep -q "llama3.2:3b"; then
-            echo "📥 llama3.2:3bモデルをダウンロード中..."
-            ollama pull llama3.2:3b
-            echo "✅ モデルのダウンロードが完了しました"
-        else
-            echo "✅ llama3.2:3bモデルが利用可能です"
-        fi
+        echo "✅ llama3.2:3bモデルが利用可能です"
     fi
+fi
+
+# DeepSeekモデルの初期化
+if [ -f /workspace/scripts/init_deepseek_model.sh ]; then
+    echo "🚀 DeepSeekモデルを確認中..."
+    bash /workspace/scripts/init_deepseek_model.sh
 fi
 
 # 作業ディレクトリを設定
@@ -87,11 +87,8 @@ EOF
 
 echo "✅ 継続学習管理システムの設定を完了"
 
-# 実行モードを確認（デフォルト: development）
-MODE="${1:-development}"
-
 # Webサーバーを起動
-echo "🌐 統合Webサーバーを起動中 (モード: $MODE)..."
+echo "🌐 統合Webサーバーを起動中..."
 echo "📊 利用可能な機能:"
 echo "  - メインダッシュボード: http://localhost:8050/"
 echo "  - ファインチューニング: http://localhost:8050/finetune"
@@ -99,32 +96,5 @@ echo "  - 継続学習管理: http://localhost:8050/continual"
 echo "  - RAGシステム: http://localhost:8050/rag"
 echo "  - モデル管理: http://localhost:8050/models"
 
-# モードに応じてuvicornオプションを設定
-if [ "$MODE" = "production" ]; then
-    echo ""
-    echo "⚠️  本番モード: 自動リロード無効"
-    echo "📌 llama.cppビルドや量子化処理中の再起動を防ぎます"
-    # 本番モード: リロード無効、llama.cppディレクトリを除外
-    exec python3 -m uvicorn app.main_unified:app \
-        --host 0.0.0.0 \
-        --port 8050 \
-        --workers 1 \
-        --log-level info
-else
-    echo ""
-    echo "🔄 開発モード: 自動リロード有効"
-    echo "⚠️  量子化処理を実行する場合は production モードを推奨"
-    echo "   使用方法: ./start_web_interface.sh production"
-    # 開発モード: リロード有効だがllama.cppを除外
-    exec python3 -m uvicorn app.main_unified:app \
-        --host 0.0.0.0 \
-        --port 8050 \
-        --reload \
-        --reload-exclude ".*llama\.cpp.*" \
-        --reload-exclude ".*outputs.*" \
-        --reload-exclude ".*\.gguf$" \
-        --reload-exclude ".*\.safetensors$" \
-        --reload-exclude ".*\.bin$" \
-        --reload-exclude ".*\.pt$" \
-        --reload-exclude ".*\.pth$"
-fi
+# 統合Webサーバーを起動
+exec python3 -m uvicorn app.main_unified:app --host 0.0.0.0 --port 8050 --reload

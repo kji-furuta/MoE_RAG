@@ -34,7 +34,7 @@ show_help() {
 
 start_app() {
     echo -e "${BLUE}🚀 メインアプリケーションを起動します...${NC}"
-    cd /home/kjifuruta/AI_FT/AI_FT_3
+    cd /workspace 2>/dev/null || cd /home/kjifu/MoE_RAG
     
     # 通常のdocker-compose.ymlを使用（main_unified.pyが起動）
     docker-compose -f docker/docker-compose.yml up -d ai-ft redis qdrant
@@ -54,10 +54,15 @@ start_app() {
 
 start_monitor() {
     echo -e "${BLUE}📊 監視サービスを起動します...${NC}"
-    cd /home/kjifuruta/AI_FT/AI_FT_3
+    cd /workspace 2>/dev/null || cd /home/kjifu/MoE_RAG
     
     # 監視サービスのみ起動（アプリケーションは起動しない）
-    docker-compose -f docker/docker-compose-monitoring.yml up -d prometheus grafana redis-exporter node-exporter
+    if [ -f docker/docker-compose-monitoring.yml ]; then
+        docker-compose -f docker/docker-compose-monitoring.yml up -d prometheus grafana redis-exporter node-exporter
+    else
+        echo -e "${YELLOW}⚠️ 監視設定ファイルが見つかりません${NC}"
+        return 1
+    fi
     
     echo "⏳ 起動待機中..."
     sleep 5
@@ -81,16 +86,18 @@ start_all() {
 
 stop_app() {
     echo -e "${BLUE}🛑 メインアプリケーションを停止します...${NC}"
-    cd /home/kjifuruta/AI_FT/AI_FT_3
+    cd /workspace 2>/dev/null || cd /home/kjifu/MoE_RAG
     docker-compose -f docker/docker-compose.yml down
     echo -e "${GREEN}✅ アプリケーションを停止しました${NC}"
 }
 
 stop_monitor() {
     echo -e "${BLUE}🛑 監視サービスを停止します...${NC}"
-    cd /home/kjifuruta/AI_FT/AI_FT_3
-    docker-compose -f docker/docker-compose-monitoring.yml stop prometheus grafana redis-exporter node-exporter
-    docker-compose -f docker/docker-compose-monitoring.yml rm -f prometheus grafana redis-exporter node-exporter
+    cd /workspace 2>/dev/null || cd /home/kjifu/MoE_RAG
+    if [ -f docker/docker-compose-monitoring.yml ]; then
+        docker-compose -f docker/docker-compose-monitoring.yml stop prometheus grafana redis-exporter node-exporter
+        docker-compose -f docker/docker-compose-monitoring.yml rm -f prometheus grafana redis-exporter node-exporter
+    fi
     echo -e "${GREEN}✅ 監視サービスを停止しました${NC}"
 }
 
@@ -145,6 +152,13 @@ show_status() {
     else
         echo -e "  Qdrant: ${YELLOW}⚠️ 停止または未起動${NC}"
     fi
+    
+    # Ollama
+    if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+        echo -e "  Ollama: ${GREEN}✅ 稼働中${NC} (http://localhost:11434)"
+    else
+        echo -e "  Ollama: ${YELLOW}⚠️ 停止または未起動${NC}"
+    fi
 }
 
 restart_app() {
@@ -162,10 +176,10 @@ logs_app() {
 logs_monitor() {
     echo -e "${BLUE}📝 監視サービスログ${NC}"
     echo "Grafana:"
-    docker logs ai-ft-grafana --tail 20
+    docker logs ai-ft-grafana --tail 20 2>/dev/null || echo "Grafanaコンテナが見つかりません"
     echo ""
     echo "Prometheus:"
-    docker logs ai-ft-prometheus --tail 20
+    docker logs ai-ft-prometheus --tail 20 2>/dev/null || echo "Prometheusコンテナが見つかりません"
 }
 
 # メイン処理

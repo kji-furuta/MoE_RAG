@@ -148,6 +148,7 @@ RUN chmod +x /workspace/scripts/setup_permissions.sh && \
     /workspace/scripts/setup_permissions.sh && \
     # 追加のディレクトリ作成
     mkdir -p /workspace/data/raw /workspace/data/processed /workspace/data/rag_documents /workspace/models/checkpoints && \
+    mkdir -p /workspace/data/continual_learning /workspace/data/uploaded && \
     # パーミッション修正
     chmod 777 /workspace/qdrant_data && \
     chmod 775 /workspace/models && \

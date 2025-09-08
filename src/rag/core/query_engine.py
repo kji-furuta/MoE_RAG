@@ -93,11 +93,24 @@ class LLMGenerator:
                 logger.warning(f"Failed to initialize continual learning manager: {e}")
                 self.use_continual = False
         
+        # 動的LoRA適用モードのチェック
+        self.use_dynamic_lora = False
+        self.dynamic_lora_engine = None
+        if hasattr(config.llm, 'use_dynamic_lora') and config.llm.use_dynamic_lora:
+            try:
+                from .dynamic_lora_llm import DynamicLoRAQueryEngine
+                self.dynamic_lora_engine = DynamicLoRAQueryEngine(config.llm.__dict__)
+                self.use_dynamic_lora = True
+                logger.info("Dynamic LoRA application enabled for GPT-NeoX-20B")
+            except Exception as e:
+                logger.warning(f"Failed to initialize dynamic LoRA: {e}")
+                
         # 設定に基づいてOllamaモードを初期化
-        if hasattr(config.llm, 'provider') and config.llm.provider == 'ollama':
-            self._enable_ollama_fallback()
-        elif hasattr(config.llm, 'use_ollama_fallback') and config.llm.use_ollama_fallback:
-            self._enable_ollama_fallback()
+        if not self.use_dynamic_lora:
+            if hasattr(config.llm, 'provider') and config.llm.provider == 'ollama':
+                self._enable_ollama_fallback()
+            elif hasattr(config.llm, 'use_ollama_fallback') and config.llm.use_ollama_fallback:
+                self._enable_ollama_fallback()
         
         # 明示的にファインチューニングモデルが指定された場合のみローカルモデルを試行
         if load_model and hasattr(config.llm, 'use_finetuned') and config.llm.use_finetuned:

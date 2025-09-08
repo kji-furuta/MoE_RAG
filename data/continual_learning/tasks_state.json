@@ -685,5 +685,41 @@
       },
       "task_history": "タスク1"
     }
+  },
+  "c45e9db2-ee43-43c4-a323-0a041d645fa1": {
+    "task_id": "c45e9db2-ee43-43c4-a323-0a041d645fa1",
+    "task_name": "task_1",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-09-08T17:55:21.143172+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250908_163759",
+      "task_name": "task_1",
+      "use_previous_tasks": true,
+      "ewc_lambda": 1000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/5443ae7f-1485-45a5-82a2-654250a81fd0_AI_FT_data.jsonl",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-09-08T18:11:04.522459+09:00",
+    "output_path": "outputs/continual_task_1_20250908_181104",
+    "model_info": {
+      "name": "continual_task_1",
+      "path": "outputs/continual_task_1_20250908_181104",
+      "base_model": "outputs/lora_20250908_163759",
+      "training_method": "continual_ewc",
+      "created_at": "2025-09-08T18:11:04.525570+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 1000,
+        "use_previous_tasks": true
+      },
+      "task_history": "task_1"
+    }
   }
 }

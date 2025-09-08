@@ -86,21 +86,19 @@ class ImprovedLoRAToOllamaConverter:
             if not (build_dir / "bin/llama-quantize").exists():
                 logger.info("llama.cppをビルド中...")
                 
-                # ビルドディレクトリが存在する場合は削除
-                if build_dir.exists():
-                    shutil.rmtree(build_dir)
+                # ビルドディレクトリを作成
+                build_dir.mkdir(parents=True, exist_ok=True)
                 
-                # CMakeビルド設定
+                # CMake設定
                 cmake_cmd = [
                     "cmake", "-B", str(build_dir),
                     "-S", str(self.llama_cpp_dir),
                     "-DLLAMA_CUDA=OFF",  # CPU版でビルド（高速化）
-                    "-DLLAMA_CURL=OFF",  # CURLを無効化（依存関係を減らす）
+                    "-DLLAMA_CURL=OFF",  # CURL依存を無効化
                     "-DCMAKE_BUILD_TYPE=Release"
                 ]
-                
-                logger.info(f"CMake設定中: {' '.join(cmake_cmd)}")
-                result = subprocess.run(cmake_cmd, capture_output=True, text=True, cwd=str(self.llama_cpp_dir))
+                logger.info("CMake設定を実行中...")
+                result = subprocess.run(cmake_cmd, capture_output=True, text=True)
                 
                 if result.returncode != 0:
                     logger.error(f"CMake設定失敗: {result.stderr}")
@@ -111,8 +109,7 @@ class ImprovedLoRAToOllamaConverter:
                     "cmake", "--build", str(build_dir),
                     "--config", "Release", "-j", "4"
                 ]
-                
-                logger.info(f"CMakeビルド中: {' '.join(build_cmd)}")
+                logger.info("CMakeビルドを実行中...")
                 result = subprocess.run(build_cmd, capture_output=True, text=True)
                 
                 if result.returncode != 0:

@@ -874,10 +874,24 @@ async def run_training_task(task_id: str, request: TrainingRequest):
                         return
             
             # LoRA設定
+            # GPT-NeoXモデル用のターゲットモジュールを判定
+            if "gpt-neox" in request.model_name.lower():
+                # GPT-NeoX特有のQKV統合層
+                default_target_modules = [
+                    "attention.query_key_value",
+                    "attention.dense",
+                    "mlp.dense_h_to_4h",
+                    "mlp.dense_4h_to_h"
+                ]
+                logger.info("GPT-NeoXモデル用のターゲットモジュールを使用")
+            else:
+                # 通常のLLaMAスタイルモジュール
+                default_target_modules = ["q_proj", "v_proj", "k_proj", "o_proj"]
+            
             lora_config = LoraConfig(
                 r=get_config_value(request.lora_config, "r", get_config_value(training_config, "lora_r", 16, int), int),
                 lora_alpha=get_config_value(request.lora_config, "lora_alpha", get_config_value(training_config, "lora_alpha", 32, int), int),
-                target_modules=training_config.get("target_modules", ["q_proj", "v_proj", "k_proj", "o_proj"]),
+                target_modules=training_config.get("target_modules", default_target_modules),
                 lora_dropout=get_config_value(training_config, "lora_dropout", 0.05, float),
                 bias="none",
                 task_type=TaskType.CAUSAL_LM
@@ -2552,8 +2566,20 @@ async def apply_lora_to_ollama(request: dict, background_tasks: BackgroundTasks)
         # バックグラウンドタスクとして実行
         async def run_conversion():
             try:
-                # 使用するスクリプトを選択
-                if use_improved_version:
+                # 動的適用版スクリプトを優先的に使用（ワークフローB）
+                dynamic_script_path = "/workspace/scripts/apply_lora_gpt_neox_dynamic.py"
+                auto_script_path = "/workspace/scripts/apply_lora_to_gguf_auto.py"
+                
+                # スクリプトの存在確認と選択
+                if Path(dynamic_script_path).exists() and "gpt-neox" in base_model_name.lower():
+                    # GPT-NeoXモデルの場合は動的適用版を使用
+                    script_path = dynamic_script_path
+                    logger.info("動的適用版LoRAスクリプトを使用（GPT-NeoX ワークフローB）")
+                elif Path(auto_script_path).exists():
+                    # その他のモデルは自動判定版を使用
+                    script_path = auto_script_path
+                    logger.info("自動判定版LoRA適用スクリプトを使用")
+                elif use_improved_version:
                     script_path = "/workspace/scripts/apply_lora_to_gguf_improved.py"
                 else:
                     script_path = "/workspace/scripts/apply_lora_to_gguf.py"
@@ -2562,17 +2588,27 @@ async def apply_lora_to_ollama(request: dict, background_tasks: BackgroundTasks)
                 import subprocess
                 cmd = ["python", script_path]
                 
-                # パラメータを追加
-                if base_model_url:
-                    cmd.extend(["--base-model-url", base_model_url])
+                # 動的適用版の場合はパラメータが異なる
+                if "dynamic" in script_path:
+                    # ワークフローB用のパラメータ
+                    cmd.extend([
+                        "--base-gguf", f"/workspace/models/{base_model_name}",
+                        "--lora-adapter", lora_adapter_path if lora_adapter_path else "/workspace/outputs/lora_latest",
+                        "--output-dir", f"/workspace/outputs/workflow_b_{output_model_name}",
+                        "--ollama-create", output_model_name
+                    ])
+                else:
+                    # 従来のパラメータ
+                    if base_model_url:
+                        cmd.extend(["--base-model-url", base_model_url])
+                        
+                    cmd.extend([
+                        "--base-model-name", base_model_name,
+                        "--output-name", output_model_name
+                    ])
                     
-                cmd.extend([
-                    "--base-model-name", base_model_name,
-                    "--output-name", output_model_name
-                ])
-                
-                if lora_adapter_path:
-                    cmd.extend(["--lora-adapter", lora_adapter_path])
+                    if lora_adapter_path:
+                        cmd.extend(["--lora-adapter", lora_adapter_path])
                 
                 # 改善版の場合は一時ディレクトリを使用
                 if use_improved_version:

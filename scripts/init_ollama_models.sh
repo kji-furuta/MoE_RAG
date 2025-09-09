@@ -102,6 +102,146 @@ main() {
         ensure_model "$model"
     done
     
+    # GGUFモデルの再登録
+    echo ""
+    echo "🔄 既存のGGUFモデルを再登録中..."
+    
+    # ベースモデルの登録
+    if [ -f "/workspace/models/DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf" ]; then
+        if ! ollama list 2>/dev/null | grep -q "deepseek-32b-base:latest"; then
+            echo "📝 deepseek-32b-base:latest を登録中..."
+            cat > /tmp/Modelfile_deepseek_base << EOF
+FROM /workspace/models/DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf
+
+PARAMETER temperature 0.6
+PARAMETER top_p 0.9
+PARAMETER top_k 40
+PARAMETER repeat_penalty 1.1
+PARAMETER num_ctx 4096
+
+SYSTEM """あなたは土木道路設計の専門知識を持つAIアシスタントです。
+技術的な質問に対して正確で詳細な回答を提供してください。
+日本の道路設計基準や技術標準に基づいて回答してください。"""
+
+TEMPLATE """[INST] {{ .System }} {{ .Prompt }} [/INST]"""
+EOF
+            ollama create "deepseek-32b-base:latest" -f /tmp/Modelfile_deepseek_base
+            rm -f /tmp/Modelfile_deepseek_base
+            echo -e "${GREEN}✅ deepseek-32b-base:latest の登録が完了しました${NC}"
+        fi
+    fi
+    
+    if [ -f "/workspace/models/gpt-neox-20b.Q4_K_M.gguf" ]; then
+        if ! ollama list 2>/dev/null | grep -q "gpt-neox-20b-base:latest"; then
+            echo "📝 gpt-neox-20b-base:latest を登録中..."
+            cat > /tmp/Modelfile_gptneox_base << EOF
+FROM /workspace/models/gpt-neox-20b.Q4_K_M.gguf
+
+PARAMETER temperature 0.6
+PARAMETER top_p 0.9
+PARAMETER top_k 40
+PARAMETER repeat_penalty 1.1
+PARAMETER num_ctx 4096
+
+SYSTEM """あなたは土木道路設計の専門知識を持つAIアシスタントです。
+技術的な質問に対して正確で詳細な回答を提供してください。
+日本の道路設計基準や技術標準に基づいて回答してください。"""
+EOF
+            ollama create "gpt-neox-20b-base:latest" -f /tmp/Modelfile_gptneox_base
+            rm -f /tmp/Modelfile_gptneox_base
+            echo -e "${GREEN}✅ gpt-neox-20b-base:latest の登録が完了しました${NC}"
+        fi
+    fi
+    
+    # ファインチューニング済みモデルの検索と登録
+    # 番号付きモデル（0_から99_まで）
+    for i in {0..99}; do
+        model_path="/workspace/models/${i}_deepseek-32b-finetuned.gguf"
+        model_name="${i}_deepseek-32b-finetuned:latest"
+        
+        if [ -f "$model_path" ]; then
+            if ! ollama list 2>/dev/null | grep -q "$model_name"; then
+                echo "📝 $model_name を登録中..."
+                cat > /tmp/Modelfile_${i}_deepseek << EOF
+FROM $model_path
+
+PARAMETER temperature 0.6
+PARAMETER top_p 0.9
+PARAMETER top_k 40
+PARAMETER repeat_penalty 1.1
+PARAMETER num_ctx 4096
+
+SYSTEM """あなたは土木道路設計の専門知識を持つAIアシスタントです。
+技術的な質問に対して正確で詳細な回答を提供してください。
+日本の道路設計基準や技術標準に基づいて回答してください。"""
+
+TEMPLATE """[INST] {{ .System }} {{ .Prompt }} [/INST]"""
+EOF
+                ollama create "$model_name" -f /tmp/Modelfile_${i}_deepseek
+                rm -f /tmp/Modelfile_${i}_deepseek
+                echo -e "${GREEN}✅ $model_name の登録が完了しました${NC}"
+            fi
+        fi
+    done
+    
+    # task付きモデル
+    for task in task1 task2 task3 task4 task5; do
+        model_path="/workspace/models/${task}_deepseek-32b-finetuned.gguf"
+        model_name="${task}_deepseek-32b-finetuned:latest"
+        
+        if [ -f "$model_path" ]; then
+            if ! ollama list 2>/dev/null | grep -q "$model_name"; then
+                echo "📝 $model_name を登録中..."
+                cat > /tmp/Modelfile_${task}_deepseek << EOF
+FROM $model_path
+
+PARAMETER temperature 0.6
+PARAMETER top_p 0.9
+PARAMETER top_k 40
+PARAMETER repeat_penalty 1.1
+PARAMETER num_ctx 4096
+
+SYSTEM """あなたは土木道路設計の専門知識を持つAIアシスタントです。
+技術的な質問に対して正確で詳細な回答を提供してください。
+日本の道路設計基準や技術標準に基づいて回答してください。"""
+
+TEMPLATE """[INST] {{ .System }} {{ .Prompt }} [/INST]"""
+EOF
+                ollama create "$model_name" -f /tmp/Modelfile_${task}_deepseek
+                rm -f /tmp/Modelfile_${task}_deepseek
+                echo -e "${GREEN}✅ $model_name の登録が完了しました${NC}"
+            fi
+        fi
+    done
+    
+    # gpt-neox系ファインチューニング済みモデル
+    for gguf_file in /workspace/models/gpt-neox-*-finetuned.gguf; do
+        if [ -f "$gguf_file" ]; then
+            basename_file=$(basename "$gguf_file" .gguf)
+            model_name="${basename_file}:latest"
+            
+            if ! ollama list 2>/dev/null | grep -q "$model_name"; then
+                echo "📝 $model_name を登録中..."
+                cat > /tmp/Modelfile_gptneox_ft << EOF
+FROM $gguf_file
+
+PARAMETER temperature 0.6
+PARAMETER top_p 0.9
+PARAMETER top_k 40
+PARAMETER repeat_penalty 1.1
+PARAMETER num_ctx 4096
+
+SYSTEM """あなたは土木道路設計の専門知識を持つAIアシスタントです。
+技術的な質問に対して正確で詳細な回答を提供してください。
+日本の道路設計基準や技術標準に基づいて回答してください。"""
+EOF
+                ollama create "$model_name" -f /tmp/Modelfile_gptneox_ft
+                rm -f /tmp/Modelfile_gptneox_ft
+                echo -e "${GREEN}✅ $model_name の登録が完了しました${NC}"
+            fi
+        fi
+    done
+    
     # カスタムモデルの作成（ollama_modelsディレクトリにModelfileがある場合）
     echo ""
     if [ -d "/workspace/ollama_models" ]; then

@@ -176,7 +176,7 @@
                                         <!-- 動的に読み込まれます -->
                                     </optgroup>
                                     <optgroup label="Ollamaモデル">
-                                        <option value="ollama:deepseek-32b-finetuned">DeepSeek-32B-Finetuned (ファインチューニング済み)</option>
+                                        <option value="ollama:5_deepseek-32b-finetuned:latest">5_deepseek-32b-finetuned:latest</option>
                                         <option value="ollama:llama3.2:3b">Llama 3.2 3B</option>
                                     </optgroup>
                                     <optgroup label="ベースモデル">
@@ -382,6 +382,30 @@
                     <h3>📊 システム統計</h3>
                     <button class="btn btn-secondary mb-3" onclick="loadStatistics()">更新</button>
                     <div id="statisticsData"></div>
+                </div>
+            </div>
+            
+            <!-- Phase 2 メトリクスダッシュボード -->
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h3>📈 パフォーマンスメトリクス</h3>
+                    <div class="btn-group mb-3" role="group">
+                        <button class="btn btn-primary" onclick="loadMetricsDashboard()">
+                            <i class="bi bi-graph-up"></i> ダッシュボード表示
+                        </button>
+                        <button class="btn btn-secondary" onclick="loadMetricsData()">
+                            <i class="bi bi-file-earmark-text"></i> 詳細データ
+                        </button>
+                        <button class="btn btn-info" onclick="loadMetricsSummary()">
+                            <i class="bi bi-file-text"></i> サマリー
+                        </button>
+                        <button class="btn btn-success" onclick="refreshMetrics()">
+                            <i class="bi bi-arrow-clockwise"></i> メトリクス再計測
+                        </button>
+                    </div>
+                    <div id="metricsDisplay" style="min-height: 400px;">
+                        <div class="text-muted">ボタンをクリックしてメトリクスを表示してください</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1065,22 +1089,11 @@ async function loadFinetunedModels() {
                 const option = document.createElement('option');
                 option.value = `ollama:${model.name}`;
                 
-                // モデル名の表示を調整
+                // モデル名をそのまま表示（Ollamaのlistと同じ名前を使用）
                 let displayName = model.name;
-                if (model.name.includes('deepseek-32b-rag')) {
-                    displayName = 'DeepSeek-32B RAG (Q4_K_M量子化)';
-                } else if (model.name.includes('deepseek-32b-finetuned')) {
-                    displayName = 'DeepSeek-32B (ファインチューニング済み)';
-                } else if (model.name.includes('llama3.2:3b')) {
-                    displayName = 'Llama 3.2 3B';
-                } else if (model.name.includes('llama3.2')) {
-                    displayName = `Llama 3.2 ${model.size || ''}`;
-                } else if (model.name.includes('deepseek-r1:32b')) {
-                    displayName = 'DeepSeek-R1 32B';
-                }
                 
                 // サイズ情報がある場合は追加（ただしConfiguredとFrom configは除く）
-                if (model.size && model.size !== 'Configured' && model.size !== 'From config') {
+                if (model.size && model.size !== 'Configured' && model.size !== 'From config' && model.size !== 'Unknown') {
                     displayName += ` (${model.size})`;
                 }
                 
@@ -1088,11 +1101,15 @@ async function loadFinetunedModels() {
                 ollamaOptgroup.appendChild(option);
             });
         } else {
-            // デフォルトのOllamaモデルを表示
+            // デフォルトのOllamaモデルを表示（実際のモデル名を使用）
             const defaultModels = [
-                { value: 'ollama:llama3.2:3b', text: 'Llama 3.2 3B (デフォルト)' },
-                { value: 'ollama:deepseek-32b-finetuned', text: 'DeepSeek-32B (ファインチューニング済み)' },
-                { value: 'ollama:deepseek-32b-rag', text: 'DeepSeek-32B RAG (Q4_K_M量子化)' }
+                { value: 'ollama:llama3.2:3b', text: 'llama3.2:3b' },
+                { value: 'ollama:5_deepseek-32b-finetuned:latest', text: '5_deepseek-32b-finetuned:latest' },
+                { value: 'ollama:deepseek-32b-finetuned:latest', text: 'deepseek-32b-finetuned:latest' },
+                { value: 'ollama:4_deepseek-32b-finetuned:latest', text: '4_deepseek-32b-finetuned:latest' },
+                { value: 'ollama:gpt-neox-20b-finetuned:latest', text: 'gpt-neox-20b-finetuned:latest' },
+                { value: 'ollama:gpt-neox-20b-base:latest', text: 'gpt-neox-20b-base:latest' },
+                { value: 'ollama:deepseek-32b-base:latest', text: 'deepseek-32b-base:latest' }
             ];
             
             defaultModels.forEach(model => {
@@ -1940,6 +1957,107 @@ async function loadDocumentCheckboxList() {
     } catch (error) {
         console.error('文書リスト取得エラー:', error);
         listDiv.innerHTML = '<div class="col-12"><div class="alert alert-danger">文書リストの取得に失敗しました。</div></div>';
+    }
+}
+
+// メトリクスダッシュボード表示
+async function loadMetricsDashboard() {
+    const displayDiv = document.getElementById('metricsDisplay');
+    displayDiv.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>';
+    
+    try {
+        const response = await fetch('/rag/metrics-dashboard');
+        if (response.ok) {
+            const html = await response.text();
+            // iframeで表示
+            displayDiv.innerHTML = `
+                <iframe 
+                    srcdoc="${html.replace(/"/g, '&quot;')}" 
+                    style="width: 100%; height: 800px; border: none; border-radius: 8px;"
+                    title="メトリクスダッシュボード">
+                </iframe>
+            `;
+        } else {
+            displayDiv.innerHTML = '<div class="alert alert-warning">ダッシュボードが見つかりません</div>';
+        }
+    } catch (error) {
+        displayDiv.innerHTML = `<div class="alert alert-danger">エラー: ${error.message}</div>`;
+    }
+}
+
+// メトリクスデータ表示
+async function loadMetricsData() {
+    const displayDiv = document.getElementById('metricsDisplay');
+    displayDiv.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>';
+    
+    try {
+        const response = await fetch('/rag/metrics-data');
+        if (response.ok) {
+            const data = await response.json();
+            // JSONデータを整形して表示
+            displayDiv.innerHTML = `
+                <div class="card">
+                    <div class="card-header">
+                        <h5>詳細メトリクスデータ (JSON)</h5>
+                    </div>
+                    <div class="card-body">
+                        <pre style="max-height: 600px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 5px;">
+${JSON.stringify(data, null, 2)}
+                        </pre>
+                    </div>
+                </div>
+            `;
+        } else {
+            displayDiv.innerHTML = '<div class="alert alert-warning">メトリクスデータが見つかりません</div>';
+        }
+    } catch (error) {
+        displayDiv.innerHTML = `<div class="alert alert-danger">エラー: ${error.message}</div>`;
+    }
+}
+
+// メトリクスサマリー表示
+async function loadMetricsSummary() {
+    const displayDiv = document.getElementById('metricsDisplay');
+    displayDiv.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>';
+    
+    try {
+        const response = await fetch('/rag/metrics-summary');
+        if (response.ok) {
+            const html = await response.text();
+            displayDiv.innerHTML = html;
+        } else {
+            displayDiv.innerHTML = '<div class="alert alert-warning">サマリーが見つかりません</div>';
+        }
+    } catch (error) {
+        displayDiv.innerHTML = `<div class="alert alert-danger">エラー: ${error.message}</div>`;
+    }
+}
+
+// メトリクス再計測
+async function refreshMetrics() {
+    const displayDiv = document.getElementById('metricsDisplay');
+    displayDiv.innerHTML = `
+        <div class="alert alert-info">
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+            メトリクスを再計測中です... これには数分かかる場合があります。
+        </div>
+    `;
+    
+    try {
+        // メトリクスデータを強制的に再生成
+        const response = await fetch('/rag/metrics-data');
+        if (response.ok) {
+            displayDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle-fill"></i> メトリクスの再計測が完了しました。
+                    ボタンをクリックして結果を表示してください。
+                </div>
+            `;
+        } else {
+            displayDiv.innerHTML = '<div class="alert alert-danger">メトリクス再計測に失敗しました</div>';
+        }
+    } catch (error) {
+        displayDiv.innerHTML = `<div class="alert alert-danger">エラー: ${error.message}</div>`;
     }
 }
 

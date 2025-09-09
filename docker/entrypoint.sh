@@ -10,6 +10,9 @@ echo "========================================="
 # Ollamaサービスの起動
 if command -v ollama &> /dev/null; then
     echo "Starting Ollama service..."
+    # ホストからアクセス可能にするため、0.0.0.0でリッスン
+    export OLLAMA_HOST=0.0.0.0
+    # root権限で実行されるため、ログファイルも問題なく作成できる
     nohup ollama serve > /var/log/ollama.log 2>&1 &
     
     # Ollamaが起動するまで待機
@@ -22,9 +25,10 @@ if command -v ollama &> /dev/null; then
         sleep 2
     done
     
-    # Ollamaモデルの初期化
+    # Ollamaモデルの初期化とGGUFモデルの再登録
     if [ -f /workspace/scripts/init_ollama_models.sh ]; then
-        echo "Initializing Ollama models..."
+        echo "Initializing and re-registering Ollama models..."
+        chmod +x /workspace/scripts/init_ollama_models.sh
         /workspace/scripts/init_ollama_models.sh
     fi
 fi

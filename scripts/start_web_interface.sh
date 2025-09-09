@@ -3,7 +3,7 @@
 # AI_FT_3 統合Webインターフェース起動スクリプト
 # 継続学習管理システムを含む全機能を起動
 
-echo "🚀 AI_FT_3 統合Webインターフェースを起動中..."
+echo "🚀 MoE_RAG 統合Webインターフェースを起動中..."
 
 # Ollamaサービスを起動（存在する場合）
 if command -v ollama &> /dev/null; then
@@ -21,12 +21,20 @@ if command -v ollama &> /dev/null; then
     else
         echo "✅ llama3.2:3bモデルが利用可能です"
     fi
-fi
-
-# DeepSeekモデルの初期化
-if [ -f /workspace/scripts/init_deepseek_model.sh ]; then
-    echo "🚀 DeepSeekモデルを確認中..."
-    bash /workspace/scripts/init_deepseek_model.sh
+    
+    # GGUFモデルの再登録（必要に応じて）
+    if [ -f /workspace/scripts/init_ollama_models.sh ]; then
+        echo "🔄 GGUFモデルの再登録を確認中..."
+        # モデルが少ない場合は再登録を実行
+        model_count=$(ollama list | tail -n +2 | wc -l)
+        if [ "$model_count" -lt 5 ]; then
+            echo "📝 モデルの再登録が必要です（現在: ${model_count}個）"
+            chmod +x /workspace/scripts/init_ollama_models.sh
+            /workspace/scripts/init_ollama_models.sh
+        else
+            echo "✅ モデルは既に登録済みです（${model_count}個）"
+        fi
+    fi
 fi
 
 # 作業ディレクトリを設定

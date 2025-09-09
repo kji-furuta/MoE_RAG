@@ -168,20 +168,24 @@
             <p><span class="emoji">💡</span>Dockerベースの統合Webインターフェースで、日本語大規模言語モデル（LLM）のファインチューニング、土木道路設計特化型RAGシステム、そしてEWCベースの継続学習を同一プラットフォームで実行できます。単一のポート（8050）で全機能にアクセス可能な革新的なツールキットです。</p>
         </div>
 
-        <h2>📢 最新の更新 (2025年8月27日)</h2>
+        <h2>📢 最新の更新 (2025年9月9日)</h2>
         
-        <h3>🆕 最新実装機能</h3>
+        <h3>🎉 最新実装機能</h3>
         <ul>
-            <li><strong>Ollama完全統合</strong>: Llama 3.2 3Bモデルの完全動作確認とフォールバック機能実装</li>
-            <li><strong>開発環境管理</strong>: <code>start_dev_env.sh</code> / <code>stop_dev_env.sh</code> による簡単な環境制御</li>
-            <li><strong>MoE (Mixture of Experts) アーキテクチャ強化</strong>: メモリ最適化版実装により大規模モデルでの安定稼働を実現</li>
-            <li><strong>継続学習システム改善</strong>: タスク状態の永続化とエラーハンドリングを強化</li>
-            <li><strong>GPU メモリ最適化</strong>: 90-95%の効率的なGPUメモリ利用を実現（24GB GPUで20GB割り当て）</li>
-            <li><strong>統合APIエンドポイント</strong>: MoEトレーニングとRAGシステムの完全統合</li>
-            <li><strong>永続化機構</strong>: MoEモデルとタスク履歴の自動保存・復元機能</li>
-            <li><strong>DoRA (Weight-Decomposed Low-Rank Adaptation)</strong>: LoRAを超える高精度・高効率な新手法を実装</li>
-            <li><strong>vLLM統合</strong>: PagedAttentionによる高速推論エンジンを統合</li>
-            <li><strong>Serenaメモリシステム</strong>: プロジェクト知識管理の効率化</li>
+            <li><strong>Ollamaモデル永続化問題の解決</strong>: コンテナ再起動時の自動モデル再登録機能を実装</li>
+            <li><strong>継続学習タスク削除機能</strong>: 不要なタスクと関連ファイルを完全に削除するスクリプトを追加</li>
+            <li><strong>モデル管理の改善</strong>: ユーザー定義名での一貫したモデル管理を実現</li>
+            <li><strong>Docker権限統一</strong>: root権限での一貫した実行環境を構築</li>
+            <li><strong>RAG UI改善</strong>: モデル名表示をOllama listと完全一致させる修正</li>
+        </ul>
+        
+        <h3>🔧 以前の更新 (2025年9月7日)</h3>
+        <ul>
+            <li><strong>RAGモデル選択の改善</strong>: Ollamaモデルの自動初期化スクリプトを追加、設定ファイルの最適化</li>
+            <li><strong>継続学習タスク管理</strong>: タスク状態の永続化とUI表示の改善、タスクIDによる追跡機能強化</li>
+            <li><strong>モデル設定の拡張</strong>: GPT-NeoX、Pythia-160mなど新規モデルの設定追加</li>
+            <li><strong>エラーハンドリング改善</strong>: LoRAファインチューニング時のバッチサイズ自動調整機能</li>
+            <li><strong>UI/UX向上</strong>: ファインチューニング画面のモデル選択インターフェース改善</li>
         </ul>
         
         <div class="success-box">
@@ -357,19 +361,44 @@
 
         <h2>🚀 クイックスタート</h2>
         
-        <h3>🎯 超簡単！3ステップで開始（NEW）</h3>
+        <h3>🎯 超簡単！3ステップで開始</h3>
         <pre><code># 1. リポジトリのクローン
 git clone https://github.com/kji-furuta/MoE_RAG.git
 cd MoE_RAG
 
-# 2. 開発環境を起動（自動でOllamaモデルもダウンロード）
-./start_dev_env.sh
+# 2. Docker環境起動
+cd docker && docker-compose up -d --build  # 初回のみ
+# 2回目以降は: docker-compose up -d
 
-# 3. ブラウザでアクセス
+# 3. Webインターフェース起動
+docker exec ai-ft-container bash /workspace/scripts/start_web_interface.sh
+
+# 4. ブラウザでアクセス
 # http://localhost:8050</code></pre>
         
-        <p><strong>停止する場合：</strong></p>
-        <pre><code>./stop_dev_env.sh</code></pre>
+        <h3>Ollamaモデル管理</h3>
+        
+        <h4>モデル削除コマンド</h4>
+        <pre><code># 特定モデルの削除
+ollama rm 5_deepseek-32b-finetuned:latest
+
+# Docker環境での削除
+docker exec ai-ft-container ollama rm 5_deepseek-32b-finetuned:latest
+
+# 複数モデルの一括削除
+for i in {0..99}; do
+    ollama rm ${i}_deepseek-32b-finetuned:latest 2>/dev/null
+done</code></pre>
+        
+        <h4>継続学習タスク削除</h4>
+        <pre><code># タスク一覧確認
+docker exec ai-ft-container python /workspace/scripts/delete_continual_task.py --list
+
+# 特定タスクの削除
+docker exec ai-ft-container python /workspace/scripts/delete_continual_task.py --delete task_001
+
+# 削除前の確認（Dry Run）
+docker exec ai-ft-container python /workspace/scripts/delete_continual_task.py --delete task_001 --dry-run</code></pre>
         
         <h3>詳細な手順（手動セットアップの場合）</h3>
         

@@ -3405,6 +3405,13 @@ async def rag_get_system_info():
             with open(config_path, 'r', encoding='utf-8') as f:
                 config_data = yaml.safe_load(f)
         
+        # Phase 2メトリクスデータを読み込み
+        metrics_data = {}
+        metrics_json_path = Path("benchmarks/phase2/advanced_metrics_latest.json")
+        if metrics_json_path.exists():
+            with open(metrics_json_path, 'r', encoding='utf-8') as f:
+                metrics_data = json.load(f)
+        
         # システム情報を構築
         system_info = {
             "config": {
@@ -3425,7 +3432,8 @@ async def rag_get_system_info():
                     "type": config_data.get('vector_store', {}).get('type', 'Qdrant')
                 }
             },
-            "status": "initialized" if rag_app.is_initialized else "not_initialized"
+            "status": "initialized" if rag_app.is_initialized else "not_initialized",
+            "metrics": metrics_data.get("metrics", {}) if metrics_data else None
         }
         
         return SystemInfoResponse(
@@ -3447,6 +3455,100 @@ async def rag_get_system_info():
                 "error": str(e)
             },
             timestamp=datetime.now(JST).isoformat()
+        )
+
+@app.get("/rag/metrics-dashboard")
+async def get_metrics_dashboard():
+    """Phase 2メトリクスダッシュボードのHTMLを返す"""
+    try:
+        dashboard_path = Path("benchmarks/phase2/dashboard_latest.html")
+        if dashboard_path.exists():
+            with open(dashboard_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+            return HTMLResponse(content=html_content)
+        else:
+            # ダッシュボードが存在しない場合は生成を試みる
+            from src.benchmarks.phase2_advanced_metrics import Phase2AdvancedMetrics
+            metrics = Phase2AdvancedMetrics()
+            metrics.run_all_metrics()
+            
+            if dashboard_path.exists():
+                with open(dashboard_path, 'r', encoding='utf-8') as f:
+                    html_content = f.read()
+                return HTMLResponse(content=html_content)
+            else:
+                return HTMLResponse(
+                    content="<html><body><h1>メトリクスダッシュボードが見つかりません</h1></body></html>",
+                    status_code=404
+                )
+    except Exception as e:
+        logger.error(f"Failed to load metrics dashboard: {e}")
+        return HTMLResponse(
+            content=f"<html><body><h1>エラー</h1><p>{str(e)}</p></body></html>",
+            status_code=500
+        )
+
+@app.get("/rag/metrics-data")
+async def get_metrics_data():
+    """Phase 2メトリクスのJSONデータを返す"""
+    try:
+        metrics_path = Path("benchmarks/phase2/advanced_metrics_latest.json")
+        if metrics_path.exists():
+            with open(metrics_path, 'r', encoding='utf-8') as f:
+                metrics_data = json.load(f)
+            return JSONResponse(content=metrics_data)
+        else:
+            # メトリクスが存在しない場合は生成を試みる
+            from src.benchmarks.phase2_advanced_metrics import Phase2AdvancedMetrics
+            metrics = Phase2AdvancedMetrics()
+            results = metrics.run_all_metrics()
+            return JSONResponse(content=results)
+    except Exception as e:
+        logger.error(f"Failed to load metrics data: {e}")
+        return JSONResponse(
+            content={"error": str(e)},
+            status_code=500
+        )
+
+@app.get("/rag/metrics-summary")
+async def get_metrics_summary():
+    """Phase 2メトリクスのサマリーマークダウンを返す"""
+    try:
+        summary_path = Path("benchmarks/phase2/summary.md")
+        if summary_path.exists():
+            with open(summary_path, 'r', encoding='utf-8') as f:
+                markdown_content = f.read()
+            # Convert markdown to HTML
+            html_content = f"""
+            <!DOCTYPE html>
+            <html lang="ja">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>メトリクスサマリー</title>
+                <style>
+                    body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }}
+                    pre {{ background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; }}
+                    h1, h2, h3 {{ color: #333; }}
+                    ul {{ line-height: 1.8; }}
+                </style>
+            </head>
+            <body>
+                <pre>{markdown_content}</pre>
+            </body>
+            </html>
+            """
+            return HTMLResponse(content=html_content)
+        else:
+            return HTMLResponse(
+                content="<html><body><h1>メトリクスサマリーが見つかりません</h1></body></html>",
+                status_code=404
+            )
+    except Exception as e:
+        logger.error(f"Failed to load metrics summary: {e}")
+        return HTMLResponse(
+            content=f"<html><body><h1>エラー</h1><p>{str(e)}</p></body></html>",
+            status_code=500
         )
 
 @app.post("/rag/quantize-model")

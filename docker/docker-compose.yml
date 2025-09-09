@@ -29,6 +29,7 @@ services:
       - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:512
       - CUDA_LAUNCH_BLOCKING=0
       - TOKENIZERS_PARALLELISM=false
+      - OLLAMA_HOST=0.0.0.0
     
     # Port mappings
     ports:
@@ -61,8 +62,8 @@ services:
       # RAGデータ永続化
       - ai_ft_rag_metadata:/workspace/metadata
       - ai_ft_rag_processed:/workspace/outputs/rag_index
-      # Ollamaモデル永続化
-      - ollama_models:/usr/share/ollama/.ollama/models
+      # Ollamaモデル永続化（正しいパスに修正）
+      - ollama_models:/home/ai-user/.ollama
     
     # Working directory
     working_dir: /workspace

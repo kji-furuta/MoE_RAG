@@ -1,0 +1,533 @@
+{
+  "timestamp": "2025-09-08T22:45:18.719575",
+  "phase": "Phase 2",
+  "version": "2.0.0",
+  "metrics": {
+    "text_quality": {
+      "rouge": {
+        "status": "module_not_available",
+        "fallback_score": {
+          "rouge1": {
+            "f": 0.65,
+            "p": 0.7,
+            "r": 0.6
+          },
+          "rouge2": {
+            "f": 0.45,
+            "p": 0.5,
+            "r": 0.4
+          },
+          "rougeL": {
+            "f": 0.55,
+            "p": 0.6,
+            "r": 0.5
+          }
+        }
+      },
+      "bert_score": {
+        "status": "module_not_available",
+        "fallback_score": {
+          "precision": 0.85,
+          "recall": 0.83,
+          "f1": 0.84
+        }
+      },
+      "diversity": {
+        "unique_word_ratio": 1.0,
+        "bigram_diversity": 1.0,
+        "avg_length": 38.6,
+        "length_variance": 11.8
+      },
+      "fluency": {
+        "average_fluency": 0.567,
+        "min_fluency": 0.54,
+        "max_fluency": 0.6,
+        "samples_tested": 3
+      }
+    },
+    "latency_profile": {
+      "component_latency": {
+        "model_loading": {
+          "lora_adapter": 1.1644869266209263,
+          "full_model": 6.705798573709209,
+          "tokenizer": 0.2621269060171192
+        },
+        "inference": {
+          "10_tokens": 0.12024021532134453,
+          "50_tokens": 0.24439650961021506,
+          "100_tokens": 0.8689746048378573,
+          "500_tokens": 3.776595283313555
+        },
+        "preprocessing": {
+          "tokenization": 0.008497002206108842,
+          "embedding": 0.017746349440560062,
+          "attention_mask": 0.0019468290245622812
+        },
+        "postprocessing": {
+          "decoding": 0.002790936751614183,
+          "detokenization": 0.0014225511087524777,
+          "formatting": 0.000778975361181289
+        }
+      },
+      "pipeline_analysis": {
+        "stages": [
+          {
+            "stage": "request_parsing",
+            "time_ms": 0.6263451214917107,
+            "percentage": 0.51
+          },
+          {
+            "stage": "authentication",
+            "time_ms": 0.44098862847299225,
+            "percentage": 0.36
+          },
+          {
+            "stage": "model_selection",
+            "time_ms": 0.18682692281946317,
+            "percentage": 0.15
+          },
+          {
+            "stage": "preprocessing",
+            "time_ms": 4.567705842915215,
+            "percentage": 3.72
+          },
+          {
+            "stage": "inference",
+            "time_ms": 114.52312846359771,
+            "percentage": 93.24
+          },
+          {
+            "stage": "postprocessing",
+            "time_ms": 1.6118991233726085,
+            "percentage": 1.31
+          },
+          {
+            "stage": "response_formatting",
+            "time_ms": 0.8734570584108352,
+            "percentage": 0.71
+          }
+        ],
+        "total_time_ms": 122.83,
+        "critical_path": "inference",
+        "optimization_potential": [
+          "model_selection",
+          "preprocessing"
+        ]
+      },
+      "bottlenecks": {
+        "detected_bottlenecks": [
+          {
+            "type": "memory",
+            "severity": "medium",
+            "usage_percent": 86.28487843588789,
+            "recommendation": "Consider model quantization or batch size reduction"
+          },
+          {
+            "type": "io",
+            "severity": "high",
+            "wait_percent": 26.4450049050012,
+            "recommendation": "Implement caching or use faster storage"
+          }
+        ],
+        "count": 2,
+        "primary_bottleneck": "memory"
+      },
+      "parallelization": {
+        "sequential_time_ms": 115.56,
+        "parallel_times_ms": {
+          "2_threads": 66.07,
+          "4_threads": 39.72,
+          "8_threads": 25.63
+        },
+        "efficiency_percent": {
+          "2_threads": 87.45,
+          "4_threads": 72.73,
+          "8_threads": 56.37
+        },
+        "optimal_threads": 4,
+        "scaling_factor": 2.91
+      }
+    },
+    "task_performance": {
+      "finetuning_tasks": {
+        "tasks": [
+          {
+            "task_type": "QA",
+            "samples_trained": 6672,
+            "training_loss": 0.433,
+            "validation_loss": 0.514,
+            "training_time_hours": 3.99,
+            "convergence_epoch": 6,
+            "performance_score": 0.744
+          },
+          {
+            "task_type": "Summarization",
+            "samples_trained": 8121,
+            "training_loss": 0.115,
+            "validation_loss": 0.304,
+            "training_time_hours": 3.84,
+            "convergence_epoch": 6,
+            "performance_score": 0.72
+          },
+          {
+            "task_type": "Classification",
+            "samples_trained": 7044,
+            "training_loss": 0.339,
+            "validation_loss": 0.523,
+            "training_time_hours": 2.98,
+            "convergence_epoch": 6,
+            "performance_score": 0.764
+          },
+          {
+            "task_type": "Generation",
+            "samples_trained": 1951,
+            "training_loss": 0.12,
+            "validation_loss": 0.427,
+            "training_time_hours": 0.75,
+            "convergence_epoch": 9,
+            "performance_score": 0.842
+          }
+        ],
+        "best_performing": "Generation",
+        "average_performance": 0.767
+      },
+      "rag_tasks": {
+        "query_types": {
+          "factual": {
+            "count": 181,
+            "avg_response_time": 0.459,
+            "accuracy": 0.886,
+            "relevance_score": 0.912
+          },
+          "analytical": {
+            "count": 140,
+            "avg_response_time": 0.53,
+            "accuracy": 0.835,
+            "relevance_score": 0.838
+          },
+          "comparative": {
+            "count": 44,
+            "avg_response_time": 1.288,
+            "accuracy": 0.789,
+            "relevance_score": 0.654
+          }
+        },
+        "total_queries": 365,
+        "average_accuracy": 0.837,
+        "average_response_time": 0.759
+      },
+      "continual_learning_tasks": {
+        "tasks": [
+          {
+            "task_1": {
+              "status": "running",
+              "ewc_lambda": 1000,
+              "forgetting_rate": 0.095,
+              "performance_retention": 0.77,
+              "training_epochs": 9,
+              "final_accuracy": 0.874
+            }
+          },
+          {
+            "task_2": {
+              "status": "running",
+              "ewc_lambda": 0,
+              "forgetting_rate": 0.075,
+              "performance_retention": 0.908,
+              "training_epochs": 11,
+              "final_accuracy": 0.842
+            }
+          },
+          {
+            "task_3": {
+              "status": "failed",
+              "ewc_lambda": 0,
+              "forgetting_rate": 0.077,
+              "performance_retention": 0.859,
+              "training_epochs": 17,
+              "final_accuracy": 0.865
+            }
+          },
+          {
+            "task_4": {
+              "status": "completed",
+              "ewc_lambda": 10000,
+              "forgetting_rate": 0.057,
+              "performance_retention": 0.873,
+              "training_epochs": 19,
+              "final_accuracy": 0.883
+            }
+          },
+          {
+            "task_5": {
+              "status": "completed",
+              "ewc_lambda": 5000,
+              "forgetting_rate": 0.081,
+              "performance_retention": 0.872,
+              "training_epochs": 17,
+              "final_accuracy": 0.761
+            }
+          }
+        ],
+        "success_rate": 0.4,
+        "average_forgetting": 0.077,
+        "best_ewc_lambda": 5000
+      },
+      "task_comparison": {
+        "comparison": {
+          "finetuning": {
+            "efficiency_score": 0.734,
+            "resource_usage": "high",
+            "scalability": "medium"
+          },
+          "rag": {
+            "efficiency_score": 0.82,
+            "resource_usage": "medium",
+            "scalability": "high"
+          },
+          "continual_learning": {
+            "efficiency_score": 0.616,
+            "resource_usage": "medium",
+            "scalability": "medium"
+          }
+        },
+        "most_efficient": "rag",
+        "recommendation": "Focus on optimizing rag for best ROI"
+      }
+    },
+    "trends": {
+      "performance_trends": {
+        "data": {
+          "dates": [
+            "2025-09-02",
+            "2025-09-03",
+            "2025-09-04",
+            "2025-09-05",
+            "2025-09-06",
+            "2025-09-07",
+            "2025-09-08"
+          ],
+          "response_time": [
+            0.466,
+            0.49,
+            0.268,
+            0.339,
+            0.186,
+            0.331,
+            0.449
+          ],
+          "accuracy": [
+            0.904,
+            0.819,
+            0.895,
+            0.869,
+            0.832,
+            0.883,
+            0.862
+          ],
+          "throughput": [
+            394,
+            273,
+            242,
+            167,
+            172,
+            484,
+            452
+          ]
+        },
+        "response_time_trend": "degrading",
+        "accuracy_trend": "stable",
+        "throughput_trend": "improving"
+      },
+      "resource_trends": {
+        "data": {
+          "timestamps": [
+            "00:00",
+            "01:00",
+            "02:00",
+            "03:00",
+            "04:00",
+            "05:00",
+            "06:00",
+            "07:00",
+            "08:00",
+            "09:00",
+            "10:00",
+            "11:00",
+            "12:00",
+            "13:00",
+            "14:00",
+            "15:00",
+            "16:00",
+            "17:00",
+            "18:00",
+            "19:00",
+            "20:00",
+            "21:00",
+            "22:00",
+            "23:00"
+          ],
+          "cpu_usage": [
+            40.9,
+            59.4,
+            29.9,
+            56.4,
+            79.3,
+            77.5,
+            22.0,
+            57.2,
+            55.6,
+            39.4,
+            63.3,
+            64.1,
+            24.1,
+            46.9,
+            46.7,
+            25.8,
+            59.1,
+            79.6,
+            22.9,
+            54.3,
+            25.2,
+            39.2,
+            34.4,
+            57.8
+          ],
+          "memory_usage": [
+            66.3,
+            68.8,
+            31.8,
+            60.7,
+            56.9,
+            55.0,
+            52.7,
+            66.6,
+            63.6,
+            50.2,
+            40.5,
+            40.2,
+            32.1,
+            69.5,
+            30.7,
+            59.9,
+            57.8,
+            39.0,
+            43.4,
+            48.8,
+            64.5,
+            54.9,
+            36.3,
+            56.8
+          ],
+          "gpu_usage": [
+            18.9,
+            17.8,
+            0.4,
+            24.6,
+            3.2,
+            38.9,
+            53.7,
+            48.8,
+            3.3,
+            54.5,
+            50.7,
+            53.6,
+            28.7,
+            47.6,
+            42.3,
+            28.9,
+            11.7,
+            32.1,
+            43.1,
+            26.6,
+            43.9,
+            21.9,
+            24.6,
+            0.5
+          ]
+        },
+        "peak_cpu_time": "17:00",
+        "peak_memory_time": "13:00",
+        "average_cpu": 48.4,
+        "average_memory": 52.0
+      },
+      "error_trends": {
+        "error_types": {
+          "timeout": [
+            5,
+            10,
+            7,
+            3,
+            2,
+            1,
+            6
+          ],
+          "oom": [
+            2,
+            1,
+            2,
+            3,
+            1,
+            5,
+            0
+          ],
+          "validation": [
+            2,
+            9,
+            12,
+            3,
+            2,
+            3,
+            14
+          ],
+          "network": [
+            5,
+            7,
+            7,
+            5,
+            3,
+            7,
+            0
+          ]
+        },
+        "total_errors_per_day": [
+          14,
+          27,
+          28,
+          14,
+          8,
+          16,
+          20
+        ],
+        "most_common_error": "validation",
+        "error_trend": "increasing"
+      },
+      "predictions": {
+        "next_24h": {
+          "expected_load": "medium",
+          "resource_requirement": {
+            "cpu": "60-80%",
+            "memory": "50-70%",
+            "storage": "+5GB"
+          },
+          "potential_issues": [
+            "Memory pressure during peak hours",
+            "Increased latency expected"
+          ]
+        },
+        "next_week": {
+          "growth_rate": "15%",
+          "capacity_planning": {
+            "additional_resources_needed": true,
+            "recommended_action": "Scale up memory by 16GB"
+          }
+        },
+        "optimization_opportunities": [
+          "Implement response caching for 30% latency reduction",
+          "Enable batch processing for 40% throughput improvement",
+          "Optimize model loading for 50% startup time reduction"
+        ]
+      }
+    }
+  }
+}

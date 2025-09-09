@@ -48,6 +48,9 @@ RUN rm -rf /var/lib/apt/lists/* && \
 # Ollamaをインストール
 RUN curl -fsSL https://ollama.com/install.sh | sh
 
+# Ollamaをホストからアクセス可能にする設定
+ENV OLLAMA_HOST=0.0.0.0
+
 # CMakeの最新版をインストール（llama.cpp用）
 RUN apt-get update && \
     apt-get install -y cmake && \
@@ -194,7 +197,8 @@ COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # 作業ユーザーを切り替え
-USER ai-user
+# root権限で実行するためコメントアウト
+# USER ai-user
 
 # ポートを公開
 EXPOSE 8888 6006 8050 8051 11434

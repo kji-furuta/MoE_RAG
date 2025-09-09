@@ -1,0 +1,112 @@
+{
+  "timestamp": "2025-09-08T20:22:04.939076",
+  "phase": "Phase 1",
+  "version": "1.0.0",
+  "metrics": {
+    "fine_tuning": {
+      "model_info": {
+        "lora_models_count": 13,
+        "full_models_count": 0,
+        "latest_lora": "lora_20250904_172523",
+        "latest_full": null,
+        "total_models": 13
+      },
+      "perplexity": {
+        "status": "estimated",
+        "perplexity": 32.93,
+        "test_samples": 3,
+        "model_used": "outputs/lora_20250908_175521"
+      },
+      "inference_speed": {
+        "input_10_tokens": {
+          "tokens_per_second": 21.3,
+          "estimated": true
+        },
+        "input_50_tokens": {
+          "tokens_per_second": 22.3,
+          "estimated": true
+        },
+        "input_100_tokens": {
+          "tokens_per_second": 17.9,
+          "estimated": true
+        }
+      },
+      "memory_usage": {
+        "system_memory_total_gb": 62.75,
+        "system_memory_used_gb": 5.31,
+        "system_memory_percent": 9.7,
+        "gpu_available": false
+      }
+    },
+    "rag": {
+      "system_status": {
+        "fastapi": {
+          "status": "online",
+          "response_code": 200
+        },
+        "ollama": {
+          "status": "offline"
+        },
+        "qdrant": {
+          "status": "online",
+          "collections": 1
+        }
+      },
+      "response_time": {
+        "status": "failed",
+        "error": "Could not measure response time"
+      },
+      "document_stats": {
+        "total_documents": 0,
+        "pdf_count": 0,
+        "txt_count": 0,
+        "json_count": 0,
+        "total_size_mb": 0.0
+      },
+      "query_stats": {
+        "status": "no_logs_directory",
+        "total_queries_logged": 0
+      }
+    },
+    "continual_learning": {
+      "task_stats": {
+        "total_tasks": 30,
+        "completed_tasks": 9,
+        "failed_tasks": 21,
+        "running_tasks": 0,
+        "success_rate": 30.0,
+        "error_distribution": {
+          "Other": 6,
+          "GPU_OOM": 10,
+          "Quantization_Error": 2,
+          "Assertion_Error": 3
+        }
+      },
+      "ewc_config": {
+        "status": "no_history_file",
+        "tasks_with_ewc": 0
+      },
+      "fisher_stats": {
+        "status": "no_fisher_matrices",
+        "fisher_matrices_count": 0
+      },
+      "model_versions": {
+        "continual_models_count": 0,
+        "latest_model": null,
+        "models": []
+      }
+    }
+  },
+  "summary": {
+    "overall_status": "operational",
+    "key_metrics": {
+      "total_models": 13,
+      "estimated_perplexity": 32.93,
+      "cl_success_rate": 30.0
+    },
+    "alerts": [
+      "Ollama is not online",
+      "Continual learning success rate is low: 30.0%"
+    ]
+  }
+}

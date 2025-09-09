@@ -4,16 +4,16 @@
 
 Dockerベースの統合Webインターフェースで、日本語大規模言語モデル（LLM）のファインチューニング、土木道路設計特化型RAGシステム、そしてEWCベースの継続学習を同一プラットフォームで実行できます。単一のポート（8050）で全機能にアクセス可能な革新的なツールキットです。
 
-## 📢 最新の更新 (2025年9月7日)
+## 📢 最新の更新 (2025年9月9日)
 
 ### 🎉 最新実装機能
-- **RAGモデル選択の改善**: Ollamaモデルの自動初期化スクリプトを追加、設定ファイルの最適化
-- **継続学習タスク管理**: タスク状態の永続化とUI表示の改善、タスクIDによる追跡機能強化
-- **モデル設定の拡張**: GPT-NeoX、Pythia-160mなど新規モデルの設定追加
-- **エラーハンドリング改善**: LoRAファインチューニング時のバッチサイズ自動調整機能
-- **UI/UX向上**: ファインチューニング画面のモデル選択インターフェース改善
+- **Ollamaモデル永続化問題の解決**: コンテナ再起動時の自動モデル再登録機能を実装
+- **継続学習タスク削除機能**: 不要なタスクと関連ファイルを完全に削除するスクリプトを追加
+- **モデル管理の改善**: ユーザー定義名での一貫したモデル管理を実現
+- **Docker権限統一**: root権限での一貫した実行環境を構築
+- **RAG UI改善**: モデル名表示をOllama listと完全一致させる修正
 
-### 🔧 以前の更新 (2025年9月4日)
+### 🔧 以前の更新 (2025年9月7日)
 - **継続学習の完全サポート**: LoRAファインチューニング済みモデルに対する継続学習機能を完全実装
 - **メモリ最適化**: 32Bモデルの継続学習でOOMエラーを解決、GPU選択ロジックを改善
 - **EWC改善**: Fisher行列計算のエラーハンドリングを強化、既存LoRA使用時の自動調整
@@ -289,22 +289,49 @@ MoE_RAG/
 
 ## 🚀 クイックスタート
 
-### 超簡単起動（NEW: 3コマンドで全環境起動）
+### 超簡単起動（3コマンドで全環境起動）
 ```bash
 # 1. リポジトリクローン
 git clone https://github.com/kji-furuta/MoE_RAG.git
 cd MoE_RAG
 
-# 2. 開発環境起動（Docker + Ollama + Web全部起動）
-./start_dev_env.sh
+# 2. Docker環境起動
+cd docker && docker-compose up -d --build  # 初回のみ
+# 2回目以降は: docker-compose up -d
 
-# 3. ブラウザでアクセス
+# 3. Webインターフェース起動
+docker exec ai-ft-container bash /workspace/scripts/start_web_interface.sh
+
+# 4. ブラウザでアクセス
 # http://localhost:8050/
 ```
 
-停止する場合：
+### Ollamaモデル管理
+
+#### モデル削除コマンド
 ```bash
-./stop_dev_env.sh
+# 特定モデルの削除
+ollama rm 5_deepseek-32b-finetuned:latest
+
+# Docker環境での削除
+docker exec ai-ft-container ollama rm 5_deepseek-32b-finetuned:latest
+
+# 複数モデルの一括削除
+for i in {0..99}; do
+    ollama rm ${i}_deepseek-32b-finetuned:latest 2>/dev/null
+done
+```
+
+#### 継続学習タスク削除
+```bash
+# タスク一覧確認
+docker exec ai-ft-container python /workspace/scripts/delete_continual_task.py --list
+
+# 特定タスクの削除
+docker exec ai-ft-container python /workspace/scripts/delete_continual_task.py --delete task_001
+
+# 削除前の確認（Dry Run）
+docker exec ai-ft-container python /workspace/scripts/delete_continual_task.py --delete task_001 --dry-run
 ```
 
 ### 詳細セットアップ手順

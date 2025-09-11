@@ -31,10 +31,10 @@ class HybridSearchResult:
     id: str
     text: str
     metadata: Dict[str, Any]
-    vector_score: float
-    keyword_score: float
-    hybrid_score: float
-    rank: int
+    vector_score: float = 0.0
+    keyword_score: float = 0.0
+    hybrid_score: float = 0.0
+    rank: int = 0
     
     @classmethod
     def from_search_result(cls, 
@@ -152,20 +152,22 @@ class KeywordSearchEngine:
     
     def __init__(self, 
                  max_features: int = 10000,
-                 ngram_range: Tuple[int, int] = (1, 2),
-                 min_df: int = 2):
+                 ngram_range: Tuple[int, int] = (2, 4),  # 日本語向けに2-4文字のn-gram
+                 min_df: int = 1):  # 最小文書頻度を1に緩和
         """
         Args:
             max_features: TF-IDFの最大特徴数
-            ngram_range: N-gramの範囲
+            ngram_range: N-gramの範囲（日本語は2-4文字が効果的）
             min_df: 最小文書頻度
         """
+        # 日本語対応: analyzer='char'で文字n-gramを使用
         self.vectorizer = TfidfVectorizer(
             max_features=max_features,
             ngram_range=ngram_range,
             min_df=min_df,
-            stop_words=None,  # 日本語なのでNone
-            token_pattern=r'(?u)\b\w+\b'
+            stop_words=None,
+            analyzer='char',  # 文字単位のn-gram（日本語対応）
+            token_pattern=None  # analyzerを使用する場合はNone
         )
         
         self.term_extractor = TechnicalTermExtractor()
@@ -402,7 +404,14 @@ class HybridSearchEngine:
                 continue
                 
             vector_score = result.score
-            keyword_score = keyword_scores.get(result.id, 0.0)
+            
+            # IDマッピング: QdrantのIDから元のdoc_idを取得
+            doc_id = result.metadata.get('original_id', result.metadata.get('doc_id', result.id))
+            keyword_score = keyword_scores.get(doc_id, 0.0)
+            
+            # デバッグログ
+            if keyword_score == 0.0 and len(keyword_scores) > 0:
+                logger.debug(f"Result ID: {result.id}, doc_id: {doc_id}, keyword_scores keys: {list(keyword_scores.keys())[:5]}")
             
             # ハイブリッドスコアを計算
             hybrid_score = (
@@ -412,13 +421,17 @@ class HybridSearchEngine:
             
             # 技術用語マッチングによるブースト
             tech_boost = self._calculate_technical_boost(result.text, keywords)
-            hybrid_score = hybrid_score * (1.0 + tech_boost)
+            boosted_hybrid_score = hybrid_score * (1.0 + tech_boost)
+            
+            # デバッグログ
+            if tech_boost > 0:
+                logger.debug(f"Tech boost applied: {tech_boost:.3f} ({tech_boost*100:.1f}%)")
             
             hybrid_result = HybridSearchResult.from_search_result(
                 result=result,
                 vector_score=vector_score,
                 keyword_score=keyword_score,
-                hybrid_score=hybrid_score,
+                hybrid_score=boosted_hybrid_score,
                 rank=0  # 後で設定
             )
             hybrid_results.append(hybrid_result)

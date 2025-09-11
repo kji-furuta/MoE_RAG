@@ -10,6 +10,7 @@ from typing import Dict, Any, Optional, List, Union
 from dataclasses import dataclass
 import yaml
 import torch
+import numpy as np
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import logging
 logger = logging.getLogger(__name__)
@@ -845,18 +846,125 @@ class RoadDesignQueryEngine:
         """検索用コーパスを初期化"""
         
         try:
-            # メタデータから文書情報を取得
-            documents = self.metadata_manager.search_documents()
+            # ベクトルストアから実際の文書内容を取得
+            logger.info("Fetching documents from vector store for keyword search initialization...")
             
-            if documents:
-                # 簡易実装: 実際にはベクトルストアから情報を取得
-                corpus_texts = [f"Document: {doc.title}" for doc in documents[:100]]
-                corpus_ids = [doc.id for doc in documents[:100]]
+            # Qdrantから全文書を取得（スクロール検索）
+            corpus_texts = []
+            corpus_ids = []
+            
+            try:
+                # ベクトルストアのコレクション情報を取得
+                collection_info = self.vector_store.get_collection_info()
+                total_vectors = collection_info.get('vectors_count', 0)
+                total_points = collection_info.get('points_count', 0)
                 
+                # vectors_countが0でもpoints_countがあれば処理を続行
+                if total_vectors > 0 or total_points > 0:
+                    actual_count = total_vectors if total_vectors > 0 else total_points
+                    logger.info(f"Found {actual_count} documents in collection (vectors: {total_vectors}, points: {total_points})")
+                    
+                    # スクロール検索で全文書を取得（最大1000件）
+                    limit = min(1000, actual_count)
+                    offset = None
+                    batch_size = 100
+                    
+                    while len(corpus_texts) < limit:
+                        # Qdrantのスクロール検索
+                        try:
+                            scroll_result = self.vector_store.client.scroll(
+                                collection_name=self.vector_store.collection_name,
+                                limit=batch_size,
+                                offset=offset,
+                                with_payload=True,
+                                with_vectors=False
+                            )
+                            
+                            if not scroll_result or not scroll_result[0]:
+                                break
+                                
+                            points, next_offset = scroll_result
+                            
+                            for point in points:
+                                if point.payload and 'text' in point.payload:
+                                    corpus_texts.append(point.payload['text'])
+                                    # original_idまたはdoc_idを使用
+                                    doc_id = point.payload.get('original_id', point.payload.get('doc_id', str(point.id)))
+                                    corpus_ids.append(doc_id)
+                            
+                            if next_offset is None or len(corpus_texts) >= limit:
+                                break
+                            offset = next_offset
+                        except Exception as scroll_error:
+                            logger.warning(f"Scroll search error: {scroll_error}")
+                            # 代替手段：検索を使用
+                            try:
+                                dummy_embedding = np.zeros(self.embedding_model.embedding_dim)
+                                search_results = self.vector_store.search(
+                                    query_embedding=dummy_embedding,
+                                    top_k=min(100, limit),
+                                    score_threshold=0.0
+                                )
+                                for result in search_results:
+                                    corpus_texts.append(result.text)
+                                    corpus_ids.append(result.metadata.get('original_id', result.metadata.get('doc_id', result.id)))
+                                logger.info(f"Fallback search retrieved {len(search_results)} documents")
+                            except Exception as search_error:
+                                logger.error(f"Fallback search also failed: {search_error}")
+                            break
+                    
+                    logger.info(f"Retrieved {len(corpus_texts)} documents for keyword search")
+                else:
+                    logger.warning("No documents count from collection info, trying direct scroll...")
+                    # コレクション情報が取得できなくても、直接スクロール検索を試みる
+                    try:
+                        offset = None
+                        batch_size = 100
+                        limit = 1000
+                        
+                        while len(corpus_texts) < limit:
+                            scroll_result = self.vector_store.client.scroll(
+                                collection_name=self.vector_store.collection_name,
+                                limit=batch_size,
+                                offset=offset,
+                                with_payload=True,
+                                with_vectors=False
+                            )
+                            
+                            if not scroll_result or not scroll_result[0]:
+                                break
+                                
+                            points, next_offset = scroll_result
+                            
+                            for point in points:
+                                if point.payload and 'text' in point.payload:
+                                    corpus_texts.append(point.payload['text'])
+                                    doc_id = point.payload.get('original_id', point.payload.get('doc_id', str(point.id)))
+                                    corpus_ids.append(doc_id)
+                            
+                            if next_offset is None or len(corpus_texts) >= limit:
+                                break
+                            offset = next_offset
+                            
+                        if corpus_texts:
+                            logger.info(f"Successfully retrieved {len(corpus_texts)} documents via direct scroll")
+                    except Exception as direct_scroll_error:
+                        logger.warning(f"Direct scroll also failed: {direct_scroll_error}")
+                    
+            except Exception as e:
+                logger.warning(f"Failed to fetch from vector store: {e}")
+                # フォールバック: メタデータから取得
+                documents = self.metadata_manager.search_documents()
+                if documents:
+                    corpus_texts = [f"Document: {doc.title}" for doc in documents[:100]]
+                    corpus_ids = [doc.id for doc in documents[:100]]
+            
+            # キーワード検索エンジンを初期化
+            if corpus_texts:
                 self.hybrid_search.initialize(corpus_texts, corpus_ids)
-                logger.info(f"Initialized search corpus with {len(corpus_texts)} documents")
+                logger.info(f"Initialized keyword search with {len(corpus_texts)} documents")
             else:
-                logger.warning("No documents found in metadata database, initializing with empty corpus")
+                logger.warning("No documents found, initializing with empty corpus")
                 # 空のコーパスで初期化（ベクトル検索のみ有効）
                 self.hybrid_search.initialize([], [])
                 
@@ -976,11 +1084,27 @@ class RoadDesignQueryEngine:
                         else:
                             source_data['score'] = 0.0
                     elif hasattr(chunk, '__dict__'):
-                        # HybridSearchResultの場合
-                        source_data = chunk.__dict__.copy()
-                        # scoreが存在しない場合のフォールバック
-                        if 'score' not in source_data:
-                            source_data['score'] = getattr(chunk, 'score', 0.0)
+                        # HybridSearchResultまたは他のオブジェクトの場合
+                        # dataclassの場合、__dict__を直接使用
+                        source_data = {}
+                        
+                        # 基本的な属性をコピー
+                        if hasattr(chunk, 'id'):
+                            source_data['id'] = chunk.id
+                        if hasattr(chunk, 'text'):
+                            source_data['text'] = chunk.text
+                        if hasattr(chunk, 'metadata'):
+                            source_data['metadata'] = chunk.metadata
+                        
+                        # スコア関連の属性を明示的に取得
+                        source_data['vector_score'] = getattr(chunk, 'vector_score', 0.0)
+                        source_data['keyword_score'] = getattr(chunk, 'keyword_score', 0.0)
+                        source_data['hybrid_score'] = getattr(chunk, 'hybrid_score', 0.0)
+                        source_data['score'] = getattr(chunk, 'hybrid_score', getattr(chunk, 'score', 0.0))
+                        
+                        # その他の属性
+                        if hasattr(chunk, 'rank'):
+                            source_data['rank'] = chunk.rank
                     else:
                         # フォールバック
                         source_data = {'text': str(chunk), 'score': 0.0}

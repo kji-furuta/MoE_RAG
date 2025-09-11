@@ -377,10 +377,30 @@ class QdrantVectorStore(VectorStore):
         
     def get_collection_info(self) -> Dict[str, Any]:
         """コレクション情報を取得"""
+        # REST API経由で直接取得を試みる
+        try:
+            import requests
+            if self.url:
+                response = requests.get(f"{self.url}/collections/{self.collection_name}")
+                if response.status_code == 200:
+                    data = response.json()
+                    result = data.get('result', {})
+                    return {
+                        "vectors_count": result.get('vectors_count', 0),
+                        "points_count": result.get('points_count', 0),
+                        "indexed_vectors_count": result.get('indexed_vectors_count', 0),
+                        "status": result.get('status', 'unknown'),
+                        "config": "rest_api"
+                    }
+        except Exception as rest_e:
+            logger.debug(f"REST API fallback failed: {rest_e}")
+        
+        # 通常のクライアント経由
         try:
             info = self.client.get_collection(self.collection_name)
             return {
                 "vectors_count": info.vectors_count,
+                "points_count": getattr(info, 'points_count', info.vectors_count),
                 "indexed_vectors_count": info.indexed_vectors_count,
                 "status": info.status,
                 "config": "config_unavailable"  # pydantic validation errorを避けるため
@@ -394,6 +414,7 @@ class QdrantVectorStore(VectorStore):
                     if collection.name == self.collection_name:
                         return {
                             "vectors_count": getattr(collection, 'vectors_count', 0),
+                            "points_count": getattr(collection, 'points_count', getattr(collection, 'vectors_count', 0)),
                             "indexed_vectors_count": getattr(collection, 'vectors_count', 0),
                             "status": "available",
                             "config": "config_unavailable"

@@ -720,11 +720,27 @@ class RoadDesignQueryEngine:
             # 4. ハイブリッド検索エンジン
             logger.info("Initializing hybrid search...")
             retrieval_config = self.config.retrieval
+            # Keywordエンジンの詳細設定（存在しない場合はデフォルト）
+            ke = getattr(retrieval_config, 'keyword_engine', None)
+            ke_backend = getattr(ke, 'backend', 'tfidf') if ke else 'tfidf'
+            ke_max_features = getattr(ke, 'max_features', 30000) if ke else 30000
+            ke_ngram = (
+                getattr(ke, 'ngram_min', 2) if ke else 2,
+                getattr(ke, 'ngram_max', 4) if ke else 4,
+            )
+            ke_min_df = getattr(ke, 'min_df', 2) if ke else 2
+            ke_rebuild_threshold = getattr(ke, 'rebuild_threshold', 200) if ke else 200
+
             self.hybrid_search = HybridSearchEngine(
                 vector_store=self.vector_store,
                 embedding_model=self.embedding_model,
                 vector_weight=retrieval_config.vector_weight,
-                keyword_weight=retrieval_config.keyword_weight
+                keyword_weight=retrieval_config.keyword_weight,
+                keyword_backend=ke_backend,
+                keyword_max_features=ke_max_features,
+                keyword_ngram_range=ke_ngram,
+                keyword_min_df=ke_min_df,
+                keyword_rebuild_threshold=ke_rebuild_threshold
             )
             
             # コーパス情報が必要な場合は別途初期化
@@ -768,9 +784,19 @@ class RoadDesignQueryEngine:
         try:
             # 1. 基本コンポーネントのみ初期化
             logger.info("Loading lightweight embedding model...")
-            self.embedding_model = EmbeddingModelFactory.create_model(
-                model_type="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",  # 軽量モデル
-                device="cpu" if torch.cuda.mem_get_info()[0] / (1024**3) < 4 else "cuda"
+            # GPUメモリ状況を安全に判定
+            device_choice = "cpu"
+            try:
+                if torch.cuda.is_available():
+                    free_gb = torch.cuda.mem_get_info()[0] / (1024**3)
+                    device_choice = "cuda" if free_gb >= 4 else "cpu"
+            except Exception:
+                device_choice = "cpu"
+
+            # 軽量埋め込みモデルをロード
+            self.embedding_model = EmbeddingModelFactory.create(
+                model_type="multilingual-e5-small",  # 軽量モデルに寄せる
+                device=device_choice
             )
             
             # 2. ベクターストア（基本機能のみ）
@@ -786,11 +812,27 @@ class RoadDesignQueryEngine:
             
             # 4. ハイブリッド検索エンジン（軽量モード）
             from ..retrieval.hybrid_search import HybridSearchEngine
+            retrieval_config = self.config.retrieval
+            ke = getattr(retrieval_config, 'keyword_engine', None)
+            ke_backend = getattr(ke, 'backend', 'tfidf') if ke else 'tfidf'
+            ke_max_features = getattr(ke, 'max_features', 30000) if ke else 30000
+            ke_ngram = (
+                getattr(ke, 'ngram_min', 2) if ke else 2,
+                getattr(ke, 'ngram_max', 4) if ke else 4,
+            )
+            ke_min_df = getattr(ke, 'min_df', 2) if ke else 2
+            ke_rebuild_threshold = getattr(ke, 'rebuild_threshold', 200) if ke else 200
+
             self.hybrid_search = HybridSearchEngine(
                 vector_store=self.vector_store,
                 embedding_model=self.embedding_model,
-                vector_weight=0.7,  # ベクター検索主体
-                keyword_weight=0.3   # キーワード検索も併用
+                vector_weight=retrieval_config.vector_weight if retrieval_config else 0.7,
+                keyword_weight=retrieval_config.keyword_weight if retrieval_config else 0.3,
+                keyword_backend=ke_backend,
+                keyword_max_features=ke_max_features,
+                keyword_ngram_range=ke_ngram,
+                keyword_min_df=ke_min_df,
+                keyword_rebuild_threshold=ke_rebuild_threshold
             )
             
             # コーパスを初期化
@@ -1570,3 +1612,12 @@ def batch_query_road_design(queries: List[str], **kwargs) -> List[QueryResult]:
     
     engine = get_query_engine()
     return engine.batch_query(queries, **kwargs)
+
+# ----------------------------------------------------------------------------
+# Compatibility alias
+# NOTE: Historically some modules referred to a class named `QueryEngine`.
+#       The canonical implementation in this codebase is `RoadDesignQueryEngine`.
+#       To avoid confusion with legacy code and stale imports, we expose a
+#       backwards-compatible alias here. This does not change behavior.
+# ----------------------------------------------------------------------------
+QueryEngine = RoadDesignQueryEngine

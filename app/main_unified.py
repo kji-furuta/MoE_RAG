@@ -4533,6 +4533,20 @@ async def process_uploaded_rag_document(
                 update_status(100, "文書のインデックス化と保存が完了しました！", status="completed")
                 logger.info("Status updated to 100% completed")
                 
+                # キーワード検索エンジンを再初期化して新しい文書を反映
+                try:
+                    logger.info("Reinitializing keyword search engine to include newly uploaded document")
+                    if 'rag_app' in globals() and getattr(rag_app, 'query_engine', None):
+                        # ブロッキング処理のためスレッドプールで実行
+                        loop = asyncio.get_event_loop()
+                        await loop.run_in_executor(None, rag_app.query_engine._initialize_search_corpus)
+                        logger.info("Keyword search engine reinitialized successfully")
+                    else:
+                        logger.warning("RAG application or query engine not available for keyword search reinitialization")
+                except Exception as e:
+                    logger.error(f"Failed to reinitialize keyword search engine: {e}")
+                    # エラーが発生してもRAGシステムは正常に動作するため、処理を継続
+                
                 # 完了を確実にするために短い待機
                 await asyncio.sleep(2)
                 

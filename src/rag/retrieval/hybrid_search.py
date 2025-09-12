@@ -11,6 +11,7 @@ from loguru import logger
 import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from collections import Counter, defaultdict
 
 from ..indexing.vector_store import QdrantVectorStore, SearchResult
 from ..indexing.embedding_model import EmbeddingModel
@@ -148,85 +149,163 @@ class TechnicalTermExtractor:
 
 
 class KeywordSearchEngine:
-    """キーワード検索エンジン"""
+    """キーワード検索エンジン（TF-IDF/BM25 文字n-gram対応）"""
     
-    def __init__(self, 
-                 max_features: int = 10000,
-                 ngram_range: Tuple[int, int] = (2, 4),  # 日本語向けに2-4文字のn-gram
-                 min_df: int = 1):  # 最小文書頻度を1に緩和
+    def __init__(self,
+                 backend: str = "tfidf",
+                 max_features: int = 30000,
+                 ngram_range: Tuple[int, int] = (2, 4),
+                 min_df: int = 2,
+                 rebuild_threshold: int = 200):
         """
         Args:
-            max_features: TF-IDFの最大特徴数
-            ngram_range: N-gramの範囲（日本語は2-4文字が効果的）
-            min_df: 最小文書頻度
+            backend: 'tfidf' または 'bm25'
+            max_features: 語彙上限制御
+            ngram_range: 文字n-gram範囲
+            min_df: 最小文書頻度（TF-IDF）
+            rebuild_threshold: 追加文書で再フィットする閾値
         """
-        # 日本語対応: analyzer='char'で文字n-gramを使用
-        self.vectorizer = TfidfVectorizer(
-            max_features=max_features,
-            ngram_range=ngram_range,
-            min_df=min_df,
-            stop_words=None,
-            analyzer='char',  # 文字単位のn-gram（日本語対応）
-            token_pattern=None  # analyzerを使用する場合はNone
-        )
+        self.backend = backend.lower()
+        self.max_features = max_features
+        self.ngram_range = ngram_range
+        self.min_df = min_df
+        self.rebuild_threshold = max(0, rebuild_threshold)
         
-        self.term_extractor = TechnicalTermExtractor()
+        # TF-IDF用
+        self.vectorizer: Optional[TfidfVectorizer] = None
         self.corpus_vectors = None
-        self.corpus_texts = None
-        self.corpus_ids = None
+        
+        # BM25用
+        self.k1 = 1.5
+        self.b = 0.75
+        self.vocab = []
+        self.idf = {}
+        self.doc_freq = defaultdict(int)
+        self.doc_token_counts: List[Counter] = []
+        self.doc_lengths: List[int] = []
+        self.avgdl: float = 0.0
+        
+        # 共通
+        self.term_extractor = TechnicalTermExtractor()
+        self.corpus_texts: List[str] = []
+        self.corpus_ids: List[str] = []
+        self._new_docs_buffer: List[Tuple[str, str]] = []  # (text, id)
         self.is_fitted = False
         
+    def _tokenize(self, text: str) -> List[str]:
+        n_min, n_max = self.ngram_range
+        text = text or ""
+        tokens = []
+        for n in range(n_min, n_max + 1):
+            tokens.extend([text[i:i+n] for i in range(0, max(0, len(text) - n + 1))])
+        return tokens
+
     def fit(self, texts: List[str], ids: List[str]):
-        """文書コーパスでTF-IDFモデルを学習"""
-        self.corpus_texts = texts
-        self.corpus_ids = ids
+        """文書コーパスを学習（TF-IDF もしくは BM25）"""
+        self.corpus_texts = texts or []
+        self.corpus_ids = ids or []
+        logger.info(f"Fitting keyword search ({self.backend}) on {len(self.corpus_texts)} documents...")
         
-        logger.info(f"Fitting keyword search on {len(texts)} documents...")
-        
-        if len(texts) == 0:
-            # 空のコーパスの場合
+        if len(self.corpus_texts) == 0:
             logger.warning("Empty corpus provided, keyword search will be disabled")
             self.corpus_vectors = None
+            self.doc_token_counts = []
+            self.doc_lengths = []
+            self.vocab = []
+            self.idf = {}
             self.is_fitted = True
+            return
+        
+        if self.backend == "tfidf":
+            # 日本語対応: analyzer='char'
+            self.vectorizer = TfidfVectorizer(
+                max_features=self.max_features,
+                ngram_range=self.ngram_range,
+                min_df=self.min_df,
+                stop_words=None,
+                analyzer='char',
+                token_pattern=None
+            )
+            self.corpus_vectors = self.vectorizer.fit_transform(self.corpus_texts)
+            logger.info(f"TF-IDF fitted with {self.corpus_vectors.shape[1]} features")
         else:
-            # TF-IDF行列を計算
-            self.corpus_vectors = self.vectorizer.fit_transform(texts)
-            self.is_fitted = True
-            logger.info(f"Keyword search fitted with {self.corpus_vectors.shape[1]} features")
+            # BM25: 文字n-gramで語彙とidfを構築
+            N = len(self.corpus_texts)
+            self.doc_token_counts = []
+            self.doc_lengths = []
+            self.doc_freq = defaultdict(int)
+            
+            tokenized_docs: List[List[str]] = []
+            for text in self.corpus_texts:
+                toks = self._tokenize(text)
+                tokenized_docs.append(toks)
+                cnt = Counter(toks)
+                self.doc_token_counts.append(cnt)
+                self.doc_lengths.append(sum(cnt.values()))
+                for t in cnt.keys():
+                    self.doc_freq[t] += 1
+            
+            # 語彙上位(max_features)採択（df順）
+            all_terms = list(self.doc_freq.items())
+            all_terms.sort(key=lambda x: x[1], reverse=True)
+            selected = all_terms[: self.max_features]
+            self.vocab = [t for t, _ in selected]
+            vocab_set = set(self.vocab)
+            
+            # idf計算（Okapi BM25）
+            self.idf = {t: np.log((N - df + 0.5) / (df + 0.5) + 1.0) for t, df in selected}
+            # 文書内トークンを語彙でフィルタ
+            self.doc_token_counts = [Counter({t: c for t, c in cnt.items() if t in vocab_set}) for cnt in self.doc_token_counts]
+            self.avgdl = float(np.mean(self.doc_lengths)) if self.doc_lengths else 0.0
+            logger.info(f"BM25 fitted with vocab={len(self.vocab)}, avgdl={self.avgdl:.1f}")
         
-    def search(self, 
-              query: str, 
-              top_k: int = 10,
-              boost_technical_terms: bool = True) -> List[Tuple[str, float]]:
-        """キーワード検索を実行"""
+        self.is_fitted = True
         
+    def search(self,
+               query: str,
+               top_k: int = 10,
+               boost_technical_terms: bool = True) -> List[Tuple[str, float]]:
+        """キーワード検索を実行（TF-IDF/BM25）"""
         if not self.is_fitted:
             raise RuntimeError("KeywordSearchEngine must be fitted before search")
-            
-        if self.corpus_vectors is None:
-            # 空のコーパスの場合は空の結果を返す
+        if not self.corpus_texts:
             logger.debug("Empty corpus, returning empty keyword search results")
             return []
+        
+        if self.backend == "tfidf":
+            if self.corpus_vectors is None or self.vectorizer is None:
+                return []
+            query_vector = self.vectorizer.transform([query])
+            similarities = cosine_similarity(query_vector, self.corpus_vectors).flatten()
+            if boost_technical_terms:
+                similarities = self._apply_technical_boost(query, similarities)
+            ranked_indices = np.argsort(similarities)[::-1][:top_k]
+            return [(self.corpus_ids[idx], float(similarities[idx])) for idx in ranked_indices if similarities[idx] > 0]
+        else:
+            # BM25
+            q_tokens = self._tokenize(query)
+            if not q_tokens:
+                return []
+            scores = np.zeros(len(self.corpus_texts), dtype=np.float32)
+            for i, cnt in enumerate(self.doc_token_counts):
+                dl = self.doc_lengths[i] if self.doc_lengths else 1
+                score = 0.0
+                for t in q_tokens:
+                    if t not in self.idf:
+                        continue
+                    f = cnt.get(t, 0)
+                    if f == 0:
+                        continue
+                    idf = self.idf[t]
+                    denom = f + self.k1 * (1 - self.b + self.b * (dl / max(self.avgdl, 1e-6)))
+                    score += idf * (f * (self.k1 + 1)) / denom
+                scores[i] = score
             
-        # クエリのベクトル化
-        query_vector = self.vectorizer.transform([query])
-        
-        # コサイン類似度を計算
-        similarities = cosine_similarity(query_vector, self.corpus_vectors).flatten()
-        
-        # 技術用語ブースト
-        if boost_technical_terms:
-            similarities = self._apply_technical_boost(query, similarities)
-            
-        # スコアでソート
-        ranked_indices = np.argsort(similarities)[::-1][:top_k]
-        
-        results = []
-        for i, idx in enumerate(ranked_indices):
-            if similarities[idx] > 0:  # スコアが0より大きいもののみ
-                results.append((self.corpus_ids[idx], float(similarities[idx])))
-                
-        return results
+            # 技術用語ブースト（同様の割合で増幅）
+            if boost_technical_terms:
+                scores = self._apply_technical_boost(query, scores)
+            ranked_indices = np.argsort(scores)[::-1][:top_k]
+            return [(self.corpus_ids[idx], float(scores[idx])) for idx in ranked_indices if scores[idx] > 0]
         
     def _apply_technical_boost(self, query: str, similarities: np.ndarray) -> np.ndarray:
         """技術用語に基づくスコアブースト"""
@@ -263,6 +342,21 @@ class KeywordSearchEngine:
             
         return similarities * (1.0 + boost_scores)
 
+    # ----------------
+    # インクリメンタル更新
+    # ----------------
+    def add_documents(self, texts: List[str], ids: List[str]):
+        """文書を追加（一定数で再フィット）"""
+        if not texts:
+            return
+        for t, i in zip(texts, ids):
+            self._new_docs_buffer.append((t, i))
+        if self.rebuild_threshold and len(self._new_docs_buffer) >= self.rebuild_threshold:
+            logger.info(f"Rebuilding keyword index (+{len(self._new_docs_buffer)} docs) ...")
+            new_texts, new_ids = zip(*self._new_docs_buffer)
+            self._new_docs_buffer.clear()
+            self.fit(self.corpus_texts + list(new_texts), self.corpus_ids + list(new_ids))
+
 
 class HybridSearchEngine:
     """ハイブリッド検索エンジン（ベクトル + キーワード）"""
@@ -271,7 +365,12 @@ class HybridSearchEngine:
                  vector_store: QdrantVectorStore,
                  embedding_model: EmbeddingModel,
                  vector_weight: float = 0.7,
-                 keyword_weight: float = 0.3):
+                 keyword_weight: float = 0.3,
+                 keyword_backend: str = "tfidf",
+                 keyword_max_features: int = 30000,
+                 keyword_ngram_range: Tuple[int, int] = (2, 4),
+                 keyword_min_df: int = 2,
+                 keyword_rebuild_threshold: int = 200):
         """
         Args:
             vector_store: ベクトルストア
@@ -284,7 +383,13 @@ class HybridSearchEngine:
         self.vector_weight = vector_weight
         self.keyword_weight = keyword_weight
         
-        self.keyword_engine = KeywordSearchEngine()
+        self.keyword_engine = KeywordSearchEngine(
+            backend=keyword_backend,
+            max_features=keyword_max_features,
+            ngram_range=keyword_ngram_range,
+            min_df=keyword_min_df,
+            rebuild_threshold=keyword_rebuild_threshold
+        )
         self.term_extractor = TechnicalTermExtractor()
         self.is_ready = False
         

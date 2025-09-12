@@ -99,6 +99,19 @@ class RetrievalConfig:
     rerank_top_k: int = 5
     reranking_enabled: bool = True
     reranking_model: str = "cross-encoder/ms-marco-MiniLM-L-12-v2"
+    # 追加: キーワードエンジン設定
+    keyword_engine: 'KeywordEngineConfig' = None
+
+
+@dataclass
+class KeywordEngineConfig:
+    """キーワードエンジン(TFIDF/BM25)設定"""
+    backend: str = "tfidf"  # tfidf | bm25
+    max_features: int = 30000
+    ngram_min: int = 2
+    ngram_max: int = 4
+    min_df: int = 2
+    rebuild_threshold: int = 200  # 追加文書がこの数を超えたら再フィット
 
 
 @dataclass
@@ -129,6 +142,8 @@ class RAGConfig:
             self.chunking = ChunkingConfig()
         if self.retrieval is None:
             self.retrieval = RetrievalConfig()
+        if self.retrieval.keyword_engine is None:
+            self.retrieval.keyword_engine = KeywordEngineConfig()
 
 
 def load_config(config_path: Optional[str] = None, resolve_model_paths: bool = True) -> RAGConfig:
@@ -256,6 +271,7 @@ def load_config(config_path: Optional[str] = None, resolve_model_paths: bool = T
             hybrid_config = retrieval_config.get('hybrid_search', {})
             rerank_config = retrieval_config.get('reranking', {})
             
+            # 既存のRetrievalConfigをベースに作成
             config.retrieval = RetrievalConfig(
                 hybrid_search_enabled=hybrid_config.get('enabled', config.retrieval.hybrid_search_enabled),
                 vector_weight=hybrid_config.get('vector_weight', config.retrieval.vector_weight),
@@ -265,6 +281,20 @@ def load_config(config_path: Optional[str] = None, resolve_model_paths: bool = T
                 reranking_enabled=rerank_config.get('enabled', config.retrieval.reranking_enabled),
                 reranking_model=rerank_config.get('model', config.retrieval.reranking_model)
             )
+
+            # キーワードエンジン設定の読み込み（任意）
+            ke = retrieval_config.get('keyword_engine', {})
+            try:
+                config.retrieval.keyword_engine = KeywordEngineConfig(
+                    backend=ke.get('backend', config.retrieval.keyword_engine.backend),
+                    max_features=int(ke.get('max_features', config.retrieval.keyword_engine.max_features)),
+                    ngram_min=int(ke.get('ngram_min', config.retrieval.keyword_engine.ngram_min)),
+                    ngram_max=int(ke.get('ngram_max', config.retrieval.keyword_engine.ngram_max)),
+                    min_df=int(ke.get('min_df', config.retrieval.keyword_engine.min_df)),
+                    rebuild_threshold=int(ke.get('rebuild_threshold', config.retrieval.keyword_engine.rebuild_threshold)),
+                )
+            except Exception as e:
+                logger.warning(f"Failed to parse keyword_engine config: {e}. Using defaults.")
             
         # モデルパスの解決と設定検証
         if resolve_model_paths:
@@ -392,6 +422,14 @@ def save_config(config: RAGConfig, config_path: str):
             'reranking': {
                 'enabled': config.retrieval.reranking_enabled,
                 'model': config.retrieval.reranking_model
+            },
+            'keyword_engine': {
+                'backend': config.retrieval.keyword_engine.backend,
+                'max_features': config.retrieval.keyword_engine.max_features,
+                'ngram_min': config.retrieval.keyword_engine.ngram_min,
+                'ngram_max': config.retrieval.keyword_engine.ngram_max,
+                'min_df': config.retrieval.keyword_engine.min_df,
+                'rebuild_threshold': config.retrieval.keyword_engine.rebuild_threshold
             }
         }
     }

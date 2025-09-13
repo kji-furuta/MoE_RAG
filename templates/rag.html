@@ -144,6 +144,9 @@
             <a class="nav-link" data-bs-toggle="tab" href="#search">🔍 検索・質問応答</a>
         </li>
         <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#docselect">🏷️ 対象文書の選択</a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" data-bs-toggle="tab" href="#documents">📚 文書管理</a>
         </li>
         <li class="nav-item">
@@ -323,21 +326,7 @@
             <div class="card">
                 <div class="card-body">
                     <h3>🔍 ハイブリッド検索・質問応答</h3>
-                    
-                    <!-- 文書選択セクション -->
-                    <div class="card mb-3 bg-light">
-                        <div class="card-body">
-                            <h5>📄 検索対象文書の選択</h5>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="selectAllDocuments" checked>
-                                <label class="form-check-label" for="selectAllDocuments">
-                                    <strong>すべての文書を選択</strong>
-                                </label>
-                            </div>
-                            <div id="documentCheckboxList" class="row"></div>
-                            <small class="text-muted">※選択された文書のみから検索されます</small>
-                        </div>
-                    </div>
+                    <p class="text-muted">対象文書の選択は「🏷️ 対象文書の選択」タブで行えます。選択内容はここでの検索に反映されます。</p>
                     
                     <form id="searchForm">
                         <div class="mb-3">
@@ -360,6 +349,27 @@
                         <button type="submit" class="btn btn-primary">検索</button>
                     </form>
                     <div id="searchResult" class="mt-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 対象文書選択タブ -->
+        <div class="tab-pane fade" id="docselect">
+            <div class="card">
+                <div class="card-body">
+                    <h3>🏷️ 検索対象文書の選択</h3>
+                    <div class="card mb-3 bg-light">
+                        <div class="card-body">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="selectAllDocuments" checked>
+                                <label class="form-check-label" for="selectAllDocuments">
+                                    <strong>すべての文書を選択</strong>
+                                </label>
+                            </div>
+                            <div id="documentCheckboxList" class="row"></div>
+                            <small class="text-muted">※選択された文書のみから検索されます（検索タブに連動）</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1630,6 +1640,15 @@ function displaySearchResult(data) {
             if (cite.score !== undefined) {
                 html += `<br><span class="badge bg-secondary">スコア: ${cite.score.toFixed(3)}</span>`;
             }
+            if (cite.vector_score !== undefined || cite.keyword_score !== undefined) {
+                html += '<br>';
+                if (cite.vector_score !== undefined) {
+                    html += `<span class="badge bg-primary me-1">ベクトル: ${cite.vector_score.toFixed(3)}</span>`;
+                }
+                if (cite.keyword_score !== undefined) {
+                    html += `<span class="badge bg-info">キーワード: ${cite.keyword_score.toFixed(3)}</span>`;
+                }
+            }
             html += '</div></div>';
         });
         html += '</div>';
@@ -1639,13 +1658,19 @@ function displaySearchResult(data) {
     if (data.sources && data.sources.length > 0) {
         html += '<h5 class="mt-4">🔍 検索結果詳細</h5>';
         html += '<table class="table table-sm">';
-        html += '<thead><tr><th>タイトル</th><th>スコア</th></tr></thead>';
+        html += '<thead><tr><th>タイトル</th><th>ベクトルスコア</th><th>キーワードスコア</th><th>ハイブリッドスコア</th></tr></thead>';
         html += '<tbody>';
         data.sources.forEach(source => {
-            const score = source.score !== undefined ? source.score.toFixed(3) : 'N/A';
+            const vectorScore = source.vector_score !== undefined ? source.vector_score.toFixed(3) : 
+                                (source.score !== undefined ? source.score.toFixed(3) : 'N/A');
+            const keywordScore = source.keyword_score !== undefined ? source.keyword_score.toFixed(3) : 'N/A';
+            const hybridScore = source.hybrid_score !== undefined ? source.hybrid_score.toFixed(3) : 
+                               (source.score !== undefined ? source.score.toFixed(3) : 'N/A');
             html += `<tr>`;
             html += `<td>${source.title || source.metadata?.title || '不明'}</td>`;
-            html += `<td>${score}</td>`;
+            html += `<td><span class="badge bg-primary">${vectorScore}</span></td>`;
+            html += `<td><span class="badge bg-info">${keywordScore}</span></td>`;
+            html += `<td><span class="badge bg-success">${hybridScore}</span></td>`;
             html += `</tr>`;
         });
         html += '</tbody></table>';

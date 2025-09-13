@@ -324,14 +324,12 @@ def index_documents(input_paths: List[str],
             client=shared_client
         )
     else:
-        # 共有クライアントがない場合は別のパスでスタンドアロンクライアントを作成
-        import time
-        indexing_path = f"./qdrant_indexing_{int(time.time())}"
-        logger.info(f"Creating standalone Qdrant client at: {indexing_path}")
+        # 共有クライアントがない場合は、Qdrantサーバーに接続
+        logger.info("Connecting to Qdrant server at http://qdrant:6333")
         vector_store = QdrantVectorStore(
             collection_name="road_design_docs",
             embedding_dim=embedding_dim,
-            path=indexing_path
+            url="http://qdrant:6333"  # Qdrantサーバーに直接接続
         )
     
     metadata_manager = MetadataManager(db_path=metadata_db_path)

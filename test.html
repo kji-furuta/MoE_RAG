@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JSON Viewer - data_1.json</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: #111827;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --accent: #60a5fa;
+        --border: #1f2937;
+        --key: #f59e0b;
+        --string: #34d399;
+        --number: #93c5fd;
+        --boolean: #fca5a5;
+        --null: #a78bfa;
+        --highlight: #374151;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+      header {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      header h1 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0 8px 0 0;
+        color: var(--muted);
+      }
+      button, label.btn {
+        background: #1f2937;
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      button:hover, label.btn:hover { background: #253041; }
+      input[type="file"] { display: none; }
+      .spacer { flex: 1 1 auto; }
+      .search {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: #0b1220;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 4px 8px;
+      }
+      .search input {
+        background: transparent;
+        color: var(--text);
+        border: none;
+        outline: none;
+        width: 220px;
+        font-size: 12px;
+      }
+      #status { color: var(--muted); font-size: 12px; }
+      #viewer {
+        padding: 10px 12px;
+        overflow: auto;
+      }
+      .dropzone {
+        border: 1px dashed var(--border);
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        color: var(--muted);
+        margin-bottom: 10px;
+      }
+      .dropzone.dragover { background: #0b1220; }
+
+      /* Tree */
+      .node { line-height: 1.6; }
+      .children { margin-left: 18px; border-left: 1px dashed #233047; padding-left: 10px; }
+      .collapsed > .children { display: none; }
+      .pair { display: inline; }
+      .key { color: var(--key); }
+      .sep { color: var(--muted); }
+      .type-hint { color: var(--muted); margin-left: 6px; font-size: 11px; }
+      .val.string { color: var(--string); }
+      .val.number { color: var(--number); }
+      .val.boolean { color: var(--boolean); }
+      .val.null { color: var(--null); }
+      .val.unknown { color: var(--text); }
+      .toggle {
+        display: inline-block;
+        width: 0; height: 0;
+        border-left: 6px solid var(--muted);
+        border-top: 4px solid transparent;
+        border-bottom: 4px solid transparent;
+        margin-right: 8px;
+        transform: translateY(1px) rotate(0deg);
+        transition: transform 0.08s ease-out;
+        cursor: pointer;
+      }
+      .expanded > .head .toggle { transform: translateY(1px) rotate(90deg); }
+      .head { cursor: pointer; user-select: none; }
+      .match { background: var(--highlight); border-radius: 4px; }
+      pre.raw { background: #0b1220; padding: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>JSON Viewer</h1>
+      <button id="btnLoadDefault" title="Fetch ./data_1.json">Load data_1.json</button>
+      <label for="file" class="btn" title="Open local JSON file">Open JSON…</label>
+      <input type="file" id="file" accept="application/json,.json,.log,.txt" />
+      <button id="btnExpand">Expand all</button>
+      <button id="btnCollapse">Collapse all</button>
+      <div class="spacer"></div>
+      <div class="search">
+        <span>🔎</span>
+        <input id="search" placeholder="Search keys/values" />
+        <button id="btnClear">Clear</button>
+      </div>
+      <div id="status"></div>
+    </header>
+    <div id="viewer">
+      <div id="drop" class="dropzone">Drop a JSON file here, or click "Open JSON…". If served via HTTP, click "Load data_1.json".</div>
+      <div id="tree"></div>
+      <details open>
+        <summary>Raw JSON</summary>
+        <pre class="raw" id="raw"></pre>
+      </details>
+    </div>
+
+    <script>
+      const el = (tag, attrs = {}, ...children) => {
+        const n = document.createElement(tag);
+        for (const [k, v] of Object.entries(attrs)) {
+          if (k === 'class') n.className = v; else if (k === 'dataset') Object.assign(n.dataset, v); else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v); else if (v !== null && v !== undefined) n.setAttribute(k, v);
+        }
+        for (const c of children) n.append(c?.nodeType ? c : document.createTextNode(String(c)));
+        return n;
+      };
+
+      const status = (text) => {
+        document.getElementById('status').textContent = text || '';
+      };
+
+      function valueClass(v) {
+        if (v === null) return 'null';
+        switch (typeof v) {
+          case 'string': return 'string';
+          case 'number': return 'number';
+          case 'boolean': return 'boolean';
+          case 'object': return Array.isArray(v) ? 'array' : 'object';
+          default: return 'unknown';
+        }
+      }
+
+      function makeCollapsible(labelEl, childrenEl) {
+        const container = el('div', { class: 'node expanded' },
+          el('div', { class: 'head' }, el('span', { class: 'toggle' }), labelEl),
+          el('div', { class: 'children' }, childrenEl)
+        );
+        container.querySelector('.head').addEventListener('click', (e) => {
+          if (e.target.closest('button, input')) return;
+          container.classList.toggle('expanded');
+          container.classList.toggle('collapsed');
+        });
+        return container;
+      }
+
+      function renderNode(key, value) {
+        const type = valueClass(value);
+        if (type === 'object') {
+          const keys = Object.keys(value);
+          const children = el('div');
+          for (const k of keys) children.append(renderNode(k, value[k]));
+          const label = el('span', {},
+            el('span', { class: 'pair' }, key !== undefined ? el('span', { class: 'key' }, JSON.stringify(String(k=key))), key !== undefined ? el('span', { class: 'sep' }, ': ') : ''),
+            el('span', { class: 'sep' }, '{'),
+            el('span', { class: 'type-hint' }, keys.length + ' keys'),
+            el('span', { class: 'sep' }, '}')
+          );
+          return makeCollapsible(label, children);
+        }
+        if (type === 'array') {
+          const children = el('div');
+          for (let i = 0; i < value.length; i++) children.append(renderNode(i, value[i]));
+          const label = el('span', {},
+            el('span', { class: 'pair' }, key !== undefined ? el('span', { class: 'key' }, JSON.stringify(String(k=key))) : '', key !== undefined ? el('span', { class: 'sep' }, ': ') : ''),
+            el('span', { class: 'sep' }, '['),
+            el('span', { class: 'type-hint' }, value.length + ' items'),
+            el('span', { class: 'sep' }, ']')
+          );
+          return makeCollapsible(label, children);
+        }
+        const valStr = type === 'string' ? JSON.stringify(value) : String(value);
+        return el('div', { class: 'node' },
+          el('span', { class: 'pair' },
+            key !== undefined ? el('span', { class: 'key' }, JSON.stringify(String(key))) : '',
+            key !== undefined ? el('span', { class: 'sep' }, ': ') : '',
+            el('span', { class: 'val ' + type }, valStr)
+          )
+        );
+      }
+
+      function renderJSON(data) {
+        const tree = document.getElementById('tree');
+        const raw = document.getElementById('raw');
+        tree.innerHTML = '';
+        raw.textContent = '';
+        tree.append(renderNode(undefined, data));
+        raw.textContent = JSON.stringify(data, null, 2);
+      }
+
+      function expandCollapseAll(expand = true) {
+        document.querySelectorAll('.node').forEach(n => {
+          if (!n.querySelector('.children')) return;
+          n.classList.toggle('expanded', expand);
+          n.classList.toggle('collapsed', !expand);
+        });
+      }
+
+      function doSearch(q) {
+        q = q.trim().toLowerCase();
+        const nodes = document.querySelectorAll('#tree .node');
+        let matches = 0;
+        nodes.forEach(n => n.querySelectorAll('.match').forEach(m => m.classList.remove('match')));
+        if (!q) { status(''); return; }
+        for (const node of nodes) {
+          const text = node.textContent.toLowerCase();
+          if (text.includes(q)) {
+            matches++;
+            // highlight the head/pair text
+            const head = node.querySelector('.head') || node;
+            head.classList.add('match');
+            // ensure visible by expanding parents
+            let p = node.parentElement;
+            while (p && p !== document) {
+              if (p.classList?.contains('node')) {
+                p.classList.add('expanded');
+                p.classList.remove('collapsed');
+              }
+              p = p.parentElement;
+            }
+          }
+        }
+        status(matches + ' match' + (matches === 1 ? '' : 'es'));
+      }
+
+      async function loadDefault() {
+        status('Loading data_1.json…');
+        try {
+          const res = await fetch('data_1.json', { cache: 'no-store' });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const text = await res.text();
+          const data = JSON.parse(text);
+          renderJSON(data);
+          status('Loaded data_1.json');
+        } catch (e) {
+          console.warn(e);
+          status('Fetch failed. Use "Open JSON…" or run a local server.');
+        }
+      }
+
+      function readFile(file) {
+        status('Reading ' + file.name + '…');
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const text = reader.result;
+            const data = JSON.parse(text);
+            renderJSON(data);
+            status('Loaded ' + file.name);
+          } catch (e) {
+            console.error(e);
+            status('Failed to parse JSON: ' + e.message);
+          }
+        };
+        reader.onerror = () => status('Read error: ' + reader.error);
+        reader.readAsText(file);
+      }
+
+      // Wire UI
+      document.getElementById('btnLoadDefault').addEventListener('click', loadDefault);
+      document.getElementById('btnExpand').addEventListener('click', () => expandCollapseAll(true));
+      document.getElementById('btnCollapse').addEventListener('click', () => expandCollapseAll(false));
+      document.getElementById('btnClear').addEventListener('click', () => { document.getElementById('search').value = ''; doSearch(''); });
+      document.getElementById('search').addEventListener('input', (e) => doSearch(e.target.value));
+      document.getElementById('file').addEventListener('change', (e) => {
+        const file = e.target.files?.[0]; if (file) readFile(file);
+      });
+
+      // Drag & drop
+      const drop = document.getElementById('drop');
+      ;['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('dragover'); }));
+      ;['dragleave','drop'].forEach(ev => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('dragover'); }));
+      drop.addEventListener('drop', (e) => {
+        const file = e.dataTransfer.files?.[0]; if (file) readFile(file);
+      });
+
+      // Try auto-load on HTTP origin; on file:// it will likely fail
+      if (location.protocol.startsWith('http')) {
+        loadDefault();
+      } else {
+        status('Tip: Serve this folder (e.g., VS Code Live Server) to auto-load data_1.json');
+      }
+    </script>
+  </body>
+  </html>

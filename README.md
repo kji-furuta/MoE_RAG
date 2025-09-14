@@ -43,6 +43,73 @@ graph LR
 - **MoE変換**: LoRAアダプタからMoEアーキテクチャへの変換機能実装完了
 - **メモリ管理**: マルチGPU環境での自動GPU選択とメモリ最適化実装
 
+## 🧑‍💻 開発者向けガイド（ビルド・テスト・開発）
+
+### リポジトリ構成（概要）
+```
+MoE_RAG/
+- app/                      # FastAPIアプリ（`app/main_unified.py`）とUI資産
+- src/
+  - rag/                    # クエリエンジン・インデックス・検索
+  - training/               # LoRA/DoRA、継続学習
+  - moe_rag_integration/    # MoEとRAGの統合
+  - inference/              # 推論（vLLM/AWQなど）
+  - utils/                  # 共通ユーティリティ
+- scripts/                  # 起動/モデル準備/変換などのユーティリティ
+- tests/                    # 単体・統合テスト（`test_*.py`）
+- docker/                   # Dockerfile と docker-compose（フルスタック）
+- config/, configs/         # ランタイム・学習用の設定
+- data/, models/, outputs/, templates/  # データ、モデル、成果物、テンプレート
+```
+
+### 開発環境セットアップ（ローカル）
+- Python 3.8以上を推奨（pyproject準拠）。
+- 任意の仮想環境を用意して下記のいずれかで依存を導入:
+  - `python -m venv venv && source venv/bin/activate && pip install -e .[dev]`
+  - または `pip install -r requirements.txt`
+
+### Lint / Format
+- `black . && isort . && flake8 src tests`
+  - Black 行長: 88、isort プロファイル: "black"（`pyproject.toml`に定義）
+
+### テスト実行
+- すべてのユニットテスト: `pytest -q`
+- 重い/外部依存のテストを除外: `pytest -m "not integration" -q`
+- 一部テストは `@pytest.mark.integration` でマークされています。
+
+### API のローカル起動（開発）
+- `python -m uvicorn app.main_unified:app --host 0.0.0.0 --port 8050 --reload`
+
+### Docker スタック（本番相当）
+- 初回ビルドと起動: `cd docker && docker-compose up -d --build`
+- Web/UI サービス開始: `bash scripts/start_web_interface.sh`
+
+### コーディング規約
+- フォーマッタ: Black（行長 88）/ isort（profile "black"）。
+- スタイル: インデント4スペース、UTF-8、関数は小さく凝集。
+- 命名: モジュール/関数/変数は `snake_case`、クラスは `CapWords`、定数は `UPPER_SNAKE`。
+- 公開APIの安定性: `src/rag/` と `app/` の公開インターフェースは互換性を重視。新規モジュールには docstring を付与。
+
+### テスト指針
+- テストランナー: pytest（unittest 併用箇所あり）。
+- 位置: `tests/` 配下に `test_*.py`。長時間/インフラ依存は `@pytest.mark.integration`。
+- PR前チェック例: `pytest -q && flake8 && black --check . && isort --check-only .`。
+
+### コミット / PR ガイドライン
+- Conventional Commits を使用: `feat: ...`, `fix: ...`, `docs: ...`, `chore: ...`。
+- PR には目的/スコープ、テスト計画・結果、UI/API のログやスクショ、関連Issue、設定変更の移行メモを含めてください。
+- 大きな成果物はコミットしない（`data/`, `models/`, `outputs/` はサンプル最小限のみ）。
+
+### セキュリティ / 設定
+- 機密は `.env` 経由（例は `.env.example`）。鍵やトークンはコミット禁止。
+- 設定は `config/` および `src/rag/config/` に配置。デフォルト/上書きの関係を文書化。
+- スクリプトや `docker/` が参照する GPU/Docker のパスは名称変更に注意（変更時は両者を更新）。
+
+### 開発メモ（メンテナ向け）
+- 変更は最小・焦点化して適用し、Black/isort を遵守。
+- `src/rag/` や `app/` の公開エンドポイント互換性を壊す変更は、ドキュメント/テストも同時更新。
+- コード検索は `rg` を推奨。ユーザー向け挙動が変わる場合は README を更新。
+
 ## 🌟 主要機能
 
 ### 🌐 統合Webインターフェース（RAG + 継続学習統合済み）

@@ -328,11 +328,20 @@
                     <h3>🔍 ハイブリッド検索・質問応答</h3>
                     <p class="text-muted">対象文書の選択は「🏷️ 対象文書の選択」タブで行えます。選択内容はここでの検索に反映されます。</p>
                     
-                    <form id="searchForm">
+                    <form id="searchForm" enctype="multipart/form-data">
                         <div class="mb-3">
                             <label for="query" class="form-label">検索クエリ・質問</label>
                             <textarea class="form-control" id="query" rows="3" required
                                 placeholder="例: 設計速度60km/hの道路の最小曲線半径は？"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="pdfAsPrompt" class="form-label">PDFをプロンプトとして取り込む（任意）</label>
+                            <input type="file" class="form-control" id="pdfAsPrompt" accept=".pdf">
+                            <small class="text-muted">取り込みを押すとPDFのテキストが上のプロンプト欄に挿入されます（インデックス登録はしません）。</small>
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-outline-secondary" id="btnImportPdfToPrompt">PDFを取り込む</button>
+                                <span id="pdfImportStatus" class="text-muted ms-2"></span>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label for="searchType" class="form-label">検索タイプ</label>
@@ -652,6 +661,97 @@ document.getElementById('searchForm')?.addEventListener('submit', async (e) => {
                 エラー: ${error.message}
             </div>
         `;
+    }
+});
+
+// PDF → プロンプト取り込み
+document.getElementById('btnImportPdfToPrompt')?.addEventListener('click', async () => {
+    const fileInput = document.getElementById('pdfAsPrompt');
+    const status = document.getElementById('pdfImportStatus');
+    const queryBox = document.getElementById('query');
+    if (!fileInput.files || fileInput.files.length === 0) {
+        status.textContent = 'PDFが選択されていません';
+        return;
+    }
+    status.textContent = '抽出中…';
+    try {
+        const fd = new FormData();
+        fd.append('file', fileInput.files[0]);
+        fd.append('max_chars', '20000');
+        const res = await fetch('/rag/extract-pdf-text', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || '抽出に失敗しました');
+        const prefix = '\n\n【PDF取り込みテキスト】\n';
+        queryBox.value = (queryBox.value ? (queryBox.value + prefix) : '') + data.text;
+        status.textContent = `取り込み完了（${data.returned_chars}/${data.chars}文字）`;
+    } catch (err) {
+        status.textContent = `エラー: ${err.message}`;
+    }
+});
+
+// 添付PDF照査フォーム
+document.getElementById('ephemeralVerifyForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const resultDiv = document.getElementById('ephemeralResult');
+    resultDiv.innerHTML = '<div class="alert alert-info">処理中…（添付PDFを解析・一時索引化）</div>';
+
+    try {
+        const fd = new FormData();
+        const q = document.getElementById('evQuery').value;
+        const f = document.getElementById('evFile').files[0];
+        const topK = document.getElementById('evTopK').value;
+        const fusion = document.getElementById('evFusion').value;
+        if (!f) {
+            throw new Error('PDFファイルを選択してください');
+        }
+        fd.append('query', q);
+        fd.append('file', f);
+        fd.append('top_k', topK);
+        fd.append('fusion', fusion);
+
+        const response = await fetch('/rag/ephemeral-verify', { method: 'POST', body: fd });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.detail || '照査エラー');
+        }
+        // 既存の表示関数を流用
+        displaySearchResult(data);
+        // 既存の結果ボックスにも表示（検索タブ内で見やすく）
+        resultDiv.innerHTML = '<div class="alert alert-success">添付PDFの照査が完了しました。上部の結果をご確認ください。</div>';
+    } catch (err) {
+        resultDiv.innerHTML = `<div class="alert alert-danger">エラー: ${err.message}</div>`;
+    }
+});
+
+// PDFファクトチェックフォーム
+document.getElementById('factCheckForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const resultDiv = document.getElementById('factCheckResult');
+    resultDiv.innerHTML = '<div class="alert alert-info">照合中…（PDF解析＋標準検索）</div>';
+
+    try {
+        const fd = new FormData();
+        const q = document.getElementById('fcQuery').value;
+        const f = document.getElementById('fcFile').files[0];
+        const cond = document.getElementById('fcConditions').value;
+        const topPdf = document.getElementById('fcTopPdf').value;
+        const topStd = document.getElementById('fcTopStd').value;
+        const fusion = document.getElementById('fcFusion').value;
+        if (!f) throw new Error('PDFファイルを選択してください');
+        fd.append('query', q);
+        fd.append('file', f);
+        if (cond && cond.trim().length > 0) fd.append('conditions', cond);
+        fd.append('top_k_pdf', topPdf);
+        fd.append('top_k_std', topStd);
+        fd.append('fusion', fusion);
+
+        const response = await fetch('/rag/fact-check-pdf', { method: 'POST', body: fd });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'ファクトチェックエラー');
+        displaySearchResult(data);
+        resultDiv.innerHTML = '<div class="alert alert-success">ファクトチェックが完了しました。上部の結果をご確認ください。</div>';
+    } catch (err) {
+        resultDiv.innerHTML = `<div class="alert alert-danger">エラー: ${err.message}</div>`;
     }
 });
 

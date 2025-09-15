@@ -199,6 +199,8 @@ class QueryResponse(BaseModel):
     processing_time: float
     metadata: Dict[str, Any]
 
+## (Removed) Ephemeral/FactCheck response models — reverting to simpler flow
+
 class BatchQueryRequest(BaseModel):
     """バッチクエリリクエスト"""
     queries: List[str] = Field(..., description="クエリリスト")
@@ -4696,6 +4698,8 @@ async def clear_all_search_history():
         logger.error(f"Failed to clear all search history: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+## (Removed) /rag/ephemeral-verify endpoint — reverting per request
+
 @app.get("/rag/search-result/{result_id}")
 async def get_saved_search_result(result_id: str):
     """保存された検索結果を取得"""
@@ -4740,6 +4744,61 @@ async def export_search_results(
     except Exception as e:
         logger.error(f"Failed to export search results: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# --- New: Extract PDF text to inject into prompt ---
+@app.post("/rag/extract-pdf-text")
+async def extract_pdf_text(file: UploadFile = File(...), max_chars: int = Form(20000)):
+    """Extract plain text from a PDF and return it for prompt injection.
+    Does not index or persist content. Truncates to max_chars.
+    """
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+
+    try:
+        tmp_dir = Path("./temp_uploads/prompt")
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        tmp_path = tmp_dir / f"{uuid.uuid4()}_{file.filename}"
+        content = await file.read()
+        with open(tmp_path, 'wb') as f:
+            f.write(content)
+
+        # Lightweight extraction (tables/ocr off)
+        from src.rag.document_processing.document_processor import RoadDesignDocumentProcessor
+        processor = RoadDesignDocumentProcessor(
+            extract_tables=False,
+            extract_figures=False,
+            perform_ocr=False,
+            chunk_size=512,
+            chunk_overlap=128,
+        )
+        processed = processor.process_document(str(tmp_path), document_metadata={"source": file.filename, "attached": True})
+        if processed is None:
+            raise HTTPException(status_code=500, detail="Failed to process PDF")
+
+        # Join chunk texts as a single prompt text
+        full_text = "\n\n".join(c.text for c in processed.chunks)
+        truncated = (full_text[: max_chars] + "\n... (truncated)") if len(full_text) > max_chars else full_text
+        return {
+            "filename": file.filename,
+            "doc_id": processed.id,
+            "chars": len(full_text),
+            "returned_chars": len(truncated),
+            "text": truncated,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"PDF extract failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        try:
+            if 'tmp_path' in locals() and tmp_path.exists():
+                tmp_path.unlink()
+        except Exception:
+            pass
+
+## (Removed) /rag/fact-check-pdf endpoint — reverting per request
 
 @app.post("/rag/upload-document")
 async def rag_upload_document(

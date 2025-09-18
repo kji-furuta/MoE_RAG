@@ -10,7 +10,7 @@ import sys
 import os
 from pathlib import Path
 import logging
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 # パス追加
 sys.path.append(str(Path(__file__).parent.parent))
@@ -34,6 +34,9 @@ router = APIRouter(prefix="/api/moe-rag", tags=["MoE-RAG"])
 # グローバル変数
 expert_router = None
 response_fusion = None
+
+# 日本時間（JST）
+JST = timezone(timedelta(hours=9))
 
 def initialize_moe_rag():
     """MoE-RAGコンポーネントを初期化"""
@@ -61,7 +64,7 @@ async def moe_rag_status():
             "expert_router": expert_router is not None,
             "response_fusion": response_fusion is not None
         },
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now(JST).isoformat()
     }
 
 @router.get("/experts")

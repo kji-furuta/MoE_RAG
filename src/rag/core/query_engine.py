@@ -1079,6 +1079,7 @@ class RoadDesignQueryEngine:
         try:
             # 引用エンジンがない場合のみシンプルフォールバック
             if not self.citation_engine and not self.hybrid_search:
+                processing_time = time.time() - start_time
                 return self._simple_ollama_query(query_text, top_k, processing_time)
             
             # 検索クエリを構築

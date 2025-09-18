@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import json
 import uuid
 from pathlib import Path
@@ -32,7 +32,7 @@ class TaskManager:
             "type": task_type,
             "status": "pending",
             "progress": 0,
-            "created_at": datetime.now().isoformat(),
+            "created_at": datetime.now(JST).isoformat(),
             "metrics": {},
             "messages": []
         }
@@ -154,7 +154,7 @@ async def run_continual_learning_task(
             task_id,
             status="completed",
             progress=100,
-            completed_at=datetime.now().isoformat(),
+            completed_at=datetime.now(JST).isoformat(),
             messages=task_manager.get_task(task_id)["messages"] + ["継続学習が完了しました"]
         )
         
@@ -164,7 +164,7 @@ async def run_continual_learning_task(
             task_id,
             status="failed",
             error=str(e),
-            completed_at=datetime.now().isoformat()
+            completed_at=datetime.now(JST).isoformat()
         )
 
 # FastAPIルーター
@@ -265,7 +265,7 @@ def create_continual_learning_router():
                         "path": str(model_dir),
                         "type": "finetuned",
                         "created_at": datetime.fromtimestamp(
-                            model_dir.stat().st_mtime
+                            model_dir.stat().st_mtime, tz=JST
                         ).isoformat(),
                         "info": info
                     })
@@ -376,3 +376,4 @@ async def websocket_endpoint(websocket):
         logger.error(f"WebSocketエラー: {str(e)}")
     finally:
         await websocket.close()
+JST = timezone(timedelta(hours=9))

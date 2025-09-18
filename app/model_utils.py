@@ -6,6 +6,7 @@ Model loading, quantization, and configuration utilities
 
 import os
 import logging
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, Tuple
 from pathlib import Path
 
@@ -19,6 +20,9 @@ from transformers import (
 )
 
 logger = logging.getLogger(__name__)
+
+# 全体で統一したJSTタイムスタンプを扱うためのタイムゾーン指定
+JST = timezone(timedelta(hours=9))
 
 
 def get_auth_token() -> Optional[str]:
@@ -315,11 +319,27 @@ def load_model_and_tokenizer(
     model_size = get_model_size_category(model_name)
     if model_size == 'xlarge' and torch.cuda.is_available():
         import gc
+        import time
+
+        # 既存のCUDAコンテキストをリセット
+        try:
+            torch.cuda.reset_peak_memory_stats()
+            torch.cuda.synchronize()
+        except:
+            pass
+
+        # ガベージコレクションを強制実行
         gc.collect()
-        # 全GPUのメモリをクリア
+
+        # 全GPUのメモリを完全にクリア
         for i in range(torch.cuda.device_count()):
             with torch.cuda.device(i):
                 torch.cuda.empty_cache()
+                torch.cuda.synchronize()
+
+        # メモリクリア後に少し待機（アロケータの安定化）
+        time.sleep(0.5)
+
         logger.info(f"Cleared memory on all {torch.cuda.device_count()} GPUs before loading xlarge model")
     
     # トークナイザーの読み込み
@@ -377,8 +397,9 @@ def load_model_and_tokenizer(
                 
                 # 利用可能なメモリの90%を割り当て（安全マージン）
                 if free_memory > 2:  # 最低2GB以上の空きがある場合
-                    allocated_gb = int(free_memory * 0.9)
-                    max_memory[i] = f"{allocated_gb}GB"
+                    # transformersはGiB表記かバイト数を期待する
+                    allocated_gb = max(int(free_memory * 0.85), 1)
+                    max_memory[i] = f"{allocated_gb}GiB"
                     total_model_memory += allocated_gb
                     logger.info(f"GPU {i}: Total {gpu_memory:.1f}GB, Free {free_memory:.1f}GB, Allocated {allocated_gb}GB")
                 else:
@@ -388,13 +409,16 @@ def load_model_and_tokenizer(
             # 少なくとも1つのGPUが使用可能な場合のみmax_memoryを設定
             if max_memory:
                 # CPUメモリも設定（オフロード用）
-                max_memory["cpu"] = "100GB"
-                
+                max_memory["cpu"] = "96GiB"
+
+                offload_dir = Path("offload")
+                offload_dir.mkdir(parents=True, exist_ok=True)
+
                 model_kwargs["max_memory"] = max_memory
-                model_kwargs["offload_folder"] = "offload"
+                model_kwargs["offload_folder"] = str(offload_dir)
                 model_kwargs["offload_state_dict"] = True
                 logger.info(f"Set max_memory for model distribution: {max_memory}")
-                logger.info(f"Total allocated GPU memory: {total_model_memory}GB across {len(max_memory)-1} GPUs")
+                logger.info(f"Total allocated GPU memory: {total_model_memory}GiB across {len(max_memory)-1} GPUs")
     
     # モデルの読み込み
     try:
@@ -416,12 +440,26 @@ def load_model_and_tokenizer(
         try:
             from peft import PeftModel
             logger.info(f"Loading existing LoRA adapter for continual learning: {existing_lora_path}")
-            model = PeftModel.from_pretrained(model, existing_lora_path)
-            logger.info("Successfully loaded existing LoRA adapter")
-            
-            # 継続学習のために再度trainableにする
-            for param in model.parameters():
-                param.requires_grad = True
+
+            # 量子化モデルの場合、is_trainable=Trueでロード
+            if quantization_config:
+                model = PeftModel.from_pretrained(model, existing_lora_path, is_trainable=True)
+                logger.info("Loaded LoRA adapter in trainable mode for quantized model")
+
+                # LoRAパラメータのみを学習可能に設定
+                for name, param in model.named_parameters():
+                    if "lora" in name.lower():
+                        param.requires_grad = True
+                        logger.debug(f"Enabled gradient for LoRA parameter: {name}")
+                    else:
+                        param.requires_grad = False
+            else:
+                # 非量子化モデルの場合は従来通り
+                model = PeftModel.from_pretrained(model, existing_lora_path)
+                for param in model.parameters():
+                    param.requires_grad = True
+
+            logger.info("Successfully configured LoRA adapter for continual learning")
             model.train()
             
         except Exception as e:
@@ -533,8 +571,7 @@ def get_output_directory(method_name: str, timestamp: Optional[str] = None) -> P
         出力ディレクトリのパス
     """
     if timestamp is None:
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(JST).strftime("%Y%m%d_%H%M%S")
     
     project_root = Path(os.getcwd())
     output_base = project_root / "outputs"

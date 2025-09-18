@@ -155,7 +155,8 @@ def get_saved_models():
                 model_info = {
                     "name": model_dir.name,
                     "path": str(model_dir),
-                    "created_at": datetime.fromtimestamp(model_dir.stat().st_mtime).isoformat()
+                    # JSTのISO形式
+                    "created_at": datetime.fromtimestamp(model_dir.stat().st_mtime, tz=JST).isoformat()
                 }
                 
                 # model_info.jsonがあれば読み込む

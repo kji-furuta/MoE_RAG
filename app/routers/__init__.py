@@ -4,13 +4,13 @@ APIルーターモジュール
 """
 
 from .finetuning import router as finetuning_router
-from .rag import router as rag_router
 from .continual import router as continual_router
 from .models import router as models_router
+from .upload import router as upload_router
 
 __all__ = [
     "finetuning_router",
-    "rag_router", 
     "continual_router",
-    "models_router"
+    "models_router",
+    "upload_router",
 ]

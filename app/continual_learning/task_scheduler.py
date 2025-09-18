@@ -5,7 +5,7 @@
 """
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Callable, Any
 import heapq
 from enum import Enum
@@ -60,7 +60,7 @@ class ScheduledTask:
         self.max_retries = max_retries
         self.retry_count = 0
         self.status = TaskStatus.PENDING
-        self.created_at = datetime.now()
+        self.created_at = datetime.now(JST)
         self.started_at: Optional[datetime] = None
         self.completed_at: Optional[datetime] = None
         self.error_message: Optional[str] = None
@@ -220,7 +220,7 @@ class ContinualLearningScheduler:
     async def _execute_task(self, task: ScheduledTask):
         """タスクを実行"""
         task.status = TaskStatus.RUNNING
-        task.started_at = datetime.now()
+        task.started_at = datetime.now(JST)
         self.running_tasks[task.task_id] = task
         self._save_state()
         
@@ -235,7 +235,7 @@ class ContinualLearningScheduler:
             
             # 完了処理
             task.status = TaskStatus.COMPLETED
-            task.completed_at = datetime.now()
+            task.completed_at = datetime.now(JST)
             self.completed_tasks[task.task_id] = task
             
         except Exception as e:
@@ -251,7 +251,7 @@ class ContinualLearningScheduler:
             else:
                 # 失敗
                 task.status = TaskStatus.FAILED
-                task.completed_at = datetime.now()
+                task.completed_at = datetime.now(JST)
                 self.completed_tasks[task.task_id] = task
         
         finally:
@@ -276,7 +276,7 @@ class ContinualLearningScheduler:
         if task_id in self.running_tasks:
             task = self.running_tasks[task_id]
             task.status = TaskStatus.CANCELLED
-            task.completed_at = datetime.now()
+            task.completed_at = datetime.now(JST)
             self.completed_tasks[task_id] = task
             self.running_tasks.pop(task_id, None)
             self._save_state()
@@ -338,3 +338,4 @@ class ContinualLearningScheduler:
 
 # グローバルスケジューラーインスタンス
 scheduler = ContinualLearningScheduler()
+JST = timezone(timedelta(hours=9))

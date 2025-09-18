@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}System Overview{% endblock %}
+
+{% block extra_styles %}
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+.card {
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.06);
+  padding: 16px;
+}
+.card h3 { margin: 0 0 8px 0; font-size: 1.1rem; }
+.kv { display: flex; justify-content: space-between; margin: 4px 0; color: #333; }
+.muted { color: #666; font-size: 0.9rem; }
+.section-title { font-size: 1.4rem; margin: 10px 0 16px; }
+{% endblock %}
+
+{% block main_title %}
+<h1>
+  <img src="/static/logo_teikoku.png" alt="Logo" class="title-logo">
+  🧭 System Overview
+  </h1>
+<p>Runtime, hardware and service status at a glance</p>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="content">
+    <div class="section">
+      <div class="section-title">Runtime Summary</div>
+      <div class="overview-grid" id="runtime-cards">
+        <div class="card" id="gpu-card">
+          <h3>GPU</h3>
+          <div class="muted">Loading…</div>
+        </div>
+        <div class="card" id="cuda-card">
+          <h3>CUDA</h3>
+          <div class="muted">Loading…</div>
+        </div>
+        <div class="card" id="torch-card">
+          <h3>PyTorch</h3>
+          <div class="muted">Loading…</div>
+        </div>
+        <div class="card" id="cpu-card">
+          <h3>CPU</h3>
+          <div class="muted">Loading…</div>
+        </div>
+        <div class="card" id="ram-card">
+          <h3>RAM</h3>
+          <div class="muted">Loading…</div>
+        </div>
+        <div class="card" id="cache-card">
+          <h3>Model Cache</h3>
+          <div class="muted">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Quick Links</div>
+      <div class="overview-grid">
+        <div class="card">
+          <h3>Training</h3>
+          <a class="btn" href="/finetune">Open Fine-tuning</a>
+        </div>
+        <div class="card">
+          <h3>RAG</h3>
+          <a class="btn" href="/rag">Open RAG UI</a>
+        </div>
+        <div class="card">
+          <h3>Models</h3>
+          <a class="btn" href="/models">Manage Models</a>
+        </div>
+        <div class="card">
+          <h3>Manual</h3>
+          <a class="btn" href="/readme">View README</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+(async function loadOverview(){
+  try {
+    const res = await fetch('/api/system-info');
+    const data = await res.json();
+    // GPU
+    const gpuDiv = document.querySelector('#gpu-card');
+    if (data.gpu && data.gpu.length) {
+      gpuDiv.innerHTML = `<h3>GPU</h3>` + data.gpu.map(g=>`
+        <div class="kv"><span>${g.name}</span><span>${g.memory}${g.memory_used ? ` used ${g.memory_used}`:''}</span></div>
+      `).join('');
+    } else { gpuDiv.innerHTML = '<h3>GPU</h3><div class="muted">None</div>'; }
+
+    // CUDA
+    const cudaDiv = document.querySelector('#cuda-card');
+    cudaDiv.innerHTML = `<h3>CUDA</h3>
+      <div class="kv"><span>Status</span><span>${data.cuda?.available ? 'Available' : 'Not Available'}</span></div>
+      <div class="kv"><span>Version</span><span>${data.cuda?.version || 'Unknown'}</span></div>`;
+
+    // PyTorch
+    const torchDiv = document.querySelector('#torch-card');
+    torchDiv.innerHTML = `<h3>PyTorch</h3>
+      <div class="kv"><span>Version</span><span>${data.pytorch?.version || 'Unknown'}</span></div>`;
+
+    // CPU
+    const cpuDiv = document.querySelector('#cpu-card');
+    cpuDiv.innerHTML = `<h3>CPU</h3>
+      <div class="kv"><span>Model</span><span>${data.cpu?.name || 'Unknown'}</span></div>
+      <div class="kv"><span>Cores</span><span>${data.cpu?.cores || 'Unknown'}</span></div>`;
+
+    // RAM
+    const ramDiv = document.querySelector('#ram-card');
+    ramDiv.innerHTML = `<h3>RAM</h3>
+      <div class="kv"><span>Total</span><span>${data.ram?.total || 'Unknown'}</span></div>
+      <div class="kv"><span>Used</span><span>${data.ram?.used || 'Unknown'}</span></div>
+      <div class="kv"><span>Free</span><span>${data.ram?.free || 'Unknown'}</span></div>
+      <div class="kv"><span>Utilization</span><span>${data.ram?.percent || 'Unknown'}</span></div>`;
+
+    // Cache
+    const cacheDiv = document.querySelector('#cache-card');
+    cacheDiv.innerHTML = `<h3>Model Cache</h3>
+      <div class="kv"><span>Status</span><span>${data.cache?.status || 'Unknown'}</span></div>`;
+  } catch (e) {
+    console.error(e);
+  }
+})();
+{% endblock %}
+

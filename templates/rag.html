@@ -1139,7 +1139,7 @@ async function loadFinetunedModels() {
                     const option = document.createElement('option');
                     option.value = `moe:${task.task_id}`;
                     const experts = task.config.experts ? task.config.experts.join(', ') : '全エキスパート';
-                    option.textContent = `MoE - ${task.config.training_type} (${experts}) - ${new Date(task.start_time).toLocaleDateString('ja-JP')}`;
+                    option.textContent = `MoE - ${task.config.training_type} (${experts}) - ${new Date(task.start_time).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })}`;
                     moeOptgroup.appendChild(option);
                 });
                 

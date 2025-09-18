@@ -681,7 +681,7 @@
         // ログ追加
         function addLog(message) {
             const viewer = document.getElementById('log-viewer');
-            const timestamp = new Date().toLocaleTimeString('ja-JP');
+            const timestamp = new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo' });
             viewer.innerHTML += `[${timestamp}] ${message}\n`;
             viewer.scrollTop = viewer.scrollHeight;
         }
@@ -828,7 +828,7 @@
                     } else {
                         tbody.innerHTML = '';
                         data.history.forEach(task => {
-                            const startTime = task.start_time ? new Date(task.start_time).toLocaleString('ja-JP') : 'N/A';
+                            const startTime = task.start_time ? new Date(task.start_time).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : 'N/A';
                             const row = tbody.insertRow();
                             row.innerHTML = `
                                 <td>${startTime}</td>

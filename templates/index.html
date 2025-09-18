@@ -893,7 +893,7 @@ async function loadContinualTasks() {
                 <div class="task-item">
                     <h4>${task.task_name} ${statusBadge}</h4>
                     <p>タスクID: ${task.task_id}</p>
-                    <p>開始時刻: ${new Date(task.started_at).toLocaleString('ja-JP')}</p>
+                    <p>開始時刻: ${new Date(task.started_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}</p>
                     ${task.progress ? '<div class="progress-bar"><div class="progress-fill" style="width: ' + task.progress + '%">' + task.progress + '%</div></div>' : ''}
                     ${task.message ? `<p>メッセージ: ${task.message}</p>` : ''}
                 </div>
@@ -949,7 +949,7 @@ async function loadContinualHistory() {
                 <div class="task-item">
                     <h4>${item.task_name}</h4>
                     <p>モデル: ${item.base_model}</p>
-                    <p>完了日時: ${new Date(item.completed_at).toLocaleString('ja-JP')}</p>
+                    <p>完了日時: ${new Date(item.completed_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}</p>
                     <p>エポック数: ${item.epochs}</p>
                     <p>最終損失: ${item.final_loss ? item.final_loss.toFixed(4) : 'N/A'}</p>
                     ${item.output_path ? `<p>出力: ${item.output_path}</p>` : ''}
@@ -1001,7 +1001,7 @@ async function loadMoEStatus() {
                             <div style="font-size: 14px;">
                                 <div>エキスパートルーター: ${statusData.components.expert_router ? '✅ 有効' : '❌ 無効'}</div>
                                 <div>レスポンス融合: ${statusData.components.response_fusion ? '✅ 有効' : '❌ 無効'}</div>
-                                <div>最終更新: ${new Date(statusData.timestamp).toLocaleTimeString('ja-JP')}</div>
+                                <div>最終更新: ${new Date(statusData.timestamp).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo' })}</div>
                             </div>
                         </div>
             `;

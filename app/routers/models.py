@@ -16,8 +16,7 @@ from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
-from ..models.models import ModelInfo
-from ..models.training import GenerationRequest
+from ..training.models import GenerationRequest
 from ..dependencies import logger, PROJECT_ROOT, OUTPUTS_DIR, model_cache
 
 router = APIRouter(prefix="/api", tags=["models"])
@@ -43,7 +42,8 @@ def get_saved_models() -> List[Dict[str, Any]]:
                 model_info = {
                     "name": model_dir.name,
                     "path": str(model_dir),
-                    "created_at": datetime.fromtimestamp(model_dir.stat().st_mtime).isoformat()
+                    # JSTのISO形式で作成日時を提供
+                    "created_at": datetime.fromtimestamp(model_dir.stat().st_mtime, tz=JST).isoformat()
                 }
                 
                 # training_info.jsonがあれば読み込む
@@ -186,7 +186,23 @@ async def get_available_models():
                                 with open(training_info_path, 'r', encoding='utf-8') as f:
                                     training_info = json.load(f)
                                     model_info["training_method"] = training_info.get("training_method", "unknown")
-                                    model_info["created"] = training_info.get("timestamp", "Unknown")
+                                    # JST表記の作成日時に正規化
+                                    created_str = training_info.get("created_at") or training_info.get("timestamp")
+                                    formatted_created = None
+                                    try:
+                                        if isinstance(created_str, str):
+                                            if 'T' in created_str:
+                                                iso = created_str.replace('Z', '+00:00')
+                                                dt = datetime.fromisoformat(iso)
+                                                formatted_created = dt.astimezone(JST).strftime('%Y-%m-%d %H:%M:%S JST')
+                                            elif '_' in created_str and len(created_str) >= 15:
+                                                dt2 = datetime.strptime(created_str[:15], '%Y%m%d_%H%M%S').replace(tzinfo=JST)
+                                                formatted_created = dt2.strftime('%Y-%m-%d %H:%M:%S JST')
+                                    except Exception:
+                                        formatted_created = None
+                                    if not formatted_created:
+                                        formatted_created = datetime.fromtimestamp(model_dir.stat().st_mtime, tz=JST).strftime('%Y-%m-%d %H:%M:%S JST')
+                                    model_info["created"] = formatted_created
                             except:
                                 pass
                         
@@ -213,11 +229,20 @@ async def get_available_models():
                 
                 if ollama_models.get("success", False):
                     for model in ollama_models.get("models", []):
+                        modified_raw = model.get("modified", "Unknown")
+                        modified_jst = modified_raw
+                        if isinstance(modified_raw, str):
+                            try:
+                                iso = modified_raw.replace('Z', '+00:00')
+                                dtm = datetime.fromisoformat(iso)
+                                modified_jst = dtm.astimezone(JST).strftime('%Y-%m-%d %H:%M:%S JST')
+                            except Exception:
+                                pass
                         models["ollama_models"].append({
                             "name": model.get("name", "Unknown"),
                             "type": "ollama",
                             "size": model.get("size", "Unknown"),
-                            "modified": model.get("modified", "Unknown")
+                            "modified": modified_jst
                         })
                 else:
                     logger.warning(f"Ollamaモデル取得失敗: {ollama_models.get('error', 'Unknown error')}")

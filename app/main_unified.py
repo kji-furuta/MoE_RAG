@@ -22,15 +22,13 @@ from pathlib import Path
 import logging
 import torch
 import psutil
-from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, Trainer
-from peft import LoraConfig, get_peft_model, TaskType, prepare_model_for_kbit_training
+from transformers import AutoTokenizer, AutoModelForCausalLM
 import yaml
 from datetime import datetime, timezone, timedelta
 
 # 日本時間（JST）の設定
 JST = timezone(timedelta(hours=9))
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 import traceback
 from typing import Optional
 import sys
@@ -47,6 +45,9 @@ from app.model_utils import (
     load_tokenizer,
     get_device_map
 )
+from app.training.models import GenerationRequest, TrainingRequest, TrainingStatus
+from app.training.service import create_training_task, run_training_task
+from app.dependencies import model_cache, executor, training_tasks
 import io
 import random
 
@@ -110,6 +111,22 @@ try:
 except ImportError as e:
     logger.warning(f"MoE Training endpoints not available: {e}")
 
+# ファインチューニングAPIルーターの登録
+try:
+    from app.routers.finetuning import router as finetuning_router
+    app.include_router(finetuning_router)
+    logger.info("Finetuning API router loaded successfully")
+except ImportError as e:
+    logger.warning(f"Finetuning router not available: {e}")
+
+# アップロード専用APIルーターの登録（依存関係の少ないモジュール）
+try:
+    from app.routers.upload import router as upload_router
+    app.include_router(upload_router)
+    logger.info("Dataset upload router loaded successfully")
+except ImportError as e:
+    logger.error(f"Upload router not available: {e}")
+
 # 静的ファイルディレクトリの動的検出
 def find_static_directory():
     """静的ファイルディレクトリを検索"""
@@ -156,27 +173,6 @@ class ModelInfo(BaseModel):
     description: str
     size: str
     status: str
-
-class TrainingRequest(BaseModel):
-    model_name: str
-    training_data: List[str]
-    training_method: str = "lora"  # lora, qlora, full
-    lora_config: Dict[str, Any]
-    training_config: Dict[str, Any]
-
-class GenerationRequest(BaseModel):
-    model_path: str
-    prompt: str
-    max_length: int = 2048
-    temperature: float = 0.7
-    top_p: float = 0.9
-
-class TrainingStatus(BaseModel):
-    task_id: str
-    status: str
-    progress: float
-    message: str
-    model_path: Optional[str] = None
 
 # RAG-specific data models
 class QueryRequest(BaseModel):
@@ -484,25 +480,23 @@ async def readme_page(request: Request):
     """README.md表示ページ"""
     return templates.TemplateResponse("readme.html", {"request": request})
 
+
+@app.get("/system-overview", response_class=HTMLResponse)
+async def system_overview_page(request: Request):
+    """システム全体の概要ページ"""
+    context = {
+        "request": request,
+        "rag_available": RAG_AVAILABLE,
+    }
+    return templates.TemplateResponse("system-overview.html", context)
+
+
 @app.get("/rag")
 async def rag_page(request: Request):
     """RAGシステム画面"""
     return templates.TemplateResponse("rag.html", {"request": request, "rag_available": RAG_AVAILABLE})
 
-# グローバル変数
-training_tasks = {}
-model_cache = {}
-executor = ThreadPoolExecutor(max_workers=2)
-
-# アプリケーション開始時の処理
-@app.on_event("startup")
-async def startup_event():
-    """アプリケーション起動時の処理"""
-    logger.info("Starting AI Fine-tuning Toolkit with RAG integration...")
-    if RAG_AVAILABLE:  # 一時的にRAG初期化を無効化
-        await rag_app.initialize()
-    else:
-        logger.warning("RAG system will not be available in this session")
+# 削除: startup_eventは後で定義される
 
 # Ollama統合のインポート
 try:
@@ -703,802 +697,12 @@ def get_saved_models():
 
 # 実際のトレーニング実装
 # ヘルパー関数: 設定値を適切な型に変換
-def get_config_value(config, key, default, value_type):
-    value = config.get(key, default)
-    if isinstance(value, str):
-        try:
-            return value_type(value)
-        except (ValueError, TypeError):
-            return default
-    return value_type(value)
-
-async def run_training_task(task_id: str, request: TrainingRequest):
-    """バックグラウンドでトレーニングを実行"""
-    try:
-        # ステータス更新
-        training_tasks[task_id].status = "preparing"
-        method_name = {
-            "lora": "LoRA",
-            "qlora": "QLoRA (4bit)", 
-            "full": "フルファインチューニング"
-        }.get(request.training_method, "LoRA")
-        training_tasks[task_id].message = f"{method_name}でモデルを準備中..."
-        training_tasks[task_id].progress = 10.0
-        logger.info(f"Task {task_id}: {method_name}準備開始 - モデル: {request.model_name}")
-        
-        # 詳細なログ出力
-        logger.info(f"Task {task_id}: トレーニング設定 - メソッド: {request.training_method}, モデル: {request.model_name}")
-        logger.info(f"Task {task_id}: LoRA設定: {request.lora_config}")
-        logger.info(f"Task {task_id}: トレーニング設定: {request.training_config}")
-        
-        # モデル保存ディレクトリ
-        timestamp = datetime.now(JST).strftime("%Y%m%d_%H%M%S")
-        output_dir = get_output_directory(method_name, timestamp)
-        
-        # 設定読み込み
-        training_config = load_training_config(request.training_method)
-        
-        # トークナイザーとモデルの読み込み
-        training_tasks[task_id].message = "モデルを読み込み中..."
-        training_tasks[task_id].progress = 20.0
-        
-        try:
-            project_root = Path(os.getcwd())
-            cache_dir = project_root / "hf_cache"
-            # 継続学習の場合、use_memory_efficientパラメータを渡す
-            use_memory_efficient = (
-                request.training_method == "continual" and 
-                hasattr(request, 'training_config') and 
-                request.training_config.get('use_memory_efficient', False)
-            )
-            
-            # ファインチューニング時はRAG無効化フラグを一時的に解除
-            original_rag_flag = os.environ.get("RAG_DISABLE_MODEL_LOAD", "")
-            os.environ["RAG_DISABLE_MODEL_LOAD"] = "false"
-            
-            # GPUメモリをクリア（モデルロード前）
-            if torch.cuda.is_available():
-                import gc
-                gc.collect()
-                for i in range(torch.cuda.device_count()):
-                    with torch.cuda.device(i):
-                        torch.cuda.empty_cache()
-                logger.info(f"Task {task_id}: Cleared GPU memory before model loading")
-                
-                # 継続学習の場合、空いているGPUを選択
-                if request.training_method == "continual" and torch.cuda.device_count() > 1:
-                    # 各GPUの空きメモリを確認
-                    gpu_free_memory = []
-                    for i in range(torch.cuda.device_count()):
-                        total_memory = torch.cuda.get_device_properties(i).total_memory
-                        allocated_memory = torch.cuda.memory_allocated(i)
-                        free_memory = (total_memory - allocated_memory) / 1024**3  # GB単位
-                        gpu_free_memory.append((i, free_memory))
-                        logger.info(f"GPU {i}: {free_memory:.1f}GB free")
-                    
-                    # 最も空きメモリが多いGPUを選択
-                    gpu_free_memory.sort(key=lambda x: x[1], reverse=True)
-                    best_gpu = gpu_free_memory[0][0]
-                    
-                    # 環境変数でGPUを指定
-                    os.environ["CUDA_VISIBLE_DEVICES"] = str(best_gpu)
-                    logger.info(f"Task {task_id}: Selected GPU {best_gpu} for continual learning (free: {gpu_free_memory[0][1]:.1f}GB)")
-            
-            # 継続学習の場合、existing_lora_pathを渡す
-            existing_lora_path = None
-            if request.training_method == "continual" and hasattr(request, 'training_config'):
-                existing_lora_path = request.training_config.get("existing_lora_path")
-            
-            model, tokenizer = load_model_and_tokenizer(
-                model_name=request.model_name,
-                training_method=request.training_method,
-                cache_dir=cache_dir,
-                use_memory_efficient=use_memory_efficient,
-                skip_if_rag_active=False,  # ファインチューニング時は必ずロード
-                existing_lora_path=existing_lora_path  # 継続学習用
-            )
-            
-            # 環境変数を復元
-            if original_rag_flag:
-                os.environ["RAG_DISABLE_MODEL_LOAD"] = original_rag_flag
-            else:
-                os.environ.pop("RAG_DISABLE_MODEL_LOAD", None)
-                
-            # モデルがNoneでないことを確認
-            if model is None:
-                raise ValueError("モデルのロードに失敗しました。メモリ不足の可能性があります。")
-                
-            logger.info(f"Task {task_id}: モデル読み込み完了 (メモリ効率化: {use_memory_efficient})")
-        except Exception as e:
-            import traceback
-            error_traceback = traceback.format_exc()
-            logger.error(f"Task {task_id}: モデル読み込みエラー: {str(e)}")
-            logger.error(f"Task {task_id}: エラー詳細: {error_traceback}")
-            training_tasks[task_id].status = "failed"
-            training_tasks[task_id].message = handle_model_loading_error(e, request.model_name, task_id)
-            return
-        
-        # 継続学習の場合のログ（既存のLoRAアダプタ処理はmodel_utilsに移動）
-        if request.training_method == "continual":
-            existing_lora_path = request.training_config.get("existing_lora_path")
-            if existing_lora_path and os.path.exists(existing_lora_path):
-                training_tasks[task_id].message = f"既存のLoRAアダプターを使用: {existing_lora_path}"
-                logger.info(f"Task {task_id}: 継続学習モードで既存のLoRAアダプターを使用: {existing_lora_path}")
-            
-            # 継続学習の場合、gradient checkpointingのみ有効化（メモリ節約）
-            if hasattr(model, 'gradient_checkpointing_enable'):
-                model.gradient_checkpointing_enable()
-                logger.info(f"Task {task_id}: Gradient checkpointing有効化（継続学習用）")
-        
-        # LoRA設定（継続学習も含む）
-        if request.training_method in ["lora", "qlora", "continual"]:
-            training_tasks[task_id].message = "LoRAアダプターを設定中..."
-            training_tasks[task_id].progress = 30.0
-            
-            # QLoRAの場合はモデルを準備（継続学習は除外 - 既にLoRAアダプタが設定されているため）
-            if request.training_method == "qlora":
-                try:
-                    # GPUメモリのクリア
-                    if torch.cuda.is_available():
-                        torch.cuda.empty_cache()
-                        torch.cuda.synchronize()
-                    
-                    # gradient_checkpointingを有効化してメモリ使用量を削減
-                    if hasattr(model, 'gradient_checkpointing_enable'):
-                        model.gradient_checkpointing_enable()
-                    
-                    # prepare_model_for_kbit_trainingを安全に実行
-                    model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
-                    
-                    logger.info(f"Task {task_id}: QLoRA準備完了、gradient checkpointing有効化")
-                except torch.cuda.OutOfMemoryError as e:
-                    # メモリモニターを使用して正確なエラー情報を取得
-                    from src.training.memory_monitor import MemoryMonitor
-                    formatted_error = MemoryMonitor.format_memory_error(e)
-                    logger.error(f"Task {task_id}: QLoRA準備中にメモリ不足:\n{formatted_error}")
-                    
-                    # メモリをクリアして再試行
-                    MemoryMonitor.clear_gpu_memory()
-                    torch.cuda.synchronize()
-                    
-                    # より積極的なメモリ最適化を試みる
-                    if hasattr(model, 'config'):
-                        model.config.use_cache = False  # KVキャッシュを無効化
-                    
-                    # 再度試行
-                    try:
-                        model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
-                        logger.info(f"Task {task_id}: QLoRA準備完了（再試行成功）")
-                    except Exception as retry_error:
-                        logger.error(f"Task {task_id}: QLoRA準備失敗: {str(retry_error)}")
-                        training_tasks[task_id].status = "failed"
-                        training_tasks[task_id].message = f"QLoRA準備中にメモリ不足が発生しました。より小さいモデルを選択してください。"
-                        return
-            
-            # LoRA設定
-            # GPT-NeoXモデル用のターゲットモジュールを判定
-            if "gpt-neox" in request.model_name.lower():
-                # GPT-NeoX特有のQKV統合層
-                default_target_modules = [
-                    "attention.query_key_value",
-                    "attention.dense",
-                    "mlp.dense_h_to_4h",
-                    "mlp.dense_4h_to_h"
-                ]
-                logger.info("GPT-NeoXモデル用のターゲットモジュールを使用")
-            else:
-                # 通常のLLaMAスタイルモジュール
-                default_target_modules = ["q_proj", "v_proj", "k_proj", "o_proj"]
-            
-            lora_config = LoraConfig(
-                r=get_config_value(request.lora_config, "r", get_config_value(training_config, "lora_r", 16, int), int),
-                lora_alpha=get_config_value(request.lora_config, "lora_alpha", get_config_value(training_config, "lora_alpha", 32, int), int),
-                target_modules=training_config.get("target_modules", default_target_modules),
-                lora_dropout=get_config_value(training_config, "lora_dropout", 0.05, float),
-                bias="none",
-                task_type=TaskType.CAUSAL_LM
-            )
-            
-            model = get_peft_model(model, lora_config)
-            model.print_trainable_parameters()
-        
-        # トレーニングデータの準備
-        training_tasks[task_id].message = "トレーニングデータを準備中..."
-        training_tasks[task_id].progress = 40.0
-        
-        # トレーニングデータの処理（継続学習の場合とファイルパスの場合を判別）
-        train_texts = []
-        
-        # 継続学習の場合、training_dataは既にdictのリスト
-        if request.training_data and isinstance(request.training_data[0], dict):
-            for data in request.training_data:
-                if 'text' in data:
-                    train_texts.append(data['text'])
-                elif 'input' in data and 'output' in data:
-                    train_texts.append(f"{data['input']}\n{data['output']}")
-        # 通常のトレーニングの場合、ファイルパスから読み込み
-        else:
-            logger.info(f"Task {task_id}: トレーニングデータパス: {request.training_data}")
-            for data_path in request.training_data:
-                # 絶対パスと相対パスの両方を試す
-                data_file = Path(data_path)
-                if not data_file.exists():
-                    # /workspace からの相対パスとして試す
-                    data_file = Path("/workspace") / data_path.lstrip("/")
-                    if not data_file.exists():
-                        # dataディレクトリからの相対パスとして試す
-                        data_file = Path("/workspace/data/uploaded") / Path(data_path).name
-                
-                logger.info(f"Task {task_id}: ファイルパスを確認: {data_file}, 存在: {data_file.exists()}")
-                
-                if data_file.exists() and data_file.suffix == '.jsonl':
-                    logger.info(f"Task {task_id}: JSONLファイル読み込み開始: {data_file}")
-                    with open(data_file, 'r', encoding='utf-8') as f:
-                        line_count = 0
-                        valid_count = 0
-                        for line in f:
-                            line_count += 1
-                            try:
-                                line = line.strip()
-                                if not line:  # 空行をスキップ
-                                    continue
-                                data = json.loads(line)
-                                if 'text' in data:
-                                    train_texts.append(data['text'])
-                                    valid_count += 1
-                                elif 'input' in data and 'output' in data:
-                                    train_texts.append(f"{data['input']}\n{data['output']}")
-                                    valid_count += 1
-                            except json.JSONDecodeError as e:
-                                logger.warning(f"Task {task_id}: 行 {line_count} でJSONデコードエラー: {str(e)}")
-                                continue
-                        logger.info(f"Task {task_id}: {data_file}から{valid_count}/{line_count}行を読み込み")
-                else:
-                    logger.warning(f"Task {task_id}: ファイルが見つからないか、JSONLでない: {data_path}")
-        
-        if not train_texts:
-            # フォールバック: サンプルデータを使用
-            train_texts = [
-                "これは日本語のサンプルテキストです。",
-                "ファインチューニングのテストデータです。",
-                "AIモデルの学習用データです。"
-            ] * 10  # 30個のサンプルを作成
-        
-        logger.info(f"Task {task_id}: {len(train_texts)}個のトレーニングサンプルを準備")
-        
-        # 実際のトレーニング実行
-        training_tasks[task_id].status = "training"
-        training_tasks[task_id].message = f"{method_name}でファインチューニング中..."
-        training_tasks[task_id].progress = 50.0
-        
-        # 簡単なデータセット
-        from torch.utils.data import Dataset
-        
-        class SimpleDataset(Dataset):
-            def __init__(self, texts, tokenizer, max_length=512):
-                self.texts = texts
-                self.tokenizer = tokenizer
-                self.max_length = max_length
-            
-            def __len__(self):
-                return len(self.texts)
-            
-            def __getitem__(self, idx):
-                text = self.texts[idx]
-                encoding = self.tokenizer(
-                    text,
-                    truncation=True,
-                    padding="max_length",
-                    max_length=self.max_length,
-                    return_tensors="pt"
-                )
-                
-                # labelsをinput_idsと同じにするが、paddingトークンは-100にマスク
-                labels = encoding["input_ids"].squeeze().clone()
-                labels[labels == self.tokenizer.pad_token_id] = -100
-                
-                return {
-                    "input_ids": encoding["input_ids"].squeeze(),
-                    "attention_mask": encoding["attention_mask"].squeeze(),
-                    "labels": labels
-                }
-        
-        # データセット作成（QLoRAの場合はmax_seq_lengthを使用）
-        if request.training_method == "qlora" and ("32B" in request.model_name or "22B" in request.model_name):
-            dataset_max_length = 256  # 大規模モデルの場合は短縮
-        else:
-            dataset_max_length = get_config_value(training_config, "max_length", 512, int)
-        
-        train_dataset = SimpleDataset(train_texts, tokenizer, max_length=dataset_max_length)
-        
-        # EWCを使用するカスタムトレーナー
-        class EWCTrainer(Trainer):
-            def __init__(self, *args, ewc_lambda: float = 5000.0, use_ewc: bool = False, **kwargs):
-                super().__init__(*args, **kwargs)
-                # accelerateモデルの場合はモデル移動を無効化
-                if hasattr(self.model, 'hf_device_map'):
-                    self.place_model_on_device = False
-                self.ewc_lambda = ewc_lambda
-                self.use_ewc = use_ewc
-                self.ewc_helper = None
-                
-                if self.use_ewc:
-                    try:
-                        from src.training.ewc_utils import EWCHelper
-                        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-                        self.ewc_helper = EWCHelper(self.model, device)
-                        logger.info("EWCを有効化しました")
-                    except ImportError:
-                        logger.warning("EWCモジュールのインポートに失敗しました")
-                        self.use_ewc = False
-            
-            def _move_model_to_device(self, model, device):
-                """accelerateでオフロードされたモデルの移動を防ぐためにオーバーライド"""
-                # accelerateでオフロードされたモデルは移動しない
-                if hasattr(model, 'hf_device_map'):
-                    logger.info(f"モデル移動をスキップ - accelerateによってすでに配置済み")
-                    return model
-                return model
-            
-            def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
-                """損失関数にEWCペナルティを追加"""
-                outputs = model(**inputs)
-                loss = outputs.loss if isinstance(outputs, dict) else outputs[0]
-                
-                # EWCペナルティを追加
-                if self.use_ewc and self.ewc_helper is not None and self.ewc_helper.fisher_matrix is not None:
-                    ewc_loss = self.ewc_helper.compute_ewc_loss(model)
-                    loss = loss + self.ewc_lambda * ewc_loss
-                    
-                return (loss, outputs) if return_outputs else loss
-        
-
-        
-        # トレーニング引数
-        # トレーニングパラメータの設定
-        if request.training_method == "full":
-            batch_size = get_config_value(training_config, "batch_size", 1, int)
-            gradient_accumulation_steps = get_config_value(training_config, "gradient_accumulation_steps", 16, int)
-            num_epochs = get_config_value(training_config, "num_epochs", 1, int)
-            
-            effective_batch_size = batch_size * gradient_accumulation_steps
-            total_steps = len(train_dataset) * num_epochs // effective_batch_size
-            max_steps = min(100, total_steps)  # フルファインチューニングは100ステップまで
-            learning_rate = 5e-6  # より低い学習率
-        elif request.training_method == "qlora":
-            # QLoRAの場合：メモリ効率を最優先
-            # DeepSeek-R1-32Bのような大規模モデル用の設定
-            if "32B" in request.model_name or "22B" in request.model_name:
-                batch_size = 1  # 最小バッチサイズ
-                gradient_accumulation_steps = 16  # 勾配累積を増やして実効バッチサイズを確保
-                max_seq_length = 256  # シーケンス長を短縮
-            else:
-                batch_size = get_config_value(training_config, "batch_size", 2, int)
-                gradient_accumulation_steps = get_config_value(training_config, "gradient_accumulation_steps", 8, int)
-                max_seq_length = get_config_value(training_config, "max_length", 512, int)
-            
-            num_epochs = get_config_value(training_config, "num_epochs", 3, int)
-            effective_batch_size = batch_size * gradient_accumulation_steps
-            total_steps = len(train_dataset) * num_epochs // effective_batch_size
-            max_steps = min(50, total_steps)  # QLoRAは50ステップまで
-            learning_rate = get_config_value(training_config, "learning_rate", 2e-4, float)
-            
-            logger.info(f"Task {task_id}: QLoRA設定 - batch_size: {batch_size}, grad_accum: {gradient_accumulation_steps}, max_seq_length: {max_seq_length}")
-        elif request.training_method == "continual":
-            # 継続学習の場合：より多くのステップでしっかり学習
-            batch_size = get_config_value(training_config, "batch_size", 1, int)
-            gradient_accumulation_steps = get_config_value(training_config, "gradient_accumulation_steps", 8, int)
-            num_epochs = get_config_value(training_config, "num_epochs", 3, int)
-            
-            effective_batch_size = batch_size * gradient_accumulation_steps
-            total_steps = len(train_dataset) * num_epochs // effective_batch_size
-            max_steps = min(200, total_steps)  # 継続学習は200ステップまで
-            learning_rate = get_config_value(training_config, "learning_rate", 1e-4, float)
-            
-            logger.info(f"Task {task_id}: 継続学習設定 - データ数: {len(train_dataset)}, エポック: {num_epochs}, 総ステップ数: {total_steps}, 実行ステップ数: {max_steps}")
-        else:
-            batch_size = get_config_value(training_config, "batch_size", 1, int)
-            max_steps = min(50, len(train_dataset) // batch_size)
-            learning_rate = get_config_value(training_config, "learning_rate", 2e-4, float)
-        
-        # 継続学習の場合は専用の設定を使用
-        if request.training_method == "continual":
-            training_args = TrainingArguments(
-                output_dir=str(output_dir),
-                per_device_train_batch_size=batch_size,
-                gradient_accumulation_steps=gradient_accumulation_steps,
-                num_train_epochs=num_epochs,
-                learning_rate=learning_rate,
-                warmup_steps=min(20, max_steps // 10),
-                logging_steps=10,
-                save_steps=max_steps // 4,  # より頻繁に保存
-                max_steps=max_steps,
-                fp16=torch.cuda.is_available(),
-                gradient_checkpointing=True,
-                remove_unused_columns=False,
-                report_to=[],
-                save_strategy="steps",
-                save_total_limit=3,
-                dataloader_pin_memory=False,
-                load_best_model_at_end=False,
-                metric_for_best_model=None,
-                greater_is_better=None,
-            )
-        else:
-            training_args = TrainingArguments(
-                output_dir=str(output_dir),
-                per_device_train_batch_size=get_config_value(training_config, "batch_size", 1, int),
-                gradient_accumulation_steps=get_config_value(training_config, "gradient_accumulation_steps", 4, int),
-                num_train_epochs=get_config_value(training_config, "num_epochs", 1, int),
-                learning_rate=learning_rate,
-                warmup_steps=min(get_config_value(training_config, "warmup_steps", 10, int), max_steps // 10),
-                logging_steps=5,
-                save_steps=max_steps // 2,
-                max_steps=max_steps,
-                fp16=torch.cuda.is_available(),
-                gradient_checkpointing=True,
-                remove_unused_columns=False,
-                report_to=[],
-                save_strategy="steps",
-                save_total_limit=2,
-                dataloader_pin_memory=False,  # メモリ問題回避
-            )
-        
-        # Trainer作成と実行
-        # 継続学習の場合はEWCを使用（ただし既存LoRAアダプタがある場合は軽量化のため無効化可能）
-        use_ewc = request.training_method == "continual"
-        existing_lora = request.training_config.get("existing_lora_path") if hasattr(request, 'training_config') else None
-        
-        # 既存のLoRAアダプタがある場合、EWCを軽量化または無効化
-        if use_ewc and existing_lora:
-            ewc_lambda = 1000.0  # 通常の5000から減らす
-            logger.info(f"Task {task_id}: 既存LoRAアダプタ使用のため、EWC lambdaを{ewc_lambda}に調整")
-        elif use_ewc:
-            ewc_lambda = 5000.0
-        else:
-            ewc_lambda = 0.0
-        
-        if use_ewc:
-            logger.info(f"Task {task_id}: 継続学習モード - EWC有効 (λ={ewc_lambda})")
-        
-        trainer = EWCTrainer(
-            model=model,
-            args=training_args,
-            train_dataset=train_dataset,
-            processing_class=tokenizer,  # tokenizer -> processing_classに変更
-            use_ewc=use_ewc,
-            ewc_lambda=ewc_lambda,
-        )
-        
-        # EWCを使用する場合、事前学習データでFisher行列を計算
-        if use_ewc and trainer.ewc_helper is not None:
-            logger.info(f"Task {task_id}: Fisher行列を計算中...")
-            # 事前学習データとして一般的な日本語テキストを使用
-            pretrain_texts = [
-                "人工知能は急速に発展している技術分野です。",
-                "機械学習はデータから学習するアルゴリズムです。",
-                "深層学習はニューラルネットワークを使用します。",
-                "自然言語処理は言語を理解する技術です。",
-                "コンピュータビジョンは画像を解析します。",
-                "土木工学は社会インフラストラクチャの設計と建設を扱います。",
-                "構造解析は建物や橋の安全性を評価する重要な技術です。",
-                "地盤工学は土壌や岩盤の特性を研究します。",
-                "水理学は水の流れと挙動を解析する分野です。",
-                "交通工学は道路や鉄道の設計と最適化を行います。",
-            ]
-            
-            logger.info(f"Task {task_id}: 事前学習データ数: {len(pretrain_texts)}")
-            pretrain_dataset = SimpleDataset(pretrain_texts, tokenizer)
-            from torch.utils.data import DataLoader
-            pretrain_loader = DataLoader(pretrain_dataset, batch_size=1, shuffle=False)
-            
-            # Fisher行列の計算（最適化版）
-            try:
-                logger.info(f"Task {task_id}: Fisher行列の計算開始 (最大{30}バッチ)")
-                trainer.ewc_helper.compute_fisher_matrix(pretrain_loader, max_batches=30)
-                logger.info(f"Task {task_id}: Fisher行列の計算完了")
-            except RuntimeError as e:
-                logger.warning(f"Task {task_id}: Fisher行列計算失敗: {e}")
-                logger.info(f"Task {task_id}: EWCなしで継続学習を続行します")
-                # EWCを無効化
-                trainer.ewc_lambda = 0.0
-                trainer.ewc_helper = None
-        
-        # トレーニング実行
-        logger.info(f"Task {task_id}: 実際のトレーニング開始 (メソッド: {request.training_method})")
-        logger.info(f"Task {task_id}: トレーニング設定 - ステップ数: {max_steps}, バッチサイズ: {batch_size}, 学習率: {learning_rate}")
-        
-        try:
-            train_result = trainer.train()
-            
-            # トレーニング結果のログ
-            if hasattr(train_result, 'metrics'):
-                logger.info(f"Task {task_id}: トレーニング完了 - メトリクス: {train_result.metrics}")
-            else:
-                logger.info(f"Task {task_id}: トレーニング完了")
-                
-            # 継続学習の場合は追加情報をログ
-            if use_ewc:
-                logger.info(f"Task {task_id}: 継続学習（EWC）によるトレーニングが正常に完了しました")
-                
-        except Exception as train_error:
-            logger.error(f"Task {task_id}: トレーニングエラー: {str(train_error)}")
-            # エラーが発生してもモデルは保存して続行
-        
-        # モデル保存
-        training_tasks[task_id].message = "モデルを保存中..."
-        training_tasks[task_id].progress = 95.0
-        
-        # モデルとトークナイザーを保存
-        model.save_pretrained(str(output_dir))
-        tokenizer.save_pretrained(str(output_dir))
-        
-        # トレーニング情報を保存
-        training_info = {
-            "model_type": request.training_method,
-            "base_model": request.model_name,
-            "r": get_config_value(request.lora_config, "r", get_config_value(training_config, "lora_r", 16, int), int),
-            "lora_alpha": get_config_value(request.lora_config, "lora_alpha", get_config_value(training_config, "lora_alpha", 32, int), int),
-            "task_type": "CAUSAL_LM",
-            "training_data_size": len(train_texts),
-            "training_method": request.training_method,
-            "use_qlora": request.training_method == "qlora",
-            "load_in_4bit": request.training_method == "qlora",
-            "timestamp": timestamp,
-            "output_dir": str(output_dir)
-        }
-        
-        with open(output_dir / "training_info.json", "w", encoding='utf-8') as f:
-            json.dump(training_info, f, indent=2, ensure_ascii=False)
-        
-        # 完了
-        training_tasks[task_id].status = "completed"
-        training_tasks[task_id].progress = 100.0
-        training_tasks[task_id].message = f"{method_name}ファインチューニング完了！"
-        training_tasks[task_id].model_path = str(output_dir)
-        logger.info(f"Task {task_id}: {method_name}ファインチューニング完了 - {output_dir}")
-        
-    except Exception as e:
-        import traceback
-        logger.error(f"Task {task_id}: エラー発生: {str(e)}")
-        logger.error(traceback.format_exc())
-        training_tasks[task_id].status = "failed"
-        training_tasks[task_id].message = f"エラー: {str(e)}"
-
-# API エンドポイント
-
-# 競合するルートハンドラーを削除 - テンプレートベースのルートハンドラーを使用
-
-@app.get("/manual", response_class=HTMLResponse)
-async def manual_page(request: Request):
-    """利用マニュアルページ"""
-    return templates.TemplateResponse("readme.html", {"request": request})
-
-@app.get("/system-overview", response_class=HTMLResponse)
-async def system_overview_page():
-    """システム概要ページ"""
-    # TODO: Create system-overview.html template in templates directory
-    return HTMLResponse(
-        content="<h1>System overview page not implemented yet</h1>", 
-        status_code=404
-    )
-
-@app.get("/docs/{doc_name}")
-async def serve_documentation(doc_name: str):
-    """ドキュメントファイルの配信"""
-    allowed_docs = [
-        "API_REFERENCE.md", "LARGE_MODEL_SETUP.md", "MULTI_GPU_OPTIMIZATION.md",
-        "USER_MANUAL.md", "QUICKSTART_GUIDE.md", "USAGE_GUIDE.md",
-        "TRAINED_MODEL_USAGE.md", "DEEPSEEK_SETUP.md"
-    ]
-    
-    if doc_name not in allowed_docs:
-        return {"error": "Document not found"}
-    
-    # ドキュメントパスの検索
-    project_root = Path(os.getcwd())
-    possible_docs_paths = [
-        project_root / "docs",
-        Path(__file__).parent.parent / "docs"
-    ]
-    
-    for docs_path in possible_docs_paths:
-        doc_file_path = docs_path / doc_name
-        if doc_file_path.exists():
-            try:
-                with open(doc_file_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-                return PlainTextResponse(content, media_type="text/markdown")
-            except Exception as e:
-                return {"error": f"Error reading document: {str(e)}"}
-    
-    return {"error": "Document file not found"}
-
-@app.get("/api/models")
-async def get_models():
-    """利用可能なモデル一覧を取得"""
-    return {
-        "available_models": available_models,
-        "saved_models": get_saved_models()
-    }
-
-@app.post("/api/upload-data")
-async def upload_training_data(file: UploadFile = File(...)):
-    """トレーニングデータをアップロード"""
-    try:
-        logger.info(f"ファイルアップロード開始: {file.filename}")
-        
-        # ファイル名とサイズの検証
-        if not file.filename:
-            raise HTTPException(status_code=400, detail="ファイル名が不正です")
-        
-        if file.size and file.size > 100 * 1024 * 1024:  # 100MB制限
-            raise HTTPException(status_code=400, detail="ファイルサイズが大きすぎます (最大100MB)")
-        
-        # ファイル保存
-        project_root = Path(os.getcwd())
-        upload_dir = project_root / "data" / "uploaded"
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        
-        file_path = upload_dir / file.filename
-        content = await file.read()
-        
-        logger.info(f"ファイル保存: {file_path}, サイズ: {len(content)} bytes")
-        
-        with open(file_path, "wb") as f:
-            f.write(content)
-        
-        # ファイル形式の検証
-        sample_data = []
-        data_count = 0
-        valid_lines = 0
-        error_lines = []
-        
-        if file.filename.endswith('.jsonl'):
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    lines = f.readlines()
-                    data_count = len(lines)
-                    
-                    # 全行をチェックして有効性を検証
-                    for i, line in enumerate(lines):
-                        line = line.strip()
-                        if not line:  # 空行をスキップ
-                            continue
-                            
-                        try:
-                            data = json.loads(line)
-                            # 必須フィールドのチェック
-                            if 'text' in data or ('input' in data and 'output' in data):
-                                valid_lines += 1
-                                # 最初の5件をサンプルとして保存
-                                if len(sample_data) < 5:
-                                    sample_data.append(data)
-                            else:
-                                error_lines.append({
-                                    "line": i + 1,
-                                    "error": "必須フィールド('text'または'input'と'output')が不足しています"
-                                })
-                        except json.JSONDecodeError as je:
-                            error_lines.append({
-                                "line": i + 1,
-                                "error": f"JSONパースエラー: {str(je)}"
-                            })
-                    
-                    # エラー率の計算
-                    total_non_empty_lines = data_count - lines.count('\n')
-                    if total_non_empty_lines > 0:
-                        error_rate = len(error_lines) / total_non_empty_lines * 100
-                    else:
-                        error_rate = 0
-                    
-                    logger.info(f"JSONL解析完了: 全{data_count}行, 有効{valid_lines}行, エラー{len(error_lines)}行")
-                    
-                    # エラー率が高い場合は警告を含めて返す
-                    if error_rate > 10:  # 10%以上のエラー
-                        logger.warning(f"高エラー率検出: {error_rate:.1f}%")
-                        # エラーが多すぎる場合は、最初の10個のエラーのみを返す
-                        displayed_errors = error_lines[:10]
-                        if len(error_lines) > 10:
-                            displayed_errors.append({
-                                "line": "...",
-                                "error": f"他{len(error_lines) - 10}件のエラーがあります"
-                            })
-                    
-                    # 有効な行が0の場合は明確にエラー
-                    if valid_lines == 0:
-                        logger.error(f"有効なトレーニングデータが見つかりません。エラー数: {len(error_lines)}")
-                        error_detail = "全ての行にエラーがあります。"
-                        if error_lines:
-                            error_detail += f"\n最初のエラー: 行{error_lines[0]['line']} - {error_lines[0]['error']}"
-                        raise HTTPException(
-                            status_code=400, 
-                            detail=f"有効なトレーニングデータが見つかりません。{error_detail}"
-                        )
-                        
-                logger.info(f"JSONL検証完了: 有効{valid_lines}行, エラー{len(error_lines)}行")
-                
-            except UnicodeDecodeError:
-                logger.error("ファイルエンコーディングエラー")
-                raise HTTPException(status_code=400, detail="ファイルのエンコーディングが不正です (UTF-8を使用してください)")
-        
-        elif file.filename.endswith('.json'):
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    if isinstance(data, list):
-                        data_count = len(data)
-                        sample_data = data[:3]  # 最初の3件をサンプルとして取得
-                    else:
-                        data_count = 1
-                        sample_data = [data]
-                        
-                logger.info(f"JSON解析完了: {data_count}件, サンプル: {len(sample_data)}件")
-                
-            except json.JSONDecodeError as je:
-                logger.error(f"JSON parse error: {str(je)}")
-                raise HTTPException(status_code=400, detail=f"JSONパースエラー: {str(je)}")
-            except UnicodeDecodeError:
-                logger.error("ファイルエンコーディングエラー")
-                raise HTTPException(status_code=400, detail="ファイルのエンコーディングが不正です (UTF-8を使用してください)")
-        else:
-            raise HTTPException(status_code=400, detail="サポートされていないファイル形式です (.jsonl または .json を使用してください)")
-        
-        # 結果の構築（エラー情報を含む）
-        result = {
-            "status": "success" if len(error_lines) == 0 else "warning" if valid_lines > 0 else "error",
-            "filename": file.filename,
-            "path": str(file_path),
-            "size": len(content),
-            "data_count": data_count,
-            "valid_lines": valid_lines,
-            "error_count": len(error_lines),
-            "sample_data": sample_data[:3]
-        }
-        
-        # エラーがある場合は詳細を追加
-        if error_lines:
-            result["error_rate"] = f"{error_rate:.1f}%"
-            result["errors"] = error_lines[:10]  # 最初の10個のエラーを含める
-            if valid_lines == 0:
-                result["fallback_warning"] = "有効なデータがないため、トレーニング時にフォールバックデータが使用されます"
-            elif error_rate > 50:
-                result["warning"] = f"エラー率が高いです（{error_rate:.1f}%）。データの品質を確認してください"
-        
-        logger.info(f"アップロード成功: {result}")
-        return result
-    
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Upload error: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"アップロードエラー: {str(e)}")
-
 @app.post("/api/train")
 async def start_training(request: TrainingRequest, background_tasks: BackgroundTasks):
     """ファインチューニングを開始"""
     try:
-        task_id = str(uuid.uuid4())
-        logger.info(f"ファインチューニング開始リクエスト受信: task_id={task_id}")
-        logger.info(f"リクエスト内容: model_name={request.model_name}, method={request.training_method}")
-        logger.info(f"LoRA設定: {request.lora_config}")
-        logger.info(f"トレーニング設定: {request.training_config}")
-        
-        # リクエストの検証
-        if not request.model_name:
-            raise HTTPException(status_code=400, detail="model_name is required")
-        
-        if not request.training_data:
-            raise HTTPException(status_code=400, detail="training_data is required")
-        
-        # 初期ステータスを設定
-        training_tasks[task_id] = TrainingStatus(
-            task_id=task_id,
-            status="starting",
-            progress=0.0,
-            message="ファインチューニングを開始しています..."
-        )
-        
+        task_id = create_training_task(request)
+
         # バックグラウンドでトレーニングを実行
         background_tasks.add_task(run_training_task, task_id, request)
         
@@ -1506,6 +710,8 @@ async def start_training(request: TrainingRequest, background_tasks: BackgroundT
         
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"トレーニング開始エラー: {str(e)}")
         import traceback
@@ -1822,10 +1028,10 @@ async def generate_text(request: GenerationRequest):
                         
                         # 32Bモデルの推論時メモリ効率化
                         from transformers import BitsAndBytesConfig
-                        
+
                         # 推論時は常に4bit量子化を使用（メモリ効率重視）
                         logger.info("推論時メモリ効率化: 4bit量子化を適用")
-                        quantization_config = UnifiedQuantizationConfig(
+                        quantization_config = BitsAndBytesConfig(
                             load_in_4bit=True,
                             bnb_4bit_compute_dtype=torch.float16,
                             bnb_4bit_use_double_quant=True,
@@ -2042,6 +1248,10 @@ async def generate_text(request: GenerationRequest):
                 logger.error(f"Ollamaエラー詳細: {traceback.format_exc()}")
                     # フォールバック: 通常の方法を試行
         
+        # 通常の方法（Transformers）を使用
+        # まずキャッシュからモデルを取得
+        cached_model = model_cache.get(cache_key, {})
+
         # モデル情報の記録
         model_info = {
             "model_path": request.model_path,
@@ -2054,11 +1264,8 @@ async def generate_text(request: GenerationRequest):
                 "top_p": request.top_p
             }
         }
-        
+
         logger.info(f"モデル情報: {model_info}")
-        
-        # 通常の方法（Transformers）を使用
-        cached_model = model_cache[cache_key]
         tokenizer = cached_model["tokenizer"]
         model = cached_model["model"]
         
@@ -2109,9 +1316,13 @@ async def generate_text(request: GenerationRequest):
                 logger.info("model.generate()を実行中...")
                 
                 outputs = model.generate(**generation_kwargs)
-                
+
                 logger.info(f"生成完了: 出力トークン数={outputs.shape}")
-                
+
+                # トークンに関する情報を記録
+                generated_ids = outputs[0]  # 生成されたIDを記録
+                input_length = len(inputs['input_ids'][0])  # 入力トークン数を記録
+
                 # 生成されたテキストをデコード
                 generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
                 logger.info(f"デコード完了: テキスト長={len(generated_text)}")
@@ -2456,19 +1667,29 @@ async def get_metrics():
         from fastapi.responses import Response
         return Response(content="# Metrics not available\n", media_type="text/plain")
 
-# アプリケーション起動時の初期化
+# アプリケーション起動時の初期化（統合版）
 @app.on_event("startup")
 async def startup_event():
     """アプリケーション起動時の初期化"""
-    logger.info("AI Fine-tuning Toolkit Web API starting...")
-    
+    logger.info("AI Fine-tuning Toolkit Web API starting with RAG integration...")
+
     # 必要なディレクトリを作成
     project_root = Path(os.getcwd())
     (project_root / "data" / "uploaded").mkdir(parents=True, exist_ok=True)
     (project_root / "outputs").mkdir(parents=True, exist_ok=True)
     (project_root / "app" / "static").mkdir(parents=True, exist_ok=True)
     (project_root / "data" / "continual_learning").mkdir(parents=True, exist_ok=True)
-    
+
+    # RAGシステムの初期化
+    if RAG_AVAILABLE:
+        try:
+            await rag_app.initialize()
+            logger.info("RAG system initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize RAG system: {e}")
+    else:
+        logger.warning("RAG system will not be available in this session")
+
     # 継続学習タスクを読み込む
     load_continual_tasks()
 
@@ -2746,10 +1967,16 @@ async def get_finetuned_lora_models():
                     except:
                         pass
                 
-                # 作成日時を取得
-                model_info["created"] = datetime.fromtimestamp(
-                    model_dir.stat().st_mtime
-                ).strftime("%Y-%m-%d %H:%M:%S")
+                # 作成日時を日本時間（JST）で取得
+                try:
+                    jst = timezone(timedelta(hours=9), name="JST")
+                    created_dt = datetime.fromtimestamp(model_dir.stat().st_mtime, tz=jst)
+                    model_info["created"] = created_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                except Exception:
+                    # フォールバック（タイムゾーン未指定のローカル時間）
+                    model_info["created"] = datetime.fromtimestamp(
+                        model_dir.stat().st_mtime
+                    ).strftime("%Y-%m-%d %H:%M:%S")
                 
                 models.append(model_info)
             
@@ -2777,9 +2004,14 @@ async def get_finetuned_lora_models():
                         except:
                             pass
                     
-                    model_info["created"] = datetime.fromtimestamp(
-                        model_dir.stat().st_mtime
-                    ).strftime("%Y-%m-%d %H:%M:%S")
+                    try:
+                        jst = timezone(timedelta(hours=9), name="JST")
+                        created_dt = datetime.fromtimestamp(model_dir.stat().st_mtime, tz=jst)
+                        model_info["created"] = created_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                    except Exception:
+                        model_info["created"] = datetime.fromtimestamp(
+                            model_dir.stat().st_mtime
+                        ).strftime("%Y-%m-%d %H:%M:%S")
                     
                     models.append(model_info)
         
@@ -2851,8 +2083,30 @@ async def get_available_models():
                                 with open(training_info_path, 'r', encoding='utf-8') as f:
                                     training_info = json.load(f)
                                     model_info["training_method"] = training_info.get("training_method", "unknown")
-                                    model_info["created"] = training_info.get("timestamp", "Unknown")
-                                    model_info["created_at"] = training_info.get("created_at", training_info.get("timestamp", "Unknown"))
+                                    # JSTでの作成日時を優先的に整形
+                                    created_str = training_info.get("created_at") or training_info.get("timestamp")
+                                    formatted_created = None
+                                    try:
+                                        if isinstance(created_str, str):
+                                            if 'T' in created_str:
+                                                # ISO形式（Z終端にも対応）
+                                                iso = created_str.replace('Z', '+00:00')
+                                                dt = datetime.fromisoformat(iso)
+                                                formatted_created = dt.astimezone(JST).strftime('%Y-%m-%d %H:%M:%S JST')
+                                            elif '_' in created_str and len(created_str) >= 15:
+                                                # yyyymmdd_HHMMSS 形式（JST想定）
+                                                try:
+                                                    dt2 = datetime.strptime(created_str[:15], '%Y%m%d_%H%M%S').replace(tzinfo=JST)
+                                                    formatted_created = dt2.strftime('%Y-%m-%d %H:%M:%S JST')
+                                                except Exception:
+                                                    formatted_created = None
+                                    except Exception:
+                                        formatted_created = None
+                                    # フォールバック: ファイル更新時刻をJSTで表示
+                                    if not formatted_created:
+                                        formatted_created = datetime.fromtimestamp(model_dir.stat().st_mtime, tz=JST).strftime('%Y-%m-%d %H:%M:%S JST')
+                                    model_info["created"] = formatted_created
+                                    model_info["created_at"] = formatted_created
                                     model_info["base_model"] = training_info.get("base_model", model_info.get("base_model", "Unknown"))
                             except:
                                 pass
@@ -2888,11 +2142,20 @@ async def get_available_models():
                 if ollama_models.get("success", False):
                     for model in ollama_models.get("models", []):
                         # 全てのOllamaモデルを表示（フィルタリングを削除）
+                        modified_raw = model.get("modified", "Unknown")
+                        modified_jst = modified_raw
+                        if isinstance(modified_raw, str):
+                            try:
+                                iso = modified_raw.replace('Z', '+00:00')
+                                dtm = datetime.fromisoformat(iso)
+                                modified_jst = dtm.astimezone(JST).strftime('%Y-%m-%d %H:%M:%S JST')
+                            except Exception:
+                                pass
                         models["ollama_models"].append({
                             "name": model.get("name", "Unknown"),
                             "type": "ollama",
                             "size": model.get("size", "Unknown"),
-                            "modified": model.get("modified", "Unknown")
+                            "modified": modified_jst
                         })
                 else:
                     logger.warning(f"Ollamaモデル取得失敗: {ollama_models.get('error', 'Unknown error')}")
@@ -5385,7 +4648,8 @@ async def get_dataset_stats(dataset_name: str):
         # ファイル統計
         file_stat = file_path.stat()
         file_size = file_stat.st_size
-        last_modified = datetime.fromtimestamp(file_stat.st_mtime).strftime("%Y/%m/%d %H:%M")
+        # 最終更新日時をJSTで表示
+        last_modified = datetime.fromtimestamp(file_stat.st_mtime, tz=JST).strftime("%Y/%m/%d %H:%M JST")
         
         # サンプル数とエキスパート分布を計算
         sample_count = 0
@@ -5436,7 +4700,8 @@ async def update_dataset(
         # バックアップの作成
         backup_path = None
         if file_path.exists():
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            # バックアップファイル名のタイムスタンプもJSTで統一
+            timestamp = datetime.now(JST).strftime("%Y%m%d_%H%M%S")
             backup_dir = Path("data/backups")
             backup_dir.mkdir(parents=True, exist_ok=True)
             backup_path = backup_dir / f"{dataset_name}_{timestamp}.jsonl"
@@ -5517,7 +4782,7 @@ async def download_dataset(dataset_name: str):
             with open(file_path, 'rb') as f:
                 yield from f
         
-        filename = f"{dataset_name}_dataset_{datetime.now().strftime('%Y%m%d')}.jsonl"
+        filename = f"{dataset_name}_dataset_{datetime.now(JST).strftime('%Y%m%d')}.jsonl"
         
         return StreamingResponse(
             iterfile(),

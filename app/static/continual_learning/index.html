@@ -480,7 +480,7 @@
                         const info = document.getElementById('modelInfo');
                         info.textContent = `タイプ: ${selectedModel.type}`;
                         if (selectedModel.created_at) {
-                            info.textContent += ` | 作成日: ${new Date(selectedModel.created_at).toLocaleString('ja-JP')}`;
+                            info.textContent += ` | 作成日: ${new Date(selectedModel.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}`;
                         }
                     }
                 });
@@ -653,7 +653,7 @@
                     <div class="task-item">
                         <h3>${task.id.substring(0, 8)}... <span class="status-badge status-${task.status}">${task.status}</span></h3>
                         <p>タイプ: ${task.type}</p>
-                        <p>作成日時: ${new Date(task.created_at).toLocaleString('ja-JP')}</p>
+                        <p>作成日時: ${new Date(task.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}</p>
                         <div class="progress-bar">
                             <div class="progress-fill" style="width: ${task.progress}%">${task.progress}%</div>
                         </div>
@@ -684,7 +684,7 @@
                 historyDiv.innerHTML = history.map(task => `
                     <div class="task-item">
                         <h3>${task.task_name}</h3>
-                        <p>実行日時: ${new Date(task.timestamp).toLocaleString('ja-JP')}</p>
+                        <p>実行日時: ${new Date(task.timestamp).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}</p>
                         <p>モデル: ${task.model_path}</p>
                         <p>データセット: ${task.dataset}</p>
                         <p>エポック数: ${task.epochs}</p>

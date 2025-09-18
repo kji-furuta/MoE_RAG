@@ -14,7 +14,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import logging
 import psutil
 import GPUtil
@@ -25,6 +25,9 @@ logger = logging.getLogger(__name__)
 
 # APIルーター
 router = APIRouter(prefix="/api/moe/training", tags=["MoE Training"])
+
+# 日本時間（JST）
+JST = timezone(timedelta(hours=9))
 
 # トレーニングタスクの管理
 training_tasks = {}
@@ -90,12 +93,12 @@ def load_training_history():
                 if task_data.get('start_time'):
                     try:
                         task.start_time = datetime.fromisoformat(task_data['start_time'])
-                    except:
+                    except Exception:
                         task.start_time = None
                 if task_data.get('end_time'):
                     try:
                         task.end_time = datetime.fromisoformat(task_data['end_time'])
-                    except:
+                    except Exception:
                         task.end_time = None
                 
                 training_tasks[task_id] = task
@@ -183,8 +186,8 @@ async def execute_training(task: TrainingTask):
     """実際のトレーニング実行"""
     try:
         task.status = "running"
-        task.start_time = datetime.now()
-        task.logs.append(f"[{datetime.now().isoformat()}] トレーニングを開始しました")
+        task.start_time = datetime.now(JST)
+        task.logs.append(f"[{datetime.now(JST).isoformat()}] トレーニングを開始しました")
         
         # ステータス変更時に保存
         save_training_history()
@@ -236,7 +239,7 @@ async def execute_training(task: TrainingTask):
                     break
                 line_str = line.decode('utf-8').strip()
                 if line_str:
-                    task.logs.append(f"[{datetime.now().isoformat()}] {prefix}: {line_str}")
+                    task.logs.append(f"[{datetime.now(JST).isoformat()}] {prefix}: {line_str}")
                     
                     # 進捗の解析
                     if "epoch" in line_str.lower():
@@ -276,26 +279,26 @@ async def execute_training(task: TrainingTask):
         if return_code == 0:
             task.status = "completed"
             task.progress = 100
-            task.logs.append(f"[{datetime.now().isoformat()}] トレーニングが正常に完了しました")
+            task.logs.append(f"[{datetime.now(JST).isoformat()}] トレーニングが正常に完了しました")
             # 完了時に履歴を保存
             save_training_history()
         else:
             task.status = "failed"
             task.error = f"Process exited with code {return_code}"
-            task.logs.append(f"[{datetime.now().isoformat()}] エラー: {task.error}")
+            task.logs.append(f"[{datetime.now(JST).isoformat()}] エラー: {task.error}")
             # 失敗時も履歴を保存
             save_training_history()
         
     except Exception as e:
         task.status = "failed"
         task.error = str(e)
-        task.logs.append(f"[{datetime.now().isoformat()}] エラー: {task.error}")
+        task.logs.append(f"[{datetime.now(JST).isoformat()}] エラー: {task.error}")
         logger.error(f"Training task {task.task_id} failed: {e}")
         # エラー時も履歴を保存
         save_training_history()
     
     finally:
-        task.end_time = datetime.now()
+        task.end_time = datetime.now(JST)
         # 一時ファイルのクリーンアップ
         if os.path.exists(expert_config_path):
             os.remove(expert_config_path)
@@ -324,8 +327,8 @@ async def stop_training(task_id: str):
             if task.process.returncode is None:
                 task.process.kill()
             task.status = "stopped"
-            task.end_time = datetime.now()
-            task.logs.append(f"[{datetime.now().isoformat()}] ユーザーによって停止されました")
+            task.end_time = datetime.now(JST)
+            task.logs.append(f"[{datetime.now(JST).isoformat()}] ユーザーによって停止されました")
             # 停止時も履歴を保存
             save_training_history()
             return {"status": "stopped", "message": "Training stopped successfully"}
@@ -430,7 +433,7 @@ async def get_gpu_status():
                 "total": memory.total,
                 "percent": memory.percent
             },
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(JST).isoformat()
         }
     except Exception as e:
         logger.error(f"Failed to get GPU status: {e}")
@@ -462,14 +465,14 @@ async def get_gpu_status():
                 
                 return {
                     "gpus": gpu_info,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now(JST).isoformat()
                 }
         except:
             pass
         
         return {
             "error": "GPU information not available",
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(JST).isoformat()
         }
 
 @router.post("/upload-dataset")
@@ -565,7 +568,7 @@ async def deploy_model(task_id: str):
             "model_path": model_path,
             "task_id": task_id,
             "experts": task.config.experts,
-            "deployed_at": datetime.now().isoformat()
+            "deployed_at": datetime.now(JST).isoformat()
         }
         
         # デプロイメント設定を保存

@@ -6,12 +6,11 @@
       "args": [
         "--from",
         "git+https://github.com/oraios/serena",
-        "serena",
-        "start-mcp-server",
+        "serena-mcp-server",
         "--context",
         "ide-assistant",
         "--project",
-        "/home/kjifuruta/AI_FT/AI_FT_3"
+        "/home/ict/MoE_RAG"
       ],
       "env": {}
     },

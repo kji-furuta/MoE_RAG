@@ -83,6 +83,7 @@ MoE_RAG/
 ### Docker スタック（本番相当）
 - 初回ビルドと起動: `cd docker && docker-compose up -d --build`
 - Web/UI サービス開始: `bash scripts/start_web_interface.sh`
+- WSL2 + Docker Desktop 向けの詳細手順: `docs/container_setup/wsl2_docker_dev_setup.md`
 
 ### コーディング規約
 - フォーマッタ: Black（行長 88）/ isort（profile "black"）。

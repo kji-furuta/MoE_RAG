@@ -45,19 +45,19 @@ llm:
     0: 36GB
     1: 36GB
   max_new_tokens: 1024
-  model_name: ollama:88_deepseek-32b-finetuned:latest
-  model_path: outputs/lora_20250906_104924
+  model_name: cyberagent/calm3-22b-chat
+  model_path: outputs/lora_20250918_073215
   moe_experts_per_token: 2
   moe_model_path: /workspace/outputs/moe_d63ec0db-4f34-48d2-89c1-35b485a819f1
   moe_num_experts: 2
   ollama:
     base_url: http://localhost:11434
     max_tokens: 4096
-    model: 88_deepseek-32b-finetuned:latest
+    model: 01_deepseek-32b-finetuned:latest
     temperature: 0.6
     top_p: 0.9
   ollama_host: http://localhost:11434
-  ollama_model: 88_deepseek-32b-finetuned:latest
+  ollama_model: 01_deepseek-32b-finetuned:latest
   ollama_models:
   - description: LoRA fine-tuned model
     name: 1_deepseek-32b-finetuned
@@ -92,13 +92,16 @@ llm:
   - description: LoRA fine-tuned model
     name: 88_deepseek-32b-finetuned
     tag: latest
-  provider: ollama
+  - description: LoRA fine-tuned model
+    name: deepseek-32b-finetuned
+    tag: latest
+  provider: local
   quantization:
     compute_type: float16
     enabled: true
     method: q4_k_m
   repetition_penalty: 1.1
-  temperature: 0
+  temperature: 0.3
   top_p: 0.95
   torch_dtype: float16
   use_dynamic_lora: true

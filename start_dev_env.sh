@@ -28,6 +28,10 @@ print_error() {
     echo -e "${RED}✗ $1${NC}"
 }
 
+# Resolve repository root irrespective of the execution directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$SCRIPT_DIR"
+
 # Check if running in WSL2
 if grep -qi microsoft /proc/version; then
     print_success "Running in WSL2 environment"
@@ -35,8 +39,18 @@ else
     print_info "Not running in WSL2 - some features may behave differently"
 fi
 
+# Determine docker compose command (plugin or standalone)
+if docker compose version > /dev/null 2>&1; then
+    DOCKER_COMPOSE=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE=(docker-compose)
+else
+    print_error "Neither 'docker compose' nor 'docker-compose' is available. Install Docker Desktop or the Docker CLI plugin."
+    exit 1
+fi
+
 # Navigate to docker directory
-cd docker
+cd "$REPO_ROOT/docker"
 
 # Check if Docker is running
 if ! docker info > /dev/null 2>&1; then
@@ -56,10 +70,10 @@ fi
 
 # Build and start containers
 print_info "Building Docker containers..."
-docker-compose build --no-cache
+"${DOCKER_COMPOSE[@]}" build
 
 print_info "Starting Docker containers..."
-docker-compose up -d
+"${DOCKER_COMPOSE[@]}" up -d
 
 # Wait for containers to be ready
 print_info "Waiting for containers to be ready..."
@@ -112,11 +126,12 @@ echo "  - Qdrant UI: http://localhost:6333/dashboard"
 echo "  - Jupyter Lab: http://localhost:8888"
 echo "  - TensorBoard: http://localhost:6006"
 echo ""
+COMPOSE_DISPLAY="${DOCKER_COMPOSE[*]}"
 echo "Useful commands:"
 echo "  - View logs: docker logs -f ai-ft-container"
 echo "  - Enter container: docker exec -it ai-ft-container bash"
-echo "  - Stop environment: docker-compose down"
-echo "  - Clean restart: docker-compose down && docker-compose up -d --build"
+echo "  - Stop environment: ${COMPOSE_DISPLAY} down"
+echo "  - Clean restart: ${COMPOSE_DISPLAY} down && ${COMPOSE_DISPLAY} up -d --build"
 echo ""
 echo "To test the RAG system:"
 echo "  curl -X POST http://localhost:8050/rag/query \\"
@@ -124,3 +139,4 @@ echo "       -H 'Content-Type: application/json' \\"
 echo "       -d '{\"query\": \"設計速度80km/hの道路の最小曲線半径は？\", \"top_k\": 5}'"
 echo ""
 print_success "Development environment is ready!"
+

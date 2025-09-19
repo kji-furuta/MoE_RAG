@@ -396,5 +396,185 @@
       },
       "task_history": "task_100"
     }
+  },
+  "dd6c5f2a-1dfd-4ea4-955e-a190e353713b": {
+    "task_id": "dd6c5f2a-1dfd-4ea4-955e-a190e353713b",
+    "task_name": "250917擁壁工指針データ追加",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-09-17T09:08:32.820860+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250916_173708",
+      "task_name": "250917擁壁工指針データ追加",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/c036b290-b417-41a2-a490-f44a3168f1e6_道路土工　擁壁工指針　(平成24年度版)　1_RAR_INPUT.jsonl",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-09-17T09:10:46.003146+09:00",
+    "output_path": "outputs/continual_250917擁壁工指針データ追加_20250917_091046",
+    "model_info": {
+      "name": "continual_250917擁壁工指針データ追加",
+      "path": "outputs/continual_250917擁壁工指針データ追加_20250917_091046",
+      "base_model": "outputs/lora_20250916_173708",
+      "training_method": "continual_ewc",
+      "created_at": "2025-09-17T09:10:46.005589+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 5000,
+        "use_previous_tasks": true
+      },
+      "task_history": "250917擁壁工指針データ追加"
+    }
+  },
+  "a1bb4748-eabd-44ca-bcfd-c3f11f5c0594": {
+    "task_id": "a1bb4748-eabd-44ca-bcfd-c3f11f5c0594",
+    "task_name": "250917擁壁工指針データ追加",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-09-17T09:13:17.630642+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250917_090832",
+      "task_name": "250917擁壁工指針データ追加",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/fb676afc-d187-405b-8596-5f2585746cb8_道路土工　擁壁工指針　(平成24年度版)　2_RAR_INPUT.jsonl",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-09-17T09:15:25.685059+09:00",
+    "output_path": "outputs/continual_250917擁壁工指針データ追加_20250917_091525",
+    "model_info": {
+      "name": "continual_250917擁壁工指針データ追加",
+      "path": "outputs/continual_250917擁壁工指針データ追加_20250917_091525",
+      "base_model": "outputs/lora_20250917_090832",
+      "training_method": "continual_ewc",
+      "created_at": "2025-09-17T09:15:25.691643+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 5000,
+        "use_previous_tasks": true
+      },
+      "task_history": "250917擁壁工指針データ追加"
+    }
+  },
+  "d91b4f19-c969-4006-bcb5-7893716e5f77": {
+    "task_id": "d91b4f19-c969-4006-bcb5-7893716e5f77",
+    "task_name": "250917擁壁工指針データ追加",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-09-17T09:17:27.362243+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250916_173708",
+      "task_name": "250917擁壁工指針データ追加",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/f2accdf7-b3d5-412f-aa63-474c8296f754_道路土工　擁壁工指針　(平成24年度版)　3_RAR_INPUT.jsonl",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-09-17T09:19:41.718560+09:00",
+    "output_path": "outputs/continual_250917擁壁工指針データ追加_20250917_091941",
+    "model_info": {
+      "name": "continual_250917擁壁工指針データ追加",
+      "path": "outputs/continual_250917擁壁工指針データ追加_20250917_091941",
+      "base_model": "outputs/lora_20250916_173708",
+      "training_method": "continual_ewc",
+      "created_at": "2025-09-17T09:19:41.721449+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 5000,
+        "use_previous_tasks": true
+      },
+      "task_history": "250917擁壁工指針データ追加"
+    }
+  },
+  "191c8bab-ee9a-4815-ade8-dec017724387": {
+    "task_id": "191c8bab-ee9a-4815-ade8-dec017724387",
+    "task_name": "250917擁壁工指針データ追加",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-09-17T09:20:44.842508+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250916_173708",
+      "task_name": "250917擁壁工指針データ追加",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/26a009f8-8750-4a39-a488-65b0925c093d_道路土工　擁壁工指針　(平成24年度版)　4_RAR_INPUT.jsonl",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-09-17T09:22:49.000076+09:00",
+    "output_path": "outputs/continual_250917擁壁工指針データ追加_20250917_092249",
+    "model_info": {
+      "name": "continual_250917擁壁工指針データ追加",
+      "path": "outputs/continual_250917擁壁工指針データ追加_20250917_092249",
+      "base_model": "outputs/lora_20250916_173708",
+      "training_method": "continual_ewc",
+      "created_at": "2025-09-17T09:22:49.004866+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 5000,
+        "use_previous_tasks": true
+      },
+      "task_history": "250917擁壁工指針データ追加"
+    }
+  },
+  "00784829-408a-460b-a3f8-b07b37f5a068": {
+    "task_id": "00784829-408a-460b-a3f8-b07b37f5a068",
+    "task_name": "250917擁壁工指針データ追加",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-09-17T09:24:44.849198+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250916_173708",
+      "task_name": "250917擁壁工指針データ追加",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/1d5e63e0-a7d4-4e4f-8740-df46920c04fd_道路土工　擁壁工指針　(平成24年度版)　5_RAR_INPUT.jsonl",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-09-17T09:26:49.215050+09:00",
+    "output_path": "outputs/continual_250917擁壁工指針データ追加_20250917_092649",
+    "model_info": {
+      "name": "continual_250917擁壁工指針データ追加",
+      "path": "outputs/continual_250917擁壁工指針データ追加_20250917_092649",
+      "base_model": "outputs/lora_20250916_173708",
+      "training_method": "continual_ewc",
+      "created_at": "2025-09-17T09:26:49.218654+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 5000,
+        "use_previous_tasks": true
+      },
+      "task_history": "250917擁壁工指針データ追加"
+    }
   }
 }

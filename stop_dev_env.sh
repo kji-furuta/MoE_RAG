@@ -28,12 +28,26 @@ print_error() {
     echo -e "${RED}✗ $1${NC}"
 }
 
+# Resolve repository root irrespective of where the script is invoked
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$SCRIPT_DIR"
+
+# Determine docker compose command (plugin or standalone)
+if docker compose version > /dev/null 2>&1; then
+    DOCKER_COMPOSE=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE=(docker-compose)
+else
+    print_error "Neither 'docker compose' nor 'docker-compose' is available. Install Docker Desktop or the Docker CLI plugin."
+    exit 1
+fi
+
 # Navigate to docker directory
-cd docker
+cd "$REPO_ROOT/docker"
 
 # Stop all containers
 print_info "Stopping Docker containers..."
-docker-compose down
+"${DOCKER_COMPOSE[@]}" down
 
 print_success "All containers stopped"
 
@@ -47,5 +61,7 @@ echo "========================================="
 echo "Development Environment Stopped"
 echo "========================================="
 echo ""
+COMPOSE_DISPLAY="${DOCKER_COMPOSE[*]}"
 echo "To restart the environment, run: ./start_dev_env.sh"
-echo "To clean all data and volumes, run: cd docker && docker-compose down -v"
+echo "To clean all data and volumes, run: cd docker && ${COMPOSE_DISPLAY} down -v"
+

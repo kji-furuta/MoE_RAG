@@ -498,7 +498,27 @@ async def models_page(request: Request):
 @app.get("/readme")
 async def readme_page(request: Request):
     """README.md表示ページ"""
-    return templates.TemplateResponse("readme.html", {"request": request})
+    import markdown
+    from pathlib import Path
+
+    # ルートのREADME.mdを読み込む
+    readme_path = Path(__file__).parent.parent / "README.md"
+
+    if readme_path.exists():
+        with open(readme_path, 'r', encoding='utf-8') as f:
+            readme_content = f.read()
+        # MarkdownをHTMLに変換
+        readme_html = markdown.markdown(
+            readme_content,
+            extensions=['extra', 'codehilite', 'tables', 'toc']
+        )
+    else:
+        readme_html = "<p>README.mdファイルが見つかりません。</p>"
+
+    return templates.TemplateResponse("readme.html", {
+        "request": request,
+        "readme_content": readme_html
+    })
 
 
 @app.get("/system-overview", response_class=HTMLResponse)

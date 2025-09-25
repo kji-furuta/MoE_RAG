@@ -2,931 +2,177 @@
 
 {% block title %}操作マニュアル - AI Fine-tuning Toolkit{% endblock %}
 
-{% block extra_styles %}
-.readme-content {
-    background: white;
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    line-height: 1.6;
-    font-size: 16px;
-}
-
-.readme-content h1 {
-    color: #2c3e50;
-    border-bottom: 3px solid #3498db;
-    padding-bottom: 10px;
-    margin-bottom: 30px;
-}
-
-.readme-content h2 {
-    color: #34495e;
-    border-left: 4px solid #3498db;
-    padding-left: 15px;
-    margin-top: 40px;
-    margin-bottom: 20px;
-}
-
-.readme-content h3 {
-    color: #2c3e50;
-    margin-top: 30px;
-    margin-bottom: 15px;
-}
-
-.readme-content h4 {
-    color: #34495e;
-    margin-top: 25px;
-    margin-bottom: 12px;
-    font-weight: bold;
-}
-
-.readme-content p {
-    margin-bottom: 15px;
-    color: #2c3e50;
-}
-
-.readme-content ul, .readme-content ol {
-    margin-bottom: 20px;
-    padding-left: 30px;
-}
-
-.readme-content li {
-    margin-bottom: 8px;
-    color: #2c3e50;
-}
-
-.readme-content code {
-    background: #f8f9fa;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: 'Courier New', monospace;
-    color: #e74c3c;
-}
-
-.readme-content pre {
-    background: #2c3e50;
-    color: #ecf0f1;
-    padding: 20px;
-    border-radius: 8px;
-    overflow-x: auto;
-    margin: 20px 0;
-}
-
-.readme-content pre code {
-    background: none;
-    color: inherit;
-    padding: 0;
-}
-
-.readme-content blockquote {
-    border-left: 4px solid #3498db;
-    padding-left: 20px;
-    margin: 20px 0;
-    color: #7f8c8d;
-    font-style: italic;
-}
-
-.readme-content table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 20px 0;
-}
-
-.readme-content th, .readme-content td {
-    border: 1px solid #ddd;
-    padding: 12px;
-    text-align: left;
-}
-
-.readme-content th {
-    background: #3498db;
-    color: white;
-    font-weight: bold;
-}
-
-.readme-content tr:nth-child(even) {
-    background: #f8f9fa;
-}
-
-.feature-badge {
-    display: inline-block;
-    background: #3498db;
-    color: white;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    margin-left: 5px;
-    font-weight: bold;
-}
-
-.feature-badge.new {
-    background: #e74c3c;
-}
-
-.feature-badge.success {
-    background: #27ae60;
-}
-
-.warning-box {
-    background: #fff3cd;
-    border: 1px solid #ffeab5;
-    border-radius: 8px;
-    padding: 15px;
-    margin: 20px 0;
-}
-
-.info-box {
-    background: #d1ecf1;
-    border: 1px solid #bee5eb;
-    border-radius: 8px;
-    padding: 15px;
-    margin: 20px 0;
-}
-
-.success-box {
-    background: #d4edda;
-    border: 1px solid #c3e6cb;
-    border-radius: 8px;
-    padding: 15px;
-    margin: 20px 0;
-}
-
-.emoji {
-    font-size: 20px;
-    margin-right: 5px;
-}
-{% endblock %}
-
 {% block content %}
-<div class="container mt-5">
-    <div class="readme-content">
-        <h1>🚀 AI Fine-tuning Toolkit with RAG Integration & Continual Learning</h1>
-        
-        <p><strong>日本語LLMファインチューニング + RAGシステム + 継続学習統合Webツールキット</strong></p>
-        
-        <div class="info-box">
-            <p><span class="emoji">💡</span>Dockerベースの統合Webインターフェースで、日本語大規模言語モデル（LLM）のファインチューニング、土木道路設計特化型RAGシステム、そしてEWCベースの継続学習を同一プラットフォームで実行できます。単一のポート（8050）で全機能にアクセス可能な革新的なツールキットです。</p>
-        </div>
-
-        <h2>📢 最新の更新 (2025年9月9日)</h2>
-        
-        <h3>🎉 最新実装機能</h3>
-        <ul>
-            <li><strong>Ollamaモデル永続化問題の解決</strong>: コンテナ再起動時の自動モデル再登録機能を実装</li>
-            <li><strong>継続学習タスク削除機能</strong>: 不要なタスクと関連ファイルを完全に削除するスクリプトを追加</li>
-            <li><strong>モデル管理の改善</strong>: ユーザー定義名での一貫したモデル管理を実現</li>
-            <li><strong>Docker権限統一</strong>: root権限での一貫した実行環境を構築</li>
-            <li><strong>RAG UI改善</strong>: モデル名表示をOllama listと完全一致させる修正</li>
-        </ul>
-        
-        <h3>🔧 以前の更新 (2025年9月7日)</h3>
-        <ul>
-            <li><strong>RAGモデル選択の改善</strong>: Ollamaモデルの自動初期化スクリプトを追加、設定ファイルの最適化</li>
-            <li><strong>継続学習タスク管理</strong>: タスク状態の永続化とUI表示の改善、タスクIDによる追跡機能強化</li>
-            <li><strong>モデル設定の拡張</strong>: GPT-NeoX、Pythia-160mなど新規モデルの設定追加</li>
-            <li><strong>エラーハンドリング改善</strong>: LoRAファインチューニング時のバッチサイズ自動調整機能</li>
-            <li><strong>UI/UX向上</strong>: ファインチューニング画面のモデル選択インターフェース改善</li>
-        </ul>
-        
-        <div class="success-box">
-            <p><span class="emoji">✅</span><strong>全システム正常稼働確認済み</strong></p>
-            <ul>
-                <li><strong>Ollama統合</strong>: Llama 3.2 3Bモデルによる高速推論とRAGフォールバック機能正常稼働</li>
-                <li><strong>ファインチューニング</strong>: cyberagent/calm3-22b-chatモデルで正常動作</li>
-                <li><strong>MoEシステム</strong>: 土木・道路設計エキスパートモデルの学習と展開済み（<code>/workspace/outputs/moe_civil</code>）</li>
-                <li><strong>RAGシステム</strong>: Qdrantベクトルデータベース377件インデックス済み、MoEモデル統合による専門的応答実現</li>
-                <li><strong>継続学習</strong>: EWCベース継続学習タスク管理システム正常稼働（タスク状態永続化対応）</li>
-                <li><strong>量子化モデル対応</strong>: Ollama（Llama 3.2 3B）+ AWQ 4bit量子化による超軽量・高速推論</li>
-            </ul>
-        </div>
-
-        <h2>🌟 主要機能</h2>
-        
-        <h3>🌐 統合Webインターフェース（RAG + 継続学習統合済み）</h3>
-        <ul>
-            <li><strong>単一ポートアクセス</strong>: http://localhost:8050 で全機能利用可能</li>
-            <li><strong>ファインチューニング機能</strong>: http://localhost:8050/finetune <span class="feature-badge success">✅ 正常稼働</span></li>
-            <li><strong>RAG機能</strong>: http://localhost:8050/rag <span class="feature-badge success">✅ 正常稼働</span></li>
-            <li><strong>継続学習機能</strong>: http://localhost:8050/continual <span class="feature-badge success">✅ 正常稼働</span></li>
-            <li><strong>リアルタイム監視</strong>: ファインチューニング進捗の可視化</li>
-            <li><strong>モデル管理</strong>: 学習済みモデルの一覧・選択・生成</li>
-            <li><strong>データアップロード</strong>: JSONLファイル + PDF文書の簡単アップロード</li>
-            <li><strong>システム情報</strong>: GPU使用状況とメモリ監視</li>
-            <li><strong>プロフェッショナルデザイン</strong>: 株）テイコクロゴと洗練されたUI</li>
-            <li><strong>Ollama統合</strong>: Ollamaモデル（Llama 3.2 3B）による高速推論 <span class="feature-badge success">✅ 動作確認済み</span></li>
-        </ul>
-
-        <h3>🏗️ 土木道路設計特化型RAGシステム <span class="feature-badge new">NEW: 統合済み</span></h3>
-        <ul>
-            <li><strong>統合API</strong>: <code>/rag/*</code> エンドポイントで9つのRAG機能を提供</li>
-            <li><strong>モデル選択UI</strong>: ファインチューニング済みモデルをRAGで使用可能 <span class="feature-badge new">NEW</span></li>
-            <li><strong>ハイブリッド検索</strong>: ベクトル検索 + キーワード検索の統合</li>
-            <li><strong>多層リランキング</strong>: Cross-encoder、技術用語、文脈理解による精度向上</li>
-            <li><strong>引用機能</strong>: 正確な出典情報付き回答生成</li>
-            <li><strong>数値処理</strong>: 設計速度・曲線半径・勾配等の自動抽出・検証</li>
-            <li><strong>バージョン管理</strong>: 文書の差分検出・変更履歴追跡</li>
-            <li><strong>設計基準チェック</strong>: 道路構造令準拠の適合性検証</li>
-            <li><strong>ストリーミング応答</strong>: リアルタイム検索結果表示</li>
-            <li><strong>バッチ処理</strong>: 複数クエリの一括処理</li>
-            <li><strong>メタデータ管理</strong>: 文書分類・検索・統計機能</li>
-            <li><strong>レスポンシブUI</strong>: 改善されたレイアウトと視認性 <span class="feature-badge new">NEW</span></li>
-        </ul>
-
-        <h3>🔄 継続学習システム <span class="feature-badge new">NEW</span></h3>
-        <ul>
-            <li><strong>EWCベース継続学習</strong>: Fisher情報行列による重要パラメータの保護</li>
-            <li><strong>破滅的忘却の防止</strong>: 以前のタスクの知識を保持しながら新タスクを学習</li>
-            <li><strong>タスク管理</strong>: 複数の学習タスクの実行状況をリアルタイム監視</li>
-            <li><strong>学習履歴管理</strong>: 完了したタスクの履歴と成果物の管理</li>
-            <li><strong>メモリ効率化</strong>: 効率的なFisher行列管理による省メモリ実行</li>
-            <li><strong>モデル選択</strong>: ベースモデルやファインチューニング済みモデルから選択可能</li>
-        </ul>
-
-        <h3>ファインチューニング手法</h3>
-        <ul>
-            <li><span class="emoji">🔥</span><strong>フルファインチューニング</strong>: 全パラメータ更新による高精度学習</li>
-            <li><span class="emoji">⚡</span><strong>LoRA</strong>: パラメータ効率的学習（低メモリ）</li>
-            <li><span class="emoji">💎</span><strong>QLoRA</strong>: 4bit/8bit量子化による超省メモリ学習</li>
-            <li><span class="emoji">🧠</span><strong>EWC</strong>: 継続的学習による破滅的忘却の抑制</li>
-            <li><span class="emoji">🔧</span><strong>自動量子化</strong>: モデルサイズに応じた最適化</li>
-        </ul>
-
-        <h3>✅ サポートモデル</h3>
-        <p>最新のサポートモデルリストです。</p>
-        
-        <table>
-            <thead>
-                <tr>
-                    <th>モデル名</th>
-                    <th>タイプ</th>
-                    <th>精度</th>
-                    <th>推奨VRAM</th>
-                    <th>タグ</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><strong>Qwen/Qwen2.5-14B-Instruct</strong></td>
-                    <td>CausalLM</td>
-                    <td>bfloat16</td>
-                    <td>32GB</td>
-                    <td><code>multilingual</code>, <code>14b</code>, <code>instruct</code></td>
-                </tr>
-                <tr>
-                    <td><strong>Qwen/Qwen2.5-32B-Instruct</strong></td>
-                    <td>CausalLM</td>
-                    <td>bfloat16</td>
-                    <td>80GB</td>
-                    <td><code>multilingual</code>, <code>32b</code>, <code>instruct</code></td>
-                </tr>
-                <tr>
-                    <td><strong>cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese</strong></td>
-                    <td>CausalLM</td>
-                    <td>bfloat16</td>
-                    <td>80GB</td>
-                    <td><code>japanese</code>, <code>32b</code>, <code>deepseek</code></td>
-                </tr>
-                <tr>
-                    <td><strong>cyberagent/calm3-22b-chat</strong></td>
-                    <td>CausalLM</td>
-                    <td>float16</td>
-                    <td>48GB</td>
-                    <td><code>japanese</code>, <code>22b</code>, <code>chat</code></td>
-                </tr>
-                <tr>
-                    <td><strong>meta-llama/Meta-Llama-3.1-70B-Instruct</strong></td>
-                    <td>CausalLM</td>
-                    <td>bfloat16</td>
-                    <td>160GB</td>
-                    <td><code>multilingual</code>, <code>70b</code>, <code>instruct</code></td>
-                </tr>
-                <tr>
-                    <td><strong>meta-llama/Meta-Llama-3.1-32B-Instruct</strong></td>
-                    <td>CausalLM</td>
-                    <td>bfloat16</td>
-                    <td>80GB</td>
-                    <td><code>multilingual</code>, <code>32b</code>, <code>instruct</code></td>
-                </tr>
-                <tr>
-                    <td><strong>microsoft/Phi-3.5-32B-Instruct</strong></td>
-                    <td>CausalLM</td>
-                    <td>bfloat16</td>
-                    <td>80GB</td>
-                    <td><code>multilingual</code>, <code>32b</code>, <code>instruct</code></td>
-                </tr>
-                <tr>
-                    <td><strong>microsoft/Orca-2-32B-Instruct</strong></td>
-                    <td>CausalLM</td>
-                    <td>bfloat16</td>
-                    <td>80GB</td>
-                    <td><code>multilingual</code>, <code>32b</code>, <code>instruct</code></td>
-                </tr>
-            </tbody>
-        </table>
-
-        <h3>GPU最適化</h3>
-        <ul>
-            <li><strong>Flash Attention 2</strong>: 注意機構の高速化</li>
-            <li><strong>Gradient Checkpointing</strong>: メモリ使用量削減</li>
-            <li><strong>Mixed Precision</strong>: FP16による計算高速化</li>
-            <li><strong>マルチGPU対応</strong>: DataParallel/DistributedDataParallel</li>
-        </ul>
-
-        <h3>🧠 メモリ最適化（新機能）</h3>
-        <ul>
-            <li><strong>動的量子化</strong>: 32B/22Bモデルは4bit、7B/8Bモデルは8bit量子化を自動選択</li>
-            <li><strong>CPUオフロード</strong>: GPUメモリ不足時の自動CPU実行</li>
-            <li><strong>メモリ監視</strong>: リアルタイムメモリ使用量の監視と警告</li>
-            <li><strong>モデルキャッシュ</strong>: 効率的なモデル再利用</li>
-            <li><strong>最適化されたAPI</strong>: メモリ効率的なWeb API（<code>app/main_unified.py</code>）</li>
-        </ul>
-
-        <h2>📋 必要環境</h2>
-        
-        <h3>ハードウェア要件</h3>
-        <ul>
-            <li><strong>GPU</strong>: NVIDIA GPU（CUDA対応）</li>
-            <li><strong>メモリ</strong>: 最低8GB VRAM（推奨16GB以上）</li>
-            <li><strong>システムメモリ</strong>: 16GB以上推奨</li>
-        </ul>
-
-        <h3>ソフトウェア要件</h3>
-        <ul>
-            <li>Python 3.8以上（推奨3.11）</li>
-            <li>CUDA 12.6+</li>
-            <li>Docker & Docker Compose</li>
-            <li>Git</li>
-            <li>Ollama（Ollamaモデル統合のため）</li>
-        </ul>
-
-        <h2>🚀 クイックスタート</h2>
-        
-        <h3>🎯 超簡単！3ステップで開始</h3>
-        <pre><code># 1. リポジトリのクローン
-git clone https://github.com/kji-furuta/MoE_RAG.git
-cd MoE_RAG
-
-# 2. Docker環境起動
-cd docker && docker-compose up -d --build  # 初回のみ
-# 2回目以降は: docker-compose up -d
-
-# 3. Webインターフェース起動
-docker exec ai-ft-container bash /workspace/scripts/start_web_interface.sh
-
-# 4. ブラウザでアクセス
-# http://localhost:8050</code></pre>
-        
-        <h3>Ollamaモデル管理</h3>
-        
-        <h4>モデル削除コマンド</h4>
-        <pre><code># 特定モデルの削除
-ollama rm 5_deepseek-32b-finetuned:latest
-
-# Docker環境での削除
-docker exec ai-ft-container ollama rm 5_deepseek-32b-finetuned:latest
-
-# 複数モデルの一括削除
-for i in {0..99}; do
-    ollama rm ${i}_deepseek-32b-finetuned:latest 2>/dev/null
-done</code></pre>
-        
-        <h4>継続学習タスク削除</h4>
-        <pre><code># タスク一覧確認
-docker exec ai-ft-container python /workspace/scripts/delete_continual_task.py --list
-
-# 特定タスクの削除
-docker exec ai-ft-container python /workspace/scripts/delete_continual_task.py --delete task_001
-
-# 削除前の確認（Dry Run）
-docker exec ai-ft-container python /workspace/scripts/delete_continual_task.py --delete task_001 --dry-run</code></pre>
-        
-        <h3>詳細な手順（手動セットアップの場合）</h3>
-        
-        <h4>1. リポジトリのクローン</h4>
-        <pre><code>git clone https://github.com/kji-furuta/MoE_RAG.git
-cd MoE_RAG</code></pre>
-
-        <h4>2. Ollamaのインストール（初回のみ）</h4>
-        <pre><code># Ollamaをインストール
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Ollamaサービスを起動
-ollama serve</code></pre>
-        <p>※ 新しいターミナルウィンドウでOllamaを起動したままにしてください</p>
-
-        <h4>3. Docker環境の起動（RAG統合版）</h4>
-        
-        <h4>自動ビルド（推奨）</h4>
-        <pre><code># RAG依存関係も含めた完全ビルド＋起動＋テスト
-./scripts/docker_build_rag.sh --no-cache</code></pre>
-
-        <h4>手動ビルド</h4>
-        <pre><code># 初回のみ：RAG統合版Dockerイメージビルド
-cd docker
-docker-compose up -d --build
-
-# 2回目以降：通常起動（ビルド不要）
-docker-compose up -d</code></pre>
-
-        <h4>4. 統合Webインターフェースの起動</h4>
-        
-        <h4>方法1: 自動起動スクリプト（推奨）</h4>
-        <pre><code># コンテナ内で統合インターフェース起動
-docker exec ai-ft-container bash /workspace/scripts/start_web_interface.sh</code></pre>
-
-        <h4>方法2: 手動起動（トラブルシューティング用）</h4>
-        <pre><code># コンテナ内で直接起動（ログ確認用）
-docker exec ai-ft-container python -m uvicorn app.main_unified:app --host 0.0.0.0 --port 8050 --reload</code></pre>
-
-        <h4>方法3: バックグラウンド起動</h4>
-        <pre><code># バックグラウンドで起動
-docker exec -d ai-ft-container python -m uvicorn app.main_unified:app --host 0.0.0.0 --port 8050 --reload</code></pre>
-
-        <h4>方法4: ファイル不足時の対処法</h4>
-        <pre><code># 必要なファイルをコンテナにコピー
-docker cp app/ ai-ft-container:/workspace/
-docker cp templates/ ai-ft-container:/workspace/
-docker cp src/ ai-ft-container:/workspace/
-
-# Webサーバーを起動
-docker exec -d ai-ft-container python -m uvicorn app.main_unified:app --host 0.0.0.0 --port 8050 --reload</code></pre>
-
-        <h4>5. ブラウザでアクセス</h4>
-        <ul>
-            <li><strong>統合ダッシュボード</strong>: <a href="http://localhost:8050/" target="_blank">http://localhost:8050/</a></li>
-            <li><strong>ファインチューニング</strong>: <a href="http://localhost:8050/finetune" target="_blank">http://localhost:8050/finetune</a></li>
-            <li><strong>RAGシステム</strong>: <a href="http://localhost:8050/rag" target="_blank">http://localhost:8050/rag</a></li>
-            <li><strong>モデル管理</strong>: <a href="http://localhost:8050/models" target="_blank">http://localhost:8050/models</a></li>
-        </ul>
-
-        <h3>🎯 統合機能一覧</h3>
-        <ul>
-            <li><strong>統合ダッシュボード</strong>: システム状況とタスク管理</li>
-            <li><strong>ファインチューニング</strong>: データアップロードと学習実行</li>
-            <li><strong>RAGシステム</strong>: 土木道路設計文書の検索・質問応答 <span class="feature-badge new">NEW</span>
-                <ul>
-                    <li>文書アップロード・インデックス化</li>
-                    <li>ハイブリッド検索（ベクトル+キーワード）</li>
-                    <li>ストリーミング応答</li>
-                    <li>バッチクエリ処理</li>
-                    <li>文書統計・メタデータ管理</li>
-                </ul>
-            </li>
-            <li><strong>テキスト生成</strong>: 学習済みモデルでの推論</li>
-            <li><strong>モデル管理</strong>: 利用可能モデルと学習済みモデル一覧</li>
-            <li><strong>マニュアル</strong>: <code>/manual</code> - 詳細な利用方法</li>
-            <li><strong>システム概要</strong>: <code>/system-overview</code> - 技術仕様</li>
-        </ul>
-
-        <h2>📚 使用方法</h2>
-        
-        <h3>🌐 Webインターフェース操作マニュアル</h3>
-        
-        <p>ブラウザで <code>http://localhost:8050</code> にアクセスして以下の機能を利用：</p>
-
-        <h4>🏠 <strong>メインダッシュボード</strong> (<code>/</code>)</h4>
-        <ul>
-            <li><strong>システム状況確認</strong>: GPU使用状況、メモリ使用率、RAGシステム状態</li>
-            <li><strong>機能ナビゲーション</strong>: 各機能へのクイックアクセス</li>
-            <li><strong>リアルタイム監視</strong>: システムリソースの可視化</li>
-        </ul>
-
-        <h4>🎯 <strong>ファインチューニング</strong> (<code>/finetune</code>)</h4>
-        <ol>
-            <li><strong>データアップロード</strong>
-                <ul>
-                    <li>「ファイルを選択」ボタンをクリック</li>
-                    <li>JSONL形式のトレーニングデータを選択</li>
-                    <li>アップロード完了を確認</li>
-                </ul>
-            </li>
-            <li><strong>モデル選択</strong>
-                <ul>
-                    <li>利用可能なベースモデルから選択</li>
-                    <li>モデルサイズとVRAM要件を確認</li>
-                    <li>推奨モデル: <code>cyberagent/calm3-22b-chat</code></li>
-                </ul>
-            </li>
-            <li><strong>学習設定</strong>
-                <ul>
-                    <li><strong>学習手法選択</strong>:
-                        <ul>
-                            <li><code>LoRA</code>: 軽量学習（推奨）</li>
-                            <li><code>QLoRA</code>: 4bit量子化学習</li>
-                            <li><code>フルファインチューニング</code>: 全パラメータ更新</li>
-                        </ul>
-                    </li>
-                    <li><strong>ハイパーパラメータ調整</strong>:
-                        <ul>
-                            <li>学習率: 1e-4 ~ 3e-4</li>
-                            <li>バッチサイズ: 1-4（VRAMに応じて）</li>
-                            <li>エポック数: 1-3</li>
-                        </ul>
-                    </li>
-                </ul>
-            </li>
-            <li><strong>学習実行</strong>
-                <ul>
-                    <li>「学習開始」ボタンをクリック</li>
-                    <li>リアルタイム進捗バーで監視</li>
-                    <li>ログで詳細状況を確認</li>
-                </ul>
-            </li>
-            <li><strong>学習完了</strong>
-                <ul>
-                    <li>モデル保存場所を確認</li>
-                    <li>生成テストで品質評価</li>
-                    <li>モデル管理ページで一覧表示</li>
-                </ul>
-            </li>
-        </ol>
-
-        <h4>🤖 <strong>テキスト生成</strong> (<code>/generate</code>)</h4>
-        <ol>
-            <li><strong>モデル選択</strong>
-                <ul>
-                    <li>学習済みモデル一覧から選択</li>
-                    <li>モデル情報（サイズ、学習日時）を確認</li>
-                </ul>
-            </li>
-            <li><strong>プロンプト入力</strong>
-                <ul>
-                    <li>テキストエリアに質問・指示を入力</li>
-                    <li>日本語での自然な入力が可能</li>
-                </ul>
-            </li>
-            <li><strong>生成パラメータ調整</strong>
-                <ul>
-                    <li><strong>温度 (Temperature)</strong>: 0.1-1.0（創造性の調整）</li>
-                    <li><strong>最大長 (Max Length)</strong>: 100-2048（出力長の制限）</li>
-                    <li><strong>Top-p</strong>: 0.1-1.0（多様性の調整）</li>
-                </ul>
-            </li>
-            <li><strong>生成実行</strong>
-                <ul>
-                    <li>「生成開始」ボタンをクリック</li>
-                    <li>ストリーミング表示でリアルタイム確認</li>
-                    <li>結果のコピー・保存が可能</li>
-                </ul>
-            </li>
-        </ol>
-
-        <h4>🔍 <strong>RAGシステム</strong> (<code>/rag</code>) - 土木道路設計特化</h4>
-        <ol>
-            <li><strong>文書アップロード</strong>
-                <ul>
-                    <li>「ファイルを選択」でPDF文書をアップロード</li>
-                    <li>文書タイトル、カテゴリ、タイプを設定</li>
-                    <li>自動インデックス化の進行状況を確認</li>
-                </ul>
-            </li>
-            <li><strong>インテリジェント検索</strong>
-                <ul>
-                    <li><strong>検索タイプ選択</strong>:
-                        <ul>
-                            <li><code>Hybrid</code>: ベクトル+キーワード検索（推奨）</li>
-                            <li><code>Vector</code>: 意味的類似性検索</li>
-                            <li><code>Keyword</code>: キーワードマッチング</li>
-                        </ul>
-                    </li>
-                    <li><strong>検索クエリ入力</strong>: 自然言語での質問</li>
-                    <li><strong>結果数調整</strong>: top_k（1-20件）</li>
-                </ul>
-            </li>
-            <li><strong>質問応答</strong>
-                <ul>
-                    <li>専門的な質問を自然言語で入力</li>
-                    <li>例: 「設計速度80km/hの道路の最小曲線半径は？」</li>
-                    <li>引用情報付きの正確な回答を取得</li>
-                </ul>
-            </li>
-            <li><strong>数値処理・検証</strong>
-                <ul>
-                    <li>自動数値抽出: 速度、長さ、勾配など</li>
-                    <li>設計基準チェック: 道路構造令との適合性</li>
-                    <li>単位変換: km↔m、km/h↔m/s</li>
-                </ul>
-            </li>
-            <li><strong>バッチ処理</strong>
-                <ul>
-                    <li>複数クエリの一括処理</li>
-                    <li>CSVファイルでの一括質問</li>
-                    <li>結果の一括ダウンロード</li>
-                </ul>
-            </li>
-            <li><strong>メタデータ管理</strong>
-                <ul>
-                    <li>文書一覧表示</li>
-                    <li>カテゴリ別フィルタリング</li>
-                    <li>統計情報の確認</li>
-                </ul>
-            </li>
-        </ol>
-
-        <h4>📊 <strong>モデル管理</strong> (<code>/models</code>)</h4>
-        <ol>
-            <li><strong>利用可能モデル</strong>
-                <ul>
-                    <li>ベースモデル一覧表示</li>
-                    <li>モデル詳細情報（サイズ、VRAM要件）</li>
-                    <li>ダウンロード状況の確認</li>
-                </ul>
-            </li>
-            <li><strong>学習済みモデル</strong>
-                <ul>
-                    <li>ファインチューニング済みモデル一覧</li>
-                    <li>学習日時、手法、サイズ情報</li>
-                    <li>モデル削除・アーカイブ機能</li>
-                </ul>
-            </li>
-            <li><strong>モデル変換</strong>
-                <ul>
-                    <li>Ollama形式への変換</li>
-                    <li>GGUF形式への変換</li>
-                    <li>変換進捗の監視</li>
-                </ul>
-            </li>
-        </ol>
-
-        <h4>⚙️ <strong>システム管理</strong></h4>
-        <ol>
-            <li><strong>システム情報</strong> (<code>/api/system-info</code>)
-                <ul>
-                    <li>GPU使用状況のリアルタイム監視</li>
-                    <li>メモリ使用率の確認</li>
-                    <li>RAGシステムの状態確認</li>
-                </ul>
-            </li>
-            <li><strong>キャッシュ管理</strong>
-                <ul>
-                    <li>モデルキャッシュのクリア</li>
-                    <li>メモリ最適化の実行</li>
-                    <li>システムリセット</li>
-                </ul>
-            </li>
-            <li><strong>ログ確認</strong>
-                <ul>
-                    <li>リアルタイムログ表示</li>
-                    <li>エラーログの確認</li>
-                    <li>システム診断</li>
-                </ul>
-            </li>
-        </ol>
-
-        <h4>📖 <strong>ドキュメント</strong></h4>
-        <ol>
-            <li><strong>利用マニュアル</strong> (<code>/manual</code>)
-                <ul>
-                    <li>詳細な操作手順</li>
-                    <li>トラブルシューティング</li>
-                    <li>よくある質問</li>
-                </ul>
-            </li>
-            <li><strong>システム概要</strong> (<code>/system-overview</code>)
-                <ul>
-                    <li>技術仕様の詳細</li>
-                    <li>アーキテクチャ説明</li>
-                    <li>パフォーマンス情報</li>
-                </ul>
-            </li>
-        </ol>
-
-        <h2>📊 監視システム（Prometheus + Grafana）</h2>
-        
-        <p>統合監視システムにより、アプリケーションのパフォーマンスとリソース使用状況をリアルタイムで監視できます。</p>
-
-        <h3>監視システムの起動</h3>
-        
-        <pre><code># 監視統合環境の起動（メインアプリケーション + 監視ツール）
-./scripts/start_monitoring_with_main.sh
-
-# または個別に起動
-./scripts/manage_services.sh start-all  # すべて起動
-./scripts/manage_services.sh start-app  # アプリケーションのみ
-./scripts/manage_services.sh start-monitor  # 監視ツールのみ</code></pre>
-
-        <h3>アクセスURL</h3>
-        
-        <ul>
-            <li><strong>Grafana ダッシュボード</strong>: <a href="http://localhost:3000" target="_blank">http://localhost:3000</a>
-                <ul>
-                    <li>ログイン: admin/admin</li>
-                    <li>AI Fine-tuning Toolkit Dashboard で監視</li>
-                </ul>
-            </li>
-            <li><strong>Prometheus</strong>: <a href="http://localhost:9090" target="_blank">http://localhost:9090</a>
-                <ul>
-                    <li>メトリクス確認とクエリ実行</li>
-                </ul>
-            </li>
-            <li><strong>メトリクスエンドポイント</strong>: <a href="http://localhost:8050/metrics" target="_blank">http://localhost:8050/metrics</a>
-                <ul>
-                    <li>Prometheus形式のメトリクス出力</li>
-                </ul>
-            </li>
-        </ul>
-
-        <h3>監視可能なメトリクス</h3>
-        
-        <h4>システムメトリクス</h4>
-        <ul>
-            <li><code>ai_ft_cpu_usage_percent</code>: CPU使用率</li>
-            <li><code>ai_ft_memory_usage_percent</code>: メモリ使用率</li>
-            <li><code>ai_ft_gpu_available</code>: GPU利用可能状態</li>
-            <li><code>ai_ft_gpu_count</code>: GPU数</li>
-            <li><code>ai_ft_gpu_memory_used_mb</code>: GPU メモリ使用量</li>
-        </ul>
-
-        <h4>アプリケーションメトリクス</h4>
-        <ul>
-            <li><code>ai_ft_http_requests_total</code>: HTTPリクエスト数</li>
-            <li><code>ai_ft_rag_queries_total</code>: RAGクエリ数</li>
-            <li><code>ai_ft_training_tasks_total</code>: トレーニングタスク数</li>
-            <li><code>ai_ft_cache_hits_total</code>: キャッシュヒット数</li>
-        </ul>
-
-        <h3>Grafanaダッシュボードの設定</h3>
-        
-        <pre><code># ダッシュボードの自動設定
-./scripts/setup_grafana_dashboard.sh</code></pre>
-
-        <h3>サービス管理コマンド</h3>
-        
-        <pre><code># 状態確認
-./scripts/manage_services.sh status
-
-# アプリケーション再起動
-./scripts/manage_services.sh restart-app
-
-# ログ確認
-./scripts/manage_services.sh logs-app      # アプリケーションログ
-./scripts/manage_services.sh logs-monitor  # 監視サービスログ
-
-# 停止
-./scripts/manage_services.sh stop-all      # すべて停止</code></pre>
-
-        <h2>🔧 トラブルシューティング</h2>
-
-        <h3>Ollama「model not found」エラーが発生する場合</h3>
-        <pre><code># モデルがインストールされているか確認
-ollama list
-
-# Llama 3.2 3Bモデルをダウンロード
-ollama pull llama3.2:3b
-
-# Ollamaサービスが起動しているか確認
-curl http://localhost:11434/api/tags
-
-# 必要に応じてOllamaを再起動
-killall ollama
-ollama serve
-
-# Dockerコンテナ内からモデルが見えるか確認
-docker exec ai-ft-container curl http://host.docker.internal:11434/api/tags</code></pre>
-
-        <h3>ロゴが表示されない場合</h3>
-        <pre><code># 静的ファイルの確認
-docker exec ai-ft-container ls -la /workspace/static/
-
-# ロゴファイルの存在確認
-docker exec ai-ft-container curl -I http://localhost:8050/static/logo_teikoku.png</code></pre>
-
-        <h3>Webインターフェースが起動しない場合</h3>
-        <pre><code># コンテナの状態確認
-docker ps -a
-
-# ログの確認
-docker logs ai-ft-container
-
-# 自動起動スクリプトの実行
-docker exec ai-ft-container bash /workspace/scripts/start_web_interface.sh
-
-# ファイル不足の確認
-docker exec ai-ft-container ls -la /workspace/app/
-
-# ファイルが不足している場合の対処法
-docker cp app/ ai-ft-container:/workspace/
-docker cp templates/ ai-ft-container:/workspace/
-docker cp src/ ai-ft-container:/workspace/
-
-# 手動起動
-docker exec -d ai-ft-container python -m uvicorn app.main_unified:app --host 0.0.0.0 --port 8050 --reload</code></pre>
-
-        <h3>モジュールエラーが発生する場合</h3>
-        <pre><code># モジュールのインポートテスト
-docker exec ai-ft-container python -c "import app.main_unified; print('Import successful')"
-
-# ファイル構造の確認
-docker exec ai-ft-container ls -la /workspace/app/
-docker exec ai-ft-container ls -la /workspace/src/
-
-# 必要に応じてファイルを再コピー
-docker cp app/ ai-ft-container:/workspace/
-docker cp templates/ ai-ft-container:/workspace/
-docker cp src/ ai-ft-container:/workspace/</code></pre>
-
-        <h3>RAGシステムが動作しない場合</h3>
-        <pre><code># 特化機能のテスト
-python3 scripts/simple_feature_test.py
-
-# RAGシステムの統合確認
-curl http://localhost:8050/rag/health
-
-# システム情報の確認
-curl http://localhost:8050/rag/system-info
-
-# ベクトル化エラーのテスト（v2.1.0で修正済み）
-docker exec ai-ft-container python test_vector_fix.py
-
-# 必要な依存関係の確認
-pip install qdrant-client sentence-transformers transformers</code></pre>
-
-        <h3>数値抽出・設計基準チェックのエラー</h3>
-        <pre><code># テキスト処理の確認
-python3 -c "
-from src.rag.specialized import extract_numerical_values
-values = extract_numerical_values('設計速度60km/h')
-print(f'抽出結果: {len(values)}個')
-"
-
-# 設計基準の確認
-python3 -c "
-from src.rag.specialized import check_design_standard
-result = check_design_standard(60, 'speed', 'km/h')
-print(f'検証結果: {result.is_valid}')
-"</code></pre>
-
-        <h2>🎯 今すぐ始める</h2>
-        
-        <pre><code># 1. クローン
-git clone https://github.com/kji-furuta/MoE_RAG.git
-cd MoE_RAG
-
-# 2. Ollamaをインストール・起動（新しいターミナルで）
-curl -fsSL https://ollama.com/install.sh | sh
-ollama serve
-
-# 3. 起動（元のターミナルで）
-cd docker && docker-compose up -d --build  # 初回のみ
-# 2回目以降は: docker-compose up -d
-
-# 4. Webサーバー開始
-docker exec ai-ft-container bash /workspace/scripts/start_web_interface.sh
-
-# 5. 起動確認
-# ポートの確認
-docker exec ai-ft-container netstat -tlnp | grep 8050
-
-# プロセスの確認
-docker exec ai-ft-container ps aux | grep uvicorn
-
-# ログの確認
-docker logs ai-ft-container --tail 20
-
-# 6. ブラウザでアクセス
-# http://localhost:8050 (メインシステム - RAG機能統合済み)
-# ※ ポート8051のRAG APIサーバーは不要（統合済み）</code></pre>
-
-        <h3>🚀 クイック操作ガイド</h3>
-        <ol>
-            <li><strong>メインダッシュボード</strong>: <a href="http://localhost:8050/" target="_blank">http://localhost:8050/</a>
-                <ul>
-                    <li>システム状況確認</li>
-                    <li>各機能へのナビゲーション</li>
-                </ul>
-            </li>
-            <li><strong>ファインチューニング</strong>: <a href="http://localhost:8050/finetune" target="_blank">http://localhost:8050/finetune</a>
-                <ul>
-                    <li>データアップロード → モデル選択 → 学習実行</li>
-                </ul>
-            </li>
-            <li><strong>RAGシステム</strong>: <a href="http://localhost:8050/rag" target="_blank">http://localhost:8050/rag</a>
-                <ul>
-                    <li>文書アップロード → 質問応答</li>
-                </ul>
-            </li>
-            <li><strong>モデル管理</strong>: <a href="http://localhost:8050/models" target="_blank">http://localhost:8050/models</a>
-                <ul>
-                    <li>学習済みモデルの確認・管理</li>
-                </ul>
-            </li>
-        </ol>
-
-        <div class="success-box">
-            <p><span class="emoji">🚀</span><strong>5分でファインチューニング・RAG開始！</strong></p>
-        </div>
-
-        <h2>📞 サポート</h2>
-        <p>問題が発生した場合は、以下の方法でサポートを受けられます：</p>
-        <ul>
-            <li><strong>GitHub Issues</strong>: <a href="https://github.com/kji-furuta/AI_FT_3/issues" target="_blank">問題を報告</a></li>
-            <li><strong>ドキュメント</strong>: <a href="/system-overview">システム概要</a>を参照</li>
-            <li><strong>ログ確認</strong>: <code>docker logs ai-ft-container</code></li>
-        </ul>
-
-        <div class="info-box">
-            <p><span class="emoji">💡</span><strong>ヒント</strong>: 最新の更新情報は、GitHubリポジトリのREADME.mdをご確認ください。</p>
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3>操作マニュアル（README）</h3>
+                    <p class="text-muted mb-0">最新の更新内容とシステム操作方法</p>
+                </div>
+                <div class="card-body">
+                    <!-- README.mdの内容を動的に表示 -->
+                    <div class="readme-content">
+                        {{ readme_content|safe }}
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+/* README用のスタイル */
+.readme-content {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+}
+
+.readme-content h1 {
+    font-size: 2em;
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+    border-bottom: 1px solid #e1e4e8;
+    padding-bottom: 0.3em;
+}
+
+.readme-content h2 {
+    font-size: 1.5em;
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+    border-bottom: 1px solid #e1e4e8;
+    padding-bottom: 0.3em;
+}
+
+.readme-content h3 {
+    font-size: 1.25em;
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.readme-content h4 {
+    font-size: 1em;
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+}
+
+.readme-content pre {
+    background-color: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    padding: 16px;
+    overflow: auto;
+    font-size: 85%;
+    line-height: 1.45;
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+.readme-content code {
+    background-color: rgba(27,31,35,.05);
+    border-radius: 3px;
+    font-size: 85%;
+    margin: 0;
+    padding: .2em .4em;
+    font-family: SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
+}
+
+.readme-content pre code {
+    background: transparent;
+    border: 0;
+    display: inline;
+    padding: 0;
+    font-size: 100%;
+}
+
+.readme-content ul, .readme-content ol {
+    margin-top: 0;
+    margin-bottom: 16px;
+    padding-left: 2em;
+}
+
+.readme-content li {
+    margin-bottom: 4px;
+}
+
+.readme-content table {
+    display: block;
+    width: 100%;
+    overflow: auto;
+    margin-bottom: 16px;
+}
+
+.readme-content table th,
+.readme-content table td {
+    padding: 6px 13px;
+    border: 1px solid #dfe2e5;
+}
+
+.readme-content table tr {
+    background-color: #fff;
+    border-top: 1px solid #c6cbd1;
+}
+
+.readme-content table tr:nth-child(2n) {
+    background-color: #f6f8fa;
+}
+
+.readme-content blockquote {
+    margin: 0 0 16px 0;
+    padding: 0 1em;
+    color: #6a737d;
+    border-left: .25em solid #dfe2e5;
+}
+
+.readme-content strong {
+    font-weight: 600;
+}
+
+.readme-content em {
+    font-style: italic;
+}
+
+.readme-content a {
+    color: #0366d6;
+    text-decoration: none;
+}
+
+.readme-content a:hover {
+    text-decoration: underline;
+}
+
+/* コードブロック用の追加スタイル */
+.codehilite {
+    background: #f6f8fa;
+    border-radius: 6px;
+    padding: 16px;
+    overflow: auto;
+    margin-bottom: 16px;
+}
+
+/* 絵文字のサイズ調整 */
+.readme-content img[alt*="✅"],
+.readme-content img[alt*="🎯"],
+.readme-content img[alt*="🚀"],
+.readme-content img[alt*="⚡"],
+.readme-content img[alt*="🧑‍💻"],
+.readme-content img[alt*="📦"],
+.readme-content img[alt*="🔧"],
+.readme-content img[alt*="📝"],
+.readme-content img[alt*="⚠️"] {
+    width: 1.2em;
+    height: 1.2em;
+    vertical-align: text-bottom;
+}
+</style>
 {% endblock %}

@@ -3,7 +3,6 @@
 継続学習のWeb UI実装
 """
 
-from .continual_learning_ui import router as continual_learning_router
-from .task_scheduler import TaskScheduler, ContinualLearningTask
+from .continual_learning_ui import create_continual_learning_router
 
-__all__ = ['continual_learning_router', 'TaskScheduler', 'ContinualLearningTask']
+__all__ = ['create_continual_learning_router']

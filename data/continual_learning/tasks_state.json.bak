@@ -181,25 +181,6 @@
       "task_history": "task_2"
     }
   },
-  "363c88d0-3c43-42f1-9388-75d9f7c0031a": {
-    "task_id": "363c88d0-3c43-42f1-9388-75d9f7c0031a",
-    "task_name": "task_1",
-    "status": "failed",
-    "progress": 0,
-    "started_at": "2025-08-28T14:56:32.237594+09:00",
-    "config": {
-      "base_model": "outputs/フルファインチューニング_20250828_135711",
-      "task_name": "task_1",
-      "use_previous_tasks": true,
-      "ewc_lambda": 5000,
-      "epochs": 3,
-      "learning_rate": 2e-05,
-      "use_memory_efficient": true
-    },
-    "dataset_path": "/workspace/data/continual_learning/db62ced9-307e-4e06-b289-5ac972197bf0_conc_data.jsonl",
-    "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: name 'UnifiedQuantizationConfig' is not defined",
-    "error": "トレーニングが失敗しました: モデル読み込みエラー: name 'UnifiedQuantizationConfig' is not defined"
-  },
   "864db774-db8d-4f38-8935-1ebd372f1bdb": {
     "task_id": "864db774-db8d-4f38-8935-1ebd372f1bdb",
     "task_name": "task_12",
@@ -379,5 +360,202 @@
       },
       "task_history": "task_1"
     }
+  },
+  "45817b4a-2321-4c26-ab7c-1f82b2daa66f": {
+    "task_id": "45817b4a-2321-4c26-ab7c-1f82b2daa66f",
+    "task_name": "task_100",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-09-13T09:47:56.748584+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250911_182716",
+      "task_name": "task_100",
+      "use_previous_tasks": true,
+      "ewc_lambda": 1000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/84e371bd-995e-4fb2-a39f-3a82f6c48e40_MoE_RAG_data.jsonl",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-09-13T10:03:31.004842+09:00",
+    "output_path": "outputs/continual_task_100_20250913_100331",
+    "model_info": {
+      "name": "continual_task_100",
+      "path": "outputs/continual_task_100_20250913_100331",
+      "base_model": "outputs/lora_20250911_182716",
+      "training_method": "continual_ewc",
+      "created_at": "2025-09-13T10:03:31.012116+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 1000,
+        "use_previous_tasks": true
+      },
+      "task_history": "task_100"
+    }
+  },
+  "3b1c4b14-6317-41cf-be4a-86f94f4591de": {
+    "task_id": "3b1c4b14-6317-41cf-be4a-86f94f4591de",
+    "task_name": "タスク001",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-09-17T11:49:31.260264+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250917_104433",
+      "task_name": "タスク001",
+      "use_previous_tasks": true,
+      "ewc_lambda": 1000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/b8434f56-b3e8-4600-9b6e-90dbb4b0c9af_AI_FT_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: CUDA driver error: out of memory",
+    "error": "トレーニングが失敗しました: モデル読み込みエラー: CUDA driver error: out of memory"
+  },
+  "99bf927d-b1ff-488a-a101-705977a8f602": {
+    "task_id": "99bf927d-b1ff-488a-a101-705977a8f602",
+    "task_name": "タスク001",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-09-17T11:54:14.776541+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250917_104433",
+      "task_name": "タスク001",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/c5c2d03a-0411-4537-b9fc-d8ec0a62441c_AI_FT_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: !handles_.at(i) INTERNAL ASSERT FAILED at \"../c10/cuda/CUDACachingAllocator.cpp\":393, please report a bug to PyTorch. ",
+    "error": "トレーニングが失敗しました: モデル読み込みエラー: !handles_.at(i) INTERNAL ASSERT FAILED at \"../c10/cuda/CUDACachingAllocator.cpp\":393, please report a bug to PyTorch. "
+  },
+  "b3c95507-9b07-4ea3-9466-8f81b33beec4": {
+    "task_id": "b3c95507-9b07-4ea3-9466-8f81b33beec4",
+    "task_name": "task_100",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-09-17T21:47:09.602627+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250917_104433",
+      "task_name": "task_100",
+      "use_previous_tasks": true,
+      "ewc_lambda": 1000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/47f6c839-43a5-4582-b540-f0c5e1ab9ac2_MoE_RAG_data.jsonl",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-09-17T22:02:04.373793+09:00",
+    "output_path": "outputs/continual_task_100_20250917_220204",
+    "model_info": {
+      "name": "continual_task_100",
+      "path": "outputs/continual_task_100_20250917_220204",
+      "base_model": "outputs/lora_20250917_104433",
+      "training_method": "continual_ewc",
+      "created_at": "2025-09-17T22:02:04.382767+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 1000,
+        "use_previous_tasks": true
+      },
+      "task_history": "task_100"
+    }
+  },
+  "5f965788-8bb4-4236-9d97-033228f80c61": {
+    "task_id": "5f965788-8bb4-4236-9d97-033228f80c61",
+    "task_name": "task_100",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-09-18T14:24:55.030131+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250918_135106",
+      "task_name": "task_100",
+      "use_previous_tasks": false,
+      "ewc_lambda": 1000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/a79bb38f-bea0-4278-9635-fd238e769204_AI_FT_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: CUDA driver error: out of memory",
+    "error": "トレーニングが失敗しました: モデル読み込みエラー: CUDA driver error: out of memory"
+  },
+  "1d31493b-fe41-40ab-80f4-a45db4e2cb3c": {
+    "task_id": "1d31493b-fe41-40ab-80f4-a45db4e2cb3c",
+    "task_name": "task_100",
+    "status": "failed",
+    "progress": 0,
+    "started_at": "2025-09-18T14:25:49.003686+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250918_135106",
+      "task_name": "task_100",
+      "use_previous_tasks": true,
+      "ewc_lambda": 1000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/3028f379-bc91-445c-b1e8-1983b3d68ae6_AI_FT_data.jsonl",
+    "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: !handles_.at(i) INTERNAL ASSERT FAILED at \"../c10/cuda/CUDACachingAllocator.cpp\":393, please report a bug to PyTorch. ",
+    "error": "トレーニングが失敗しました: モデル読み込みエラー: !handles_.at(i) INTERNAL ASSERT FAILED at \"../c10/cuda/CUDACachingAllocator.cpp\":393, please report a bug to PyTorch. "
+  },
+  "c75eef46-ca16-4189-bd33-8799fe2795ec": {
+    "task_id": "c75eef46-ca16-4189-bd33-8799fe2795ec",
+    "task_name": "task_100",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-09-18T16:44:31.502628+09:00",
+    "config": {
+      "base_model": "outputs/lora_20250918_135106",
+      "task_name": "task_100",
+      "use_previous_tasks": true,
+      "ewc_lambda": 1000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "/workspace/data/continual_learning/21321f06-15d3-4145-92e0-272e330e27b1_AI_FT_data.jsonl",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-09-18T17:00:00.855143+09:00",
+    "output_path": "outputs/continual_task_100_20250918_170000",
+    "model_info": {
+      "name": "continual_task_100",
+      "path": "outputs/continual_task_100_20250918_170000",
+      "base_model": "outputs/lora_20250918_135106",
+      "training_method": "continual_ewc",
+      "created_at": "2025-09-18T17:00:00.860087+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 1000,
+        "use_previous_tasks": true
+      },
+      "task_history": "task_100"
+    }
+  },
+  "0cd3de51-4e48-4c01-b1a3-3bbdf8988bdd": {
+    "id": "0cd3de51-4e48-4c01-b1a3-3bbdf8988bdd",
+    "type": "continual_learning",
+    "status": "failed",
+    "progress": 10,
+    "created_at": "2025-09-18T19:53:17.326718+09:00",
+    "metrics": {},
+    "messages": [
+      "モデルをロード中..."
+    ],
+    "error": "We need an `offload_dir` to dispatch this model according to this `device_map`, the following submodules need to be offloaded: model.layers.34, model.layers.35, model.layers.36, model.layers.37, model.layers.38, model.layers.39, model.layers.40, model.layers.41, model.layers.42, model.layers.43, model.layers.44, model.layers.45, model.layers.46, model.layers.47, model.layers.48, model.layers.49, model.layers.50, model.layers.51, model.layers.52, model.layers.53, model.layers.54, model.layers.55, model.layers.56, model.layers.57, model.layers.58, model.layers.59, model.layers.60, model.layers.61, model.layers.62, model.layers.63, model.norm, model.rotary_emb, lm_head.",
+    "completed_at": "2025-09-18T20:07:46.644285+09:00"
   }
 }

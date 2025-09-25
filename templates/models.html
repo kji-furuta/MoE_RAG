@@ -207,11 +207,14 @@ async function loadAvailableModels() {
             });
         }
         
-        // Ollamaモデル（削除ボタンなし）
+        // Ollamaモデル（削除ボタン付き）
         if (data.ollama_models && data.ollama_models.length > 0) {
             data.ollama_models.forEach(model => {
                 html += `
                     <div class="model-card">
+                        <button class="delete-btn" onclick="showDeleteOllamaModal('${model.name}')" title="Delete this Ollama model">
+                            🗑️ Delete
+                        </button>
                         <div class="model-type ollama">Ollama</div>
                         <h3>${model.name}</h3>
                         <div class="model-info">
@@ -237,8 +240,15 @@ async function loadAvailableModels() {
 
 // 削除確認モーダルを表示
 function showDeleteModal(modelName) {
-    modelToDelete = modelName;
+    modelToDelete = { name: modelName, type: 'finetuned' };
     document.getElementById('deleteModelName').textContent = modelName;
+    document.getElementById('deleteModal').style.display = 'block';
+}
+
+// Ollamaモデルの削除確認モーダルを表示
+function showDeleteOllamaModal(modelName) {
+    modelToDelete = { name: modelName, type: 'ollama' };
+    document.getElementById('deleteModelName').textContent = `Ollama: ${modelName}`;
     document.getElementById('deleteModal').style.display = 'block';
 }
 
@@ -251,23 +261,32 @@ function closeDeleteModal() {
 // モデルを削除
 async function confirmDelete() {
     if (!modelToDelete) return;
-    
+
     const deleteButton = document.querySelector('.modal-btn.confirm');
     deleteButton.disabled = true;
     deleteButton.textContent = 'Deleting...';
-    
+
     try {
-        const response = await fetch(`/api/models/${encodeURIComponent(modelToDelete)}`, {
+        let url;
+        if (modelToDelete.type === 'ollama') {
+            // Ollamaモデルの削除
+            url = `/api/ollama/models/${encodeURIComponent(modelToDelete.name)}`;
+        } else {
+            // ファインチューニングモデルの削除
+            url = `/api/models/${encodeURIComponent(modelToDelete.name)}`;
+        }
+
+        const response = await fetch(url, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         const result = await response.json();
-        
+
         if (response.ok && result.success) {
-            alert(`Model "${modelToDelete}" has been deleted successfully.`);
+            alert(`Model "${modelToDelete.name}" has been deleted successfully.`);
             closeDeleteModal();
             loadAvailableModels(); // リストを更新
         } else {

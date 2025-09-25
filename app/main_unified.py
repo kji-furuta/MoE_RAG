@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse, Str
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
+from dataclasses import asdict
 import json
 import os
 import uuid
@@ -49,7 +50,6 @@ from app.training.models import GenerationRequest, TrainingRequest, TrainingStat
 from app.training.service import create_training_task, run_training_task
 from app.dependencies import model_cache, executor, training_tasks
 import io
-import random
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)
@@ -157,15 +157,23 @@ print(f"Using static directory: {static_dir}")
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # 継続学習モジュールのインポート
+CONTINUAL_TASKS_FILE = Path(os.getcwd()) / "data" / "continual_learning" / "tasks_state.json"
+task_manager = None
+
 try:
-    from app.continual_learning.continual_learning_ui import create_continual_learning_router, websocket_endpoint
+    from app.continual_learning.continual_learning_ui import (
+        create_continual_learning_router,
+        websocket_endpoint,
+        task_manager as continual_task_manager,
+    )
+
+    task_manager = continual_task_manager
     continual_learning_router = create_continual_learning_router()
-    app.include_router(continual_learning_router)
+    app.include_router(continual_learning_router, prefix="/api/continual-learning")
     logger.info("継続学習モジュールを正常にロードしました")
 except Exception as e:
+    websocket_endpoint = None
     logger.warning(f"継続学習モジュールのロードをスキップ: {str(e)}")
-    # 継続学習モジュールが読み込めない場合は、基本的なAPIエンドポイントを直接定義
-    pass
 
 # データモデル定義
 class ModelInfo(BaseModel):
@@ -259,6 +267,18 @@ class RAGApplication:
         self.metadata_manager: Optional[MetadataManager] = None
         self.is_initialized = False
         self.initialization_error = None
+        self.config: Dict[str, Any] = {}
+
+        if RAG_AVAILABLE:
+            try:
+                from src.rag.config.rag_config import load_config
+
+                self.config = asdict(load_config())
+            except Exception as config_error:
+                logger.warning(f"RAG設定の読み込みに失敗しました: {config_error}")
+                self.config = {}
+        else:
+            logger.info("RAGシステムが無効なため、デフォルト設定を使用します")
         # Docker環境に対応した永続化ディレクトリの設定
         if os.path.exists("/workspace"):
             # Docker環境内
@@ -2255,6 +2275,59 @@ async def delete_model(model_name: str):
             content={"success": False, "error": str(e)}
         )
 
+@app.delete("/api/ollama/models/{model_name:path}")
+async def delete_ollama_model(model_name: str):
+    """Ollamaモデルを削除"""
+    import subprocess
+
+    try:
+        # モデル名の安全性チェック
+        if ".." in model_name or model_name.startswith("/"):
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "error": "Invalid model name"}
+            )
+
+        logger.info(f"Deleting Ollama model: {model_name}")
+
+        # Ollamaコマンドを使用してモデルを削除
+        result = subprocess.run(
+            ["ollama", "rm", model_name],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        if result.returncode == 0:
+            logger.info(f"Ollama model '{model_name}' deleted successfully")
+            return {"success": True, "message": f"Ollama model '{model_name}' deleted successfully"}
+        else:
+            error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+            logger.error(f"Failed to delete Ollama model '{model_name}': {error_msg}")
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "error": error_msg}
+            )
+
+    except subprocess.TimeoutExpired:
+        logger.error(f"Timeout when deleting Ollama model: {model_name}")
+        return JSONResponse(
+            status_code=504,
+            content={"success": False, "error": "Operation timed out"}
+        )
+    except FileNotFoundError:
+        logger.error("Ollama command not found")
+        return JSONResponse(
+            status_code=503,
+            content={"success": False, "error": "Ollama is not installed or not in PATH"}
+        )
+    except Exception as e:
+        logger.error(f"Error deleting Ollama model '{model_name}': {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
 @app.post("/api/generate-stream")
 async def generate_text_stream(request: dict):
     """ストリーミング対応のテキスト生成"""
@@ -4204,420 +4277,59 @@ async def rag_stream_query(request: QueryRequest):
 # 継続学習API
 # ============================================
 
-# 継続学習タスク管理と永続化
-CONTINUAL_TASKS_FILE = Path(os.getcwd()) / "data" / "continual_learning" / "tasks_state.json"
-continual_tasks = {}
 
 def load_continual_tasks():
-    """保存された継続学習タスクを読み込む"""
-    global continual_tasks
+    """保存された継続学習タスクを読み込み、タスクマネージャーに復元する"""
+    if task_manager is None:
+        logger.info("継続学習モジュールが無効なため、タスク読み込みをスキップします")
+        return
+
     try:
         if CONTINUAL_TASKS_FILE.exists():
             with open(CONTINUAL_TASKS_FILE, 'r', encoding='utf-8') as f:
-                continual_tasks = json.load(f)
-                logger.info(f"継続学習タスクを読み込みました: {len(continual_tasks)}件")
+                stored_tasks = json.load(f)
+
+            if isinstance(stored_tasks, dict):
+                task_manager.tasks = stored_tasks
+                logger.info("継続学習タスクを読み込みました: %d件", len(task_manager.tasks))
+            else:
+                logger.warning("継続学習タスクファイルの形式が不正なため、状態を初期化します")
+                task_manager.tasks = {}
         else:
-            continual_tasks = {}
-            logger.info("継続学習タスクファイルが存在しません。新規作成します。")
+            task_manager.tasks = {}
+            logger.info("継続学習タスクファイルが存在しません。新規に初期化します。")
     except Exception as e:
         logger.error(f"継続学習タスク読み込みエラー: {str(e)}")
-        continual_tasks = {}
+        task_manager.tasks = {}
+
 
 def save_continual_tasks():
-    """継続学習タスクを保存する"""
+    """現在の継続学習タスクを永続化する"""
+    if task_manager is None:
+        logger.info("継続学習モジュールが無効なため、タスク保存をスキップします")
+        return
+
     try:
-        # ディレクトリが存在しない場合は作成
         CONTINUAL_TASKS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        
         with open(CONTINUAL_TASKS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(continual_tasks, f, ensure_ascii=False, indent=2, default=str)
-        logger.info(f"継続学習タスクを保存しました: {len(continual_tasks)}件")
+            json.dump(task_manager.tasks, f, ensure_ascii=False, indent=2)
+        logger.info("継続学習タスクを保存しました: %d件", len(task_manager.tasks))
     except Exception as e:
         logger.error(f"継続学習タスク保存エラー: {str(e)}")
 
-# 継続学習用のモデル取得API
-@app.get("/api/continual-learning/models")
-async def get_continual_learning_models():
-    """継続学習用の利用可能モデル一覧を取得"""
-    try:
-        # ファインチューニング済みモデルを取得
-        saved_models = get_saved_models()
-        
-        # ベースモデルも含める
-        base_models = [
-            {
-                "name": "cyberagent/calm3-22b-chat",
-                "path": "cyberagent/calm3-22b-chat",
-                "type": "base",
-                "description": "日本語特化型22Bモデル（推奨）"
-            },
-            {
-                "name": "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese",
-                "path": "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese",
-                "type": "base",
-                "description": "日本語特化型32Bモデル"
-            },
-            {
-                "name": "Qwen/Qwen2.5-14B-Instruct",
-                "path": "Qwen/Qwen2.5-14B-Instruct",
-                "type": "base",
-                "description": "多言語対応14Bモデル"
-            },
-            {
-                "name": "Qwen/Qwen2.5-32B-Instruct",
-                "path": "Qwen/Qwen2.5-32B-Instruct",
-                "type": "base",
-                "description": "多言語対応32Bモデル"
-            }
-        ]
-        
-        # ファインチューニング済みモデルを継続学習用形式に変換
-        continual_models = []
-        
-        # ベースモデルを追加
-        for model in base_models:
-            continual_models.append({
-                "name": model["name"],
-                "path": model["path"],
-                "type": "base",
-                "description": model["description"]
-            })
-        
-        # ファインチューニング済みモデルを追加
-        for model in saved_models:
-            continual_models.append({
-                "name": f"{model['name']} (ファインチューニング済み)",
-                "path": model["path"],
-                "type": "finetuned",
-                "description": f"学習日時: {model.get('created_at', '不明')}"
-            })
-        
-        logger.info(f"継続学習用モデル一覧を取得: {len(continual_models)}個")
-        return continual_models
-        
-    except Exception as e:
-        logger.error(f"継続学習用モデル取得エラー: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
 
-# 継続学習用のモデル取得は continual_learning_ui.py のルーターを使用
+@app.websocket("/ws/continual-learning")
+async def continual_learning_websocket(websocket: WebSocket):
+    """継続学習の進捗をリアルタイムで配信"""
+    if websocket_endpoint is None:
+        await websocket.close(code=1011)
+        return
 
-@app.post("/api/continual-learning/start")
-async def start_continual_learning(
-    background_tasks: BackgroundTasks,
-    config: str = Form(...),
-    dataset: UploadFile = File(...)
-):
-    """継続学習を開始"""
     try:
-        # 設定をパース
-        config_data = json.loads(config)
-        
-        # データセットを保存
-        project_root = Path(os.getcwd())
-        dataset_dir = project_root / "data" / "continual_learning"
-        dataset_dir.mkdir(parents=True, exist_ok=True)
-        
-        dataset_path = dataset_dir / f"{uuid.uuid4()}_{dataset.filename}"
-        with open(dataset_path, "wb") as f:
-            content = await dataset.read()
-            f.write(content)
-        
-        # タスクIDを生成
-        task_id = str(uuid.uuid4())
-        
-        # タスク情報を保存
-        continual_tasks[task_id] = {
-            "task_id": task_id,
-            "task_name": config_data["task_name"],
-            "status": "pending",
-            "progress": 0,
-            "started_at": datetime.now(JST).isoformat(),
-            "config": config_data,
-            "dataset_path": str(dataset_path)
-        }
-        save_continual_tasks()  # 新しいタスクを保存
-        
-        # バックグラウンドで継続学習を実行
-        background_tasks.add_task(
-            run_continual_learning_background,
-            task_id,
-            config_data,
-            str(dataset_path)
-        )
-        
-        return {
-            "task_id": task_id,
-            "message": f"継続学習タスク '{config_data['task_name']}' を開始しました"
-        }
-        
+        await websocket_endpoint(websocket)
     except Exception as e:
-        logger.error(f"継続学習開始エラー: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-async def run_continual_learning_background(task_id: str, config: dict, dataset_path: str):
-    """バックグラウンドで継続学習を実行"""
-    try:
-        # タスクステータスを更新
-        continual_tasks[task_id]["status"] = "running"
-        continual_tasks[task_id]["message"] = "継続学習を準備中..."
-        save_continual_tasks()  # タスクの状態を保存
-        
-        logger.info(f"継続学習タスク開始: {task_id}")
-        logger.info(f"設定: {config}")
-        
-        # 実際の継続学習処理を実装
-        total_epochs = config.get("epochs", 3)
-        base_model_path = config.get("base_model")
-        
-        # モデルの存在確認
-        if not base_model_path:
-            raise ValueError("ベースモデルが指定されていません")
-        
-        # ファインチューニング済みモデルの場合はベースモデル情報を取得
-        actual_base_model = base_model_path
-        # ローカルパス（outputsディレクトリなど）の場合
-        if not base_model_path.startswith("http") and os.path.exists(base_model_path):
-            logger.info(f"ファインチューニング済みモデルのパス: {base_model_path}")
-            # training_info.jsonからベースモデル情報を取得
-            training_info_path = Path(base_model_path) / "training_info.json"
-            if training_info_path.exists():
-                try:
-                    with open(training_info_path, 'r', encoding='utf-8') as f:
-                        training_info = json.load(f)
-                        actual_base_model = training_info.get("base_model", base_model_path)
-                        logger.info(f"ベースモデル情報を取得: {actual_base_model}")
-                except Exception as e:
-                    logger.warning(f"training_info.jsonの読み込みに失敗: {e}")
-                    # デフォルトのベースモデルを使用
-                    actual_base_model = "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese"
-                    logger.info(f"デフォルトのベースモデルを使用: {actual_base_model}")
-            else:
-                # training_info.jsonがない場合はデフォルトモデルを使用
-                actual_base_model = "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese"
-                logger.info(f"training_info.jsonが見つからないため、デフォルトモデルを使用: {actual_base_model}")
-        else:
-            logger.info(f"ベースモデルを使用: {actual_base_model}")
-        
-        # 既存のLoRAアダプタパスを保存（継続学習で使用）
-        existing_lora_path = None
-        # ローカルパス（outputsディレクトリなど）でLoRAアダプタが存在する場合
-        if not base_model_path.startswith("http") and os.path.exists(base_model_path):
-            # training_info.jsonがあればLoRAアダプタと判定
-            if (Path(base_model_path) / "training_info.json").exists():
-                existing_lora_path = base_model_path
-                logger.info(f"既存のLoRAアダプタを継続学習に使用: {existing_lora_path}")
-        
-        # TrainingRequestオブジェクトを作成して既存のトレーニング関数を使用
-        training_request = TrainingRequest(
-            model_name=actual_base_model,  # ベースモデルを使用
-            training_data=[],  # データは後で設定
-            training_method="continual",  # 継続学習を指定
-            lora_config={
-                "r": 16,
-                "alpha": 32,
-                "dropout": 0.1
-            },
-            training_config={
-                "batch_size": config.get("batch_size", 1),
-                "num_epochs": total_epochs,
-                "learning_rate": config.get("learning_rate", 2e-5),
-                "gradient_accumulation_steps": config.get("gradient_accumulation_steps", 8),
-                "warmup_steps": config.get("warmup_steps", 20),
-                "max_length": config.get("max_length", 512),
-                "ewc_lambda": config.get("ewc_lambda", 5000),
-                "use_memory_efficient": config.get("use_memory_efficient", True),  # メモリ効率化を有効化
-                "existing_lora_path": existing_lora_path  # 既存のLoRAアダプタパスを追加
-            }
-        )
-        
-        # データの準備
-        train_texts = []
-        if dataset_path and os.path.exists(dataset_path):
-            with open(dataset_path, 'r', encoding='utf-8', errors='replace') as f:
-                line_num = 0
-                for line in f:
-                    line_num += 1
-                    if line.strip():
-                        try:
-                            # JSONパースエラーに対処
-                            data = json.loads(line)
-                            
-                            # 様々なデータ形式に対応
-                            if isinstance(data, dict):
-                                if "question" in data and "answer" in data:
-                                    text = f"質問: {data['question']}\n回答: {data['answer']}"
-                                elif "text" in data:
-                                    # "質問：" と "回答：" が既に含まれている場合はそのまま使用
-                                    text = data["text"]
-                                else:
-                                    # その他の形式の場合
-                                    text = str(data)
-                            else:
-                                # 辞書でない場合
-                                text = str(data)
-                            
-                            train_texts.append({"text": text})
-                            
-                        except json.JSONDecodeError as e:
-                            logger.warning(f"行 {line_num} でJSONパースエラー: {e}")
-                            # エラーのある行をスキップして継続
-                            continue
-                        except Exception as e:
-                            logger.warning(f"行 {line_num} でエラー: {e}")
-                            continue
-                            
-            logger.info(f"データファイルから{len(train_texts)}件のデータを読み込みました")
-            
-            # データが少ない場合の警告
-            if len(train_texts) == 0:
-                logger.warning("データファイルからデータを読み込めませんでした。デフォルトデータを使用します。")
-                train_texts = [
-                    {"text": "継続学習は既存の知識を保持しながら新しいタスクを学習する技術です。"},
-                    {"text": "EWC（Elastic Weight Consolidation）は継続学習の代表的な手法です。"},
-                    {"text": "Fisher情報行列を使用して重要なパラメータを特定します。"},
-                    {"text": "土木工学は社会インフラの設計と建設を扱う工学分野です。"},
-                    {"text": "道路設計では安全性と効率性を両立させる必要があります。"},
-                ]
-        else:
-            # デフォルトのデータを使用
-            train_texts = [
-                {"text": "継続学習は既存の知識を保持しながら新しいタスクを学習する技術です。"},
-                {"text": "EWC（Elastic Weight Consolidation）は継続学習の代表的な手法です。"},
-                {"text": "Fisher情報行列を使用して重要なパラメータを特定します。"},
-                {"text": "土木工学は社会インフラの設計と建設を扱う工学分野です。"},
-                {"text": "道路設計では安全性と効率性を両立させる必要があります。"},
-            ]
-            logger.warning(f"データファイルが見つかりません: {dataset_path}")
-            logger.info("デフォルトデータを使用します。")
-        
-        # データが少なすぎる場合は最小限のデータを確保
-        if len(train_texts) < 3:
-            logger.warning(f"データが少なすぎます（{len(train_texts)}件）。最小限のデータを追加します。")
-            train_texts.extend([
-                {"text": "継続学習により、モデルは新しい知識を効率的に学習できます。"},
-                {"text": "既存の知識を保持することが継続学習の重要な特徴です。"},
-                {"text": "EWCは重要なパラメータの変更を制限することで過去の知識を保護します。"},
-            ])
-        
-        training_request.training_data = train_texts[:100]  # 最大100サンプル
-        logger.info(f"最終的なトレーニングデータ数: {len(training_request.training_data)}件")
-        
-        # 実際のトレーニングを実行
-        logger.info(f"タスク {task_id}: 実際のトレーニングを開始します")
-        continual_tasks[task_id]["message"] = "トレーニングを実行中..."
-        save_continual_tasks()
-        
-        # run_training_taskを呼び出す
-        training_task_id = f"continual_{task_id}"
-        training_tasks[training_task_id] = TrainingStatus(
-            task_id=training_task_id,
-            status="running", 
-            message="継続学習トレーニング中...",
-            progress=0.0,
-            model_path=None
-        )
-        
-        # トレーニングを実行
-        await run_training_task(training_task_id, training_request)
-        
-        # トレーニング結果を継続学習タスクにコピー
-        if training_tasks[training_task_id].status == "completed":
-            continual_tasks[task_id]["progress"] = 100
-            continual_tasks[task_id]["current_epoch"] = total_epochs
-            continual_tasks[task_id]["total_epochs"] = total_epochs
-            logger.info(f"タスク {task_id}: トレーニング完了")
-        else:
-            raise Exception(f"トレーニングが失敗しました: {training_tasks[training_task_id].message}")
-        
-        # 完了
-        continual_tasks[task_id]["status"] = "completed"
-        continual_tasks[task_id]["message"] = "継続学習が完了しました"
-        continual_tasks[task_id]["completed_at"] = datetime.now(JST).isoformat()
-        save_continual_tasks()  # 完了状態を保存
-        
-        # 出力パスを設定（モデル管理と同じ形式）
-        output_dir = f"outputs/continual_{config.get('task_name')}_{datetime.now(JST).strftime('%Y%m%d_%H%M%S')}"
-        continual_tasks[task_id]["output_path"] = output_dir
-        
-        # モデル管理に登録するための情報を保存
-        model_info = {
-            "name": f"continual_{config.get('task_name')}",
-            "path": output_dir,
-            "base_model": base_model_path,
-            "training_method": "continual_ewc",
-            "created_at": datetime.now(JST).isoformat(),
-            "training_params": {
-                "epochs": config.get("epochs", 3),
-                "learning_rate": config.get("learning_rate", 2e-5),
-                "ewc_lambda": config.get("ewc_lambda", 5000),
-                "use_previous_tasks": config.get("use_previous_tasks", True)
-            },
-            "task_history": config.get("task_name")
-        }
-        
-        # モデル情報をJSONファイルとして保存（モデル管理が読み取れるように）
-        os.makedirs(output_dir, exist_ok=True)
-        with open(f"{output_dir}/model_info.json", "w", encoding="utf-8") as f:
-            json.dump(model_info, f, ensure_ascii=False, indent=2)
-        
-        continual_tasks[task_id]["model_info"] = model_info
-        save_continual_tasks()  # モデル情報を保存
-        
-        logger.info(f"継続学習タスク完了: {task_id}")
-        
-    except Exception as e:
-        logger.error(f"継続学習エラー (タスク {task_id}): {str(e)}")
-        logger.exception("詳細なエラー情報:")
-        continual_tasks[task_id]["status"] = "failed"
-        continual_tasks[task_id]["message"] = f"エラー: {str(e)}"
-        continual_tasks[task_id]["error"] = str(e)
-        save_continual_tasks()  # エラー状態を保存
-
-@app.get("/api/continual-learning/tasks")
-async def get_continual_tasks():
-    """継続学習タスクの一覧を取得"""
-    try:
-        # アクティブなタスクのみを返す
-        active_tasks = []
-        for task_id, task in continual_tasks.items():
-            if task["status"] in ["pending", "running", "completed", "failed"]:
-                active_tasks.append(task)
-        
-        # 新しい順にソート
-        active_tasks.sort(key=lambda x: x["started_at"], reverse=True)
-        
-        return active_tasks[:10]  # 最新10件を返す
-        
-    except Exception as e:
-        logger.error(f"タスク一覧取得エラー: {str(e)}")
-        return []
-
-@app.get("/api/continual-learning/history")
-async def get_continual_history():
-    """継続学習の履歴を取得"""
-    try:
-        history = []
-        
-        # 完了したタスクを履歴として返す
-        for task_id, task in continual_tasks.items():
-            if task["status"] == "completed":
-                history.append({
-                    "task_name": task["task_name"],
-                    "base_model": task["config"].get("base_model", "unknown"),
-                    "completed_at": task.get("completed_at"),
-                    "epochs": task["config"].get("epochs", 0),
-                    "final_loss": random.uniform(0.1, 0.5),  # ダミーデータ
-                    "output_path": task.get("output_path")
-                })
-        
-        # 新しい順にソート
-        history.sort(key=lambda x: x.get("completed_at", ""), reverse=True)
-        
-        return history
-        
-    except Exception as e:
-        logger.error(f"履歴取得エラー: {str(e)}")
-        return []
+        logger.error(f"WebSocketエラー: {str(e)}")
+        await websocket.close()
 
 # ============================================
 # MoE Dataset Management API Endpoints

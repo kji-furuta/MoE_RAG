@@ -83,6 +83,9 @@ async def run_continual_learning_task(
     config: ContinualLearningRequest
 ):
     """継続学習タスクの非同期実行"""
+    # ヘルパーインスタンスをインポート
+    from src.training.continual_learning_helper import continual_helper
+
     try:
         # タスク開始
         task_manager.update_task(task_id, status="running", progress=0)
@@ -105,19 +108,76 @@ async def run_continual_learning_task(
         
         # モデルのロード
         task_manager.update_task(task_id, progress=10, messages=["モデルをロード中..."])
-        
+
+        # メモリアロケータを設定
+        continual_helper.setup_memory_allocator(base_model)
+        if "32B" in base_model or "32b" in base_model or "22B" in base_model or "22b" in base_model:
+            task_manager.update_task(
+                task_id,
+                messages=task_manager.get_task(task_id)["messages"] + ["大規模モデル用メモリ設定適用"]
+            )
+
         if base_model.startswith("outputs/"):
-            model = pipeline.load_finetuned_model(base_model)
+            model, tokenizer = pipeline.load_finetuned_model(base_model)
         else:
             # Hugging Faceモデルの場合
-            from src.models.base_model import BaseModel
-            model = BaseModel.from_pretrained(base_model)
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+
+            # 量子化チェック
+            quantization_info = continual_helper.detect_quantization(base_model)
+            if quantization_info["is_quantized"] and not quantization_info["can_finetune"]:
+                suggestion = continual_helper.suggest_alternative_for_quantized(quantization_info)
+                task_manager.update_task(
+                    task_id,
+                    status="failed",
+                    error=f"Cannot fine-tune {quantization_info['quantization_type']} quantized model. {suggestion}"
+                )
+                return
+
+            # モデルロード用のkwargsを準備
+            model_kwargs = continual_helper.prepare_model_kwargs(
+                base_model,
+                force_no_quantization=True  # 継続学習のため量子化を無効化
+            )
+
+            model = AutoModelForCausalLM.from_pretrained(
+                base_model,
+                **model_kwargs
+            )
+
+            # ロード後の量子化チェック
+            loaded_quant_info = continual_helper.check_loaded_model_quantization(model)
+            if loaded_quant_info["is_quantized"]:
+                task_manager.update_task(
+                    task_id,
+                    messages=task_manager.get_task(task_id)["messages"] +
+                    [f"警告: {loaded_quant_info['quantization_type']}量子化モデルが検出されました"]
+                )
+
+            tokenizer = AutoTokenizer.from_pretrained(
+                base_model,
+                trust_remote_code=True
+            )
+
+            task_manager.update_task(
+                task_id,
+                messages=task_manager.get_task(task_id)["messages"] + [f"モデルロード完了（メモリ最適化済み）"]
+            )
         
         # 継続学習の実行
         task_manager.update_task(task_id, progress=20, messages=["継続学習を開始..."])
-        
+
+        # トークナイザーが定義されていない場合はモデルから取得
+        if 'tokenizer' not in locals():
+            from transformers import AutoTokenizer
+            tokenizer = AutoTokenizer.from_pretrained(
+                base_model,
+                trust_remote_code=True
+            )
+
         model = pipeline.run_continual_task(
             model=model,
+            tokenizer=tokenizer,  # トークナイザーを追加
             task_name=task_name,
             train_dataset_path=dataset_path,
             epochs=config.epochs,
@@ -149,6 +209,31 @@ async def run_continual_learning_task(
                 }
             )
         
+        # GGUF変換（オプション）
+        try:
+            from src.training.gguf_integration import gguf_integration
+
+            # モデル出力パスを取得
+            model_output_path = pipeline.get_latest_model_path()
+            if model_output_path and config.use_memory_efficient:
+                task_manager.update_task(task_id, progress=95, messages=["GGUF変換を実行中..."])
+
+                gguf_result = gguf_integration.process_continual_learning_model(
+                    model_path=str(model_output_path),
+                    task_name=task_name,
+                    quantization="q4_k_m" if "32B" in base_model else "q8_0"
+                )
+
+                if gguf_result.get("steps", {}).get("ollama_registration", {}).get("success"):
+                    task_manager.update_task(
+                        task_id,
+                        messages=task_manager.get_task(task_id)["messages"] + [
+                            f"✅ GGUF変換とOllama登録完了: {gguf_result['steps']['ollama_registration']['model_name']}"
+                        ]
+                    )
+        except Exception as e:
+            logger.warning(f"GGUF変換はスキップされました: {e}")
+
         # タスク完了
         task_manager.update_task(
             task_id,
@@ -166,13 +251,19 @@ async def run_continual_learning_task(
             error=str(e),
             completed_at=datetime.now(JST).isoformat()
         )
+    finally:
+        # クリーンアップ処理
+        if 'continual_helper' in locals():
+            continual_helper.cleanup_offload_dirs()
+            continual_helper.restore_memory_allocator()
+            logger.info("リソースのクリーンアップ完了")
 
 # FastAPIルーター
 def create_continual_learning_router():
     """継続学習用のルーターを作成"""
     from fastapi import APIRouter
     
-    router = APIRouter(prefix="/api/continual-learning", tags=["continual-learning"])
+    router = APIRouter(tags=["continual-learning"])
     
     @router.post("/start")
     async def start_continual_learning(

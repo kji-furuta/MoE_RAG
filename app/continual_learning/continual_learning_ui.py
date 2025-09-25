@@ -17,6 +17,9 @@ import torch
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# JST定義
+JST = timezone(timedelta(hours=9))
+
 # タスク管理
 class TaskManager:
     """非同期タスク管理"""
@@ -467,4 +470,3 @@ async def websocket_endpoint(websocket):
         logger.error(f"WebSocketエラー: {str(e)}")
     finally:
         await websocket.close()
-JST = timezone(timedelta(hours=9))

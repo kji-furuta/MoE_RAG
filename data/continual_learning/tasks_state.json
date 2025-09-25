@@ -857,5 +857,31 @@
     ],
     "error": "'BitsAndBytesConfig' object has no attribute 'get'",
     "completed_at": "2025-09-24T20:11:56.980760+09:00"
+  },
+  "8702a21f-b2cd-4210-a412-93d7fc410ff5": {
+    "id": "8702a21f-b2cd-4210-a412-93d7fc410ff5",
+    "type": "continual_learning",
+    "status": "completed",
+    "progress": 100,
+    "created_at": "2025-09-25T08:05:29.800574+09:00",
+    "metrics": {},
+    "messages": [
+      "評価を実行中...",
+      "継続学習が完了しました"
+    ],
+    "completed_at": "2025-09-25T12:17:08.287415+09:00"
+  },
+  "c58cba72-a7b1-467e-b57b-3a44b42ce02b": {
+    "id": "c58cba72-a7b1-467e-b57b-3a44b42ce02b",
+    "type": "continual_learning",
+    "status": "failed",
+    "progress": 90,
+    "created_at": "2025-09-25T22:29:07.598329+09:00",
+    "metrics": {},
+    "messages": [
+      "評価を実行中..."
+    ],
+    "error": "zero-size array to reduction operation maximum which has no identity",
+    "completed_at": "2025-09-26T01:22:39.469203+09:00"
   }
 }

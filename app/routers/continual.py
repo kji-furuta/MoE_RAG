@@ -300,8 +300,11 @@ async def get_continual_tasks():
             if task["status"] in ["pending", "running", "completed", "failed"]:
                 active_tasks.append(task)
         
-        # 新しい順にソート
-        active_tasks.sort(key=lambda x: x["started_at"], reverse=True)
+        # 新しい順にソート（started_atまたはcreated_atでソート）
+        active_tasks.sort(
+            key=lambda x: x.get("started_at") or x.get("created_at") or x.get("id", ""),
+            reverse=True
+        )
         
         return active_tasks[:10]  # 最新10件を返す
         

@@ -165,11 +165,11 @@ class ContinualLearningEvaluator:
         save_path: Optional[str] = None
     ) -> Path:
         """評価レポートの生成
-        
+
         Args:
             results: 評価結果
             save_path: 保存パス（省略時は自動生成）
-            
+
         Returns:
             レポート画像のパス
         """
@@ -178,25 +178,51 @@ class ContinualLearningEvaluator:
             save_path = self.output_dir / f"forgetting_analysis_{timestamp}.png"
         else:
             save_path = Path(save_path)
-        
+
+        # resultsが空の場合の対策
+        if not results:
+            logger.warning("評価結果が空です。デフォルトのレポートを生成します。")
+            # 空のレポートを生成
+            fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+            ax.text(0.5, 0.5, 'No evaluation data available',
+                   horizontalalignment='center', verticalalignment='center',
+                   transform=ax.transAxes, fontsize=20)
+            ax.axis('off')
+            plt.savefig(save_path, dpi=100, bbox_inches='tight')
+            plt.close()
+            return save_path
+
         # 図のサイズ設定
         plt.figure(figsize=(12, 8))
-        
+
         # データの準備
         tasks = []
         forgetting_scores = []
         accuracies_original = []
         accuracies_current = []
-        
+
         for task_name, data in results.items():
             tasks.append(task_name)
-            forgetting_scores.append(data['forgetting_score'])
+            # forgetting_scoreが存在しない場合のデフォルト値
+            forgetting_scores.append(data.get('forgetting_score', 0.0))
             
             orig_metrics = data.get('original_performance', {})
             curr_metrics = data.get('current_performance', {})
-            
+
             accuracies_original.append(orig_metrics.get('accuracy', 0))
             accuracies_current.append(curr_metrics.get('accuracy', 0))
+
+        # 空のリストの場合の対策
+        if not tasks:
+            logger.warning("タスクリストが空です。デフォルトのレポートを生成します。")
+            fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+            ax.text(0.5, 0.5, 'No tasks to evaluate',
+                   horizontalalignment='center', verticalalignment='center',
+                   transform=ax.transAxes, fontsize=20)
+            ax.axis('off')
+            plt.savefig(save_path, dpi=100, bbox_inches='tight')
+            plt.close()
+            return save_path
         
         # サブプロット作成
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
@@ -248,10 +274,15 @@ class ContinualLearningEvaluator:
         ax4 = axes[1, 1]
         ax4.axis('off')
         
-        # 統計情報の計算
-        avg_forgetting = np.mean(forgetting_scores)
-        max_forgetting = np.max(forgetting_scores)
-        min_forgetting = np.min(forgetting_scores)
+        # 統計情報の計算（空配列対策）
+        if len(forgetting_scores) > 0:
+            avg_forgetting = np.mean(forgetting_scores)
+            max_forgetting = np.max(forgetting_scores)
+            min_forgetting = np.min(forgetting_scores)
+        else:
+            avg_forgetting = 0.0
+            max_forgetting = 0.0
+            min_forgetting = 0.0
         
         summary_text = f"""
         評価サマリー

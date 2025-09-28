@@ -727,17 +727,86 @@ class ContinualLearningPipeline:
             model = get_peft_model(model, lora_config)
             model.print_trainable_parameters()
         else:
-            # 既にPEFTモデルの場合は、そのまま使用
+            # 既にPEFTモデルの場合
             logger.info("既存のLoRAアダプターを使用して継続学習を実施")
-            # 量子化モデルの場合の追加設定
-            if is_quantized:
-                from peft import prepare_model_for_kbit_training
-                base_reference = _unwrap_base_model(model)
-                if base_reference is not None:
-                    prepare_model_for_kbit_training(base_reference, use_gradient_checkpointing=True)
-            if is_quantized and hasattr(model, 'enable_input_require_grads'):
-                model.enable_input_require_grads()
-            model.print_trainable_parameters()
+
+            try:
+                # 1. まず量子化モデルの準備を行う（これがパラメータをフリーズする前に）
+                if is_quantized:
+                    from peft import prepare_model_for_kbit_training
+
+                    # PEFTモデルのベースモデルを取得
+                    base_model = model.get_base_model() if hasattr(model, 'get_base_model') else model
+
+                    # prepare_model_for_kbit_trainingを適用
+                    # 注意: これはすべてのパラメータをrequires_grad=Falseにする
+                    if hasattr(base_model, 'model'):
+                        prepare_model_for_kbit_training(base_model.model, use_gradient_checkpointing=True)
+                    else:
+                        prepare_model_for_kbit_training(base_model, use_gradient_checkpointing=True)
+
+                    logger.info("Prepared quantized model for k-bit training")
+
+                # 2. PEFTの組み込みメソッドを使用してLoRAパラメータのみを学習可能にする
+                # これはprepare_model_for_kbit_trainingの後に実行する必要がある
+                if hasattr(model, 'mark_only_lora_as_trainable'):
+                    # PEFTの推奨メソッドを使用
+                    model.mark_only_lora_as_trainable()
+                    logger.info("Marked only LoRA parameters as trainable using PEFT built-in method")
+                else:
+                    # フォールバック: 手動でLoRAパラメータを設定
+                    logger.info("Manually setting LoRA parameters as trainable")
+                    for name, param in model.named_parameters():
+                        # PEFTが使用する標準的なLoRAパラメータ名
+                        if any(key in name for key in ['lora_A', 'lora_B', 'lora_embedding_A', 'lora_embedding_B', 'lora_dropout']):
+                            param.requires_grad = True
+                            logger.debug(f"Enabled gradient for: {name}")
+                        else:
+                            param.requires_grad = False
+
+                # 3. gradient checkpointingとinput gradientsを有効化
+                if hasattr(model, 'enable_input_require_grads'):
+                    model.enable_input_require_grads()
+                    logger.info("Enabled input_require_grads for gradient computation")
+
+                # 4. アダプターレイヤーが有効になっていることを確認
+                if hasattr(model, 'enable_adapter_layers'):
+                    # PeftModelレベルでenable_adapter_layersを呼び出す
+                    model.enable_adapter_layers()
+                    logger.info("Enabled adapter layers on PeftModel")
+
+                # 5. 学習可能パラメータ数の確認
+                trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+                all_params = sum(p.numel() for p in model.parameters())
+
+                # 6. trainable_params == 0の場合の追加処理
+                if trainable_params == 0:
+                    logger.warning("No trainable parameters found after initial setup!")
+                    logger.info("Attempting recovery by re-enabling LoRA parameters...")
+
+                    # 再度LoRAパラメータを有効化（prepare_model_for_kbit_trainingによってフリーズされた可能性）
+                    for name, param in model.named_parameters():
+                        if 'lora' in name.lower():
+                            param.requires_grad = True
+
+                    # 再カウント
+                    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+                    if trainable_params == 0:
+                        raise ValueError("Failed to enable any trainable parameters for continual learning")
+
+                # 7. 最終的な情報をログ出力
+                logger.info(f"Trainable params: {trainable_params:,} || All params: {all_params:,} || Trainable%: {100 * trainable_params / all_params:.4f}")
+
+                # PEFTモデルの詳細情報を表示
+                if hasattr(model, 'print_trainable_parameters'):
+                    model.print_trainable_parameters()
+
+            except Exception as e:
+                logger.error(f"Error setting up PEFT model for continual learning: {str(e)}")
+                logger.error(f"Model type: {type(model)}")
+                logger.error(f"Is quantized: {is_quantized}")
+                raise
 
         # gradient_checkpointingの設定
         if hasattr(model, 'enable_input_require_grads'):

@@ -27,15 +27,23 @@ class TaskManager:
         self.tasks = {}
         self.executor = ThreadPoolExecutor(max_workers=2)
     
-    def create_task(self, task_type: str) -> str:
+    def create_task(self, task_type: str, task_name: str = None) -> str:
         """新しいタスクを作成"""
         task_id = str(uuid.uuid4())
         self.tasks[task_id] = {
+            # 新形式のフィールド
+            "task_id": task_id,
+            "task_name": task_name or "継続学習タスク",  # 指定されない場合はデフォルト名
+            "started_at": datetime.now(JST).isoformat(),
+
+            # 後方互換性のため旧形式フィールドも保持
             "id": task_id,
             "type": task_type,
+            "created_at": datetime.now(JST).isoformat(),
+
+            # 共通フィールド
             "status": "pending",
             "progress": 0,
-            "created_at": datetime.now(JST).isoformat(),
             "metrics": {},
             "messages": []
         }
@@ -290,8 +298,8 @@ def create_continual_learning_router():
                 content = await dataset.read()
                 await f.write(content)
             
-            # タスクの作成
-            task_id = task_manager.create_task("continual_learning")
+            # タスクの作成（タスク名も渡す）
+            task_id = task_manager.create_task("continual_learning", cl_config.task_name)
             
             # バックグラウンドで実行
             background_tasks.add_task(

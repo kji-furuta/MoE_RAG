@@ -1,42 +1,4 @@
 {
-  "bd65516c-ab93-4cc9-aa25-9e41ba2bad5b": {
-    "task_id": "bd65516c-ab93-4cc9-aa25-9e41ba2bad5b",
-    "task_name": "task_2",
-    "status": "failed",
-    "progress": 0,
-    "started_at": "2025-08-19T15:46:42.468685+09:00",
-    "config": {
-      "base_model": "outputs/フルファインチューニング_20250819_111844",
-      "task_name": "task_2",
-      "use_previous_tasks": true,
-      "ewc_lambda": 5000,
-      "epochs": 3,
-      "learning_rate": 2e-05,
-      "use_memory_efficient": true
-    },
-    "dataset_path": "/workspace/data/continual_learning/e55ee5a1-bf45-4bb1-86c4-ac40385471ea_conc_data.jsonl",
-    "message": "エラー: トレーニングが失敗しました: エラー: You cannot perform fine-tuning on purely quantized models. Please attach trainable adapters on top of the quantized model to correctly perform fine-tuning. Please see: https://huggingface.co/docs/transformers/peft for more details",
-    "error": "トレーニングが失敗しました: エラー: You cannot perform fine-tuning on purely quantized models. Please attach trainable adapters on top of the quantized model to correctly perform fine-tuning. Please see: https://huggingface.co/docs/transformers/peft for more details"
-  },
-  "4a0e2aaa-faa1-48df-bb39-0caeec411e92": {
-    "task_id": "4a0e2aaa-faa1-48df-bb39-0caeec411e92",
-    "task_name": "task_2",
-    "status": "failed",
-    "progress": 0,
-    "started_at": "2025-08-19T16:05:00.138058+09:00",
-    "config": {
-      "base_model": "outputs/フルファインチューニング_20250819_111844",
-      "task_name": "task_2",
-      "use_previous_tasks": true,
-      "ewc_lambda": 5000,
-      "epochs": 3,
-      "learning_rate": 2e-05,
-      "use_memory_efficient": true
-    },
-    "dataset_path": "/workspace/data/continual_learning/c76e0eee-a176-4ae7-88a9-de2f0aaa1317_conc_data.jsonl",
-    "message": "エラー: トレーニングが失敗しました: エラー: You cannot perform fine-tuning on purely quantized models. Please attach trainable adapters on top of the quantized model to correctly perform fine-tuning. Please see: https://huggingface.co/docs/transformers/peft for more details",
-    "error": "トレーニングが失敗しました: エラー: You cannot perform fine-tuning on purely quantized models. Please attach trainable adapters on top of the quantized model to correctly perform fine-tuning. Please see: https://huggingface.co/docs/transformers/peft for more details"
-  },
   "45cf4956-4794-4fd9-98e6-c201c95ddf5c": {
     "task_id": "45cf4956-4794-4fd9-98e6-c201c95ddf5c",
     "task_name": "task_2",
@@ -397,44 +359,6 @@
       "task_history": "task_100"
     }
   },
-  "3b1c4b14-6317-41cf-be4a-86f94f4591de": {
-    "task_id": "3b1c4b14-6317-41cf-be4a-86f94f4591de",
-    "task_name": "タスク001",
-    "status": "failed",
-    "progress": 0,
-    "started_at": "2025-09-17T11:49:31.260264+09:00",
-    "config": {
-      "base_model": "outputs/lora_20250917_104433",
-      "task_name": "タスク001",
-      "use_previous_tasks": true,
-      "ewc_lambda": 1000,
-      "epochs": 3,
-      "learning_rate": 2e-05,
-      "use_memory_efficient": true
-    },
-    "dataset_path": "/workspace/data/continual_learning/b8434f56-b3e8-4600-9b6e-90dbb4b0c9af_AI_FT_data.jsonl",
-    "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: CUDA driver error: out of memory",
-    "error": "トレーニングが失敗しました: モデル読み込みエラー: CUDA driver error: out of memory"
-  },
-  "99bf927d-b1ff-488a-a101-705977a8f602": {
-    "task_id": "99bf927d-b1ff-488a-a101-705977a8f602",
-    "task_name": "タスク001",
-    "status": "failed",
-    "progress": 0,
-    "started_at": "2025-09-17T11:54:14.776541+09:00",
-    "config": {
-      "base_model": "outputs/lora_20250917_104433",
-      "task_name": "タスク001",
-      "use_previous_tasks": true,
-      "ewc_lambda": 5000,
-      "epochs": 3,
-      "learning_rate": 2e-05,
-      "use_memory_efficient": true
-    },
-    "dataset_path": "/workspace/data/continual_learning/c5c2d03a-0411-4537-b9fc-d8ec0a62441c_AI_FT_data.jsonl",
-    "message": "エラー: トレーニングが失敗しました: モデル読み込みエラー: !handles_.at(i) INTERNAL ASSERT FAILED at \"../c10/cuda/CUDACachingAllocator.cpp\":393, please report a bug to PyTorch. ",
-    "error": "トレーニングが失敗しました: モデル読み込みエラー: !handles_.at(i) INTERNAL ASSERT FAILED at \"../c10/cuda/CUDACachingAllocator.cpp\":393, please report a bug to PyTorch. "
-  },
   "b3c95507-9b07-4ea3-9466-8f81b33beec4": {
     "task_id": "b3c95507-9b07-4ea3-9466-8f81b33beec4",
     "task_name": "task_100",
@@ -471,417 +395,186 @@
       "task_history": "task_100"
     }
   },
-  "b20fd119-cd86-4a44-84e2-66dd65ea9942": {
-    "id": "b20fd119-cd86-4a44-84e2-66dd65ea9942",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 20,
-    "created_at": "2025-09-19T15:47:21.022996+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始..."
-    ],
-    "error": "'Qwen2ForCausalLM' object has no attribute 'tokenizer'",
-    "completed_at": "2025-09-19T16:02:53.268170+09:00"
-  },
-  "843ee8b1-ffb5-464f-9d55-e7e4cceba2ba": {
-    "id": "843ee8b1-ffb5-464f-9d55-e7e4cceba2ba",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 20,
-    "created_at": "2025-09-19T16:02:53.747254+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始..."
-    ],
-    "error": "'Qwen2ForCausalLM' object has no attribute 'tokenizer'",
-    "completed_at": "2025-09-19T16:06:13.573028+09:00"
-  },
-  "3ad51161-27fc-48c5-9726-90cdd52ceb3c": {
-    "id": "3ad51161-27fc-48c5-9726-90cdd52ceb3c",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 10,
-    "created_at": "2025-09-19T20:09:09.506675+09:00",
-    "metrics": {},
-    "messages": [
-      "モデルをロード中..."
-    ],
-    "error": "We need an `offload_dir` to dispatch this model according to this `device_map`, the following submodules need to be offloaded: model.layers.35, model.layers.36, model.layers.37, model.layers.38, model.layers.39, model.layers.40, model.layers.41, model.layers.42, model.layers.43, model.layers.44, model.layers.45, model.layers.46, model.layers.47, model.layers.48, model.layers.49, model.layers.50, model.layers.51, model.layers.52, model.layers.53, model.layers.54, model.layers.55, model.layers.56, model.layers.57, model.layers.58, model.layers.59, model.layers.60, model.layers.61, model.layers.62, model.layers.63, model.norm, model.rotary_emb, lm_head.",
-    "completed_at": "2025-09-19T20:22:55.774673+09:00"
-  },
-  "80f17f76-aa3a-4009-bf41-9640fdbbd171": {
-    "id": "80f17f76-aa3a-4009-bf41-9640fdbbd171",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 10,
-    "created_at": "2025-09-19T20:27:35.910931+09:00",
-    "metrics": {},
-    "messages": [
-      "モデルをロード中..."
-    ],
-    "error": "We need an `offload_dir` to dispatch this model according to this `device_map`, the following submodules need to be offloaded: model.layers.37, model.layers.38, model.layers.39, model.layers.40, model.layers.41, model.layers.42, model.layers.43, model.layers.44, model.layers.45, model.layers.46, model.layers.47, model.layers.48, model.layers.49, model.layers.50, model.layers.51, model.layers.52, model.layers.53, model.layers.54, model.layers.55, model.layers.56, model.layers.57, model.layers.58, model.layers.59, model.layers.60, model.layers.61, model.layers.62, model.layers.63, model.norm, model.rotary_emb, lm_head.",
-    "completed_at": "2025-09-19T20:28:21.588995+09:00"
-  },
-  "de3e5d34-3def-4f02-b422-86182d6fc52d": {
-    "id": "de3e5d34-3def-4f02-b422-86182d6fc52d",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 10,
-    "created_at": "2025-09-19T20:37:03.977639+09:00",
-    "metrics": {},
-    "messages": [
-      "モデルをロード中..."
-    ],
-    "error": "Due to a serious vulnerability issue in `torch.load`, even with `weights_only=True`, we now require users to upgrade torch to at least v2.6 in order to use the function. This version restriction does not apply when loading files with safetensors.\nSee the vulnerability report here https://nvd.nist.gov/vuln/detail/CVE-2025-32434",
-    "completed_at": "2025-09-19T20:39:58.303089+09:00"
-  },
-  "1ff8ddb8-8b68-4720-b3ae-034abdb4ce9f": {
-    "id": "1ff8ddb8-8b68-4720-b3ae-034abdb4ce9f",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 10,
-    "created_at": "2025-09-19T20:41:02.539105+09:00",
-    "metrics": {},
-    "messages": [
-      "モデルをロード中..."
-    ],
-    "error": "Due to a serious vulnerability issue in `torch.load`, even with `weights_only=True`, we now require users to upgrade torch to at least v2.6 in order to use the function. This version restriction does not apply when loading files with safetensors.\nSee the vulnerability report here https://nvd.nist.gov/vuln/detail/CVE-2025-32434",
-    "completed_at": "2025-09-19T20:41:03.475189+09:00"
-  },
-  "b2b0bd11-0d55-48a7-8038-acae906299d0": {
-    "id": "b2b0bd11-0d55-48a7-8038-acae906299d0",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 10,
-    "created_at": "2025-09-19T20:42:27.526591+09:00",
-    "metrics": {},
-    "messages": [
-      "モデルをロード中..."
-    ],
-    "error": "Due to a serious vulnerability issue in `torch.load`, even with `weights_only=True`, we now require users to upgrade torch to at least v2.6 in order to use the function. This version restriction does not apply when loading files with safetensors.\nSee the vulnerability report here https://nvd.nist.gov/vuln/detail/CVE-2025-32434",
-    "completed_at": "2025-09-19T20:42:28.452039+09:00"
-  },
-  "b98c1b7c-9350-4757-84cf-46f9419f6545": {
-    "id": "b98c1b7c-9350-4757-84cf-46f9419f6545",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 10,
-    "created_at": "2025-09-20T09:56:28.474521+09:00",
-    "metrics": {},
-    "messages": [
-      "モデルをロード中..."
-    ],
-    "error": "We need an `offload_dir` to dispatch this model according to this `device_map`, the following submodules need to be offloaded: model.layers.35, model.layers.36, model.layers.37, model.layers.38, model.layers.39, model.layers.40, model.layers.41, model.layers.42, model.layers.43, model.layers.44, model.layers.45, model.layers.46, model.layers.47, model.layers.48, model.layers.49, model.layers.50, model.layers.51, model.layers.52, model.layers.53, model.layers.54, model.layers.55, model.layers.56, model.layers.57, model.layers.58, model.layers.59, model.layers.60, model.layers.61, model.layers.62, model.layers.63, model.norm, model.rotary_emb, lm_head.",
-    "completed_at": "2025-09-20T10:10:17.616959+09:00"
-  },
-  "0296d31e-7788-4070-8c2d-d95cd4887fc8": {
-    "id": "0296d31e-7788-4070-8c2d-d95cd4887fc8",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 10,
-    "created_at": "2025-09-20T11:07:46.519357+09:00",
-    "metrics": {},
-    "messages": [
-      "モデルをロード中..."
-    ],
-    "error": "Qwen2ForCausalLM.__init__() got an unexpected keyword argument 'offload_dir'",
-    "completed_at": "2025-09-20T11:20:52.801015+09:00"
-  },
-  "fd991d7b-a765-4473-beb0-693ca85a94dc": {
-    "id": "fd991d7b-a765-4473-beb0-693ca85a94dc",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 10,
-    "created_at": "2025-09-20T12:22:25.705655+09:00",
-    "metrics": {},
-    "messages": [
-      "モデルをロード中..."
-    ],
-    "error": "Qwen2ForCausalLM.__init__() got an unexpected keyword argument 'offload_dir'",
-    "completed_at": "2025-09-20T12:35:37.693360+09:00"
-  },
-  "d9584ae6-4e8d-4be3-b01a-9c372829dbba": {
-    "id": "d9584ae6-4e8d-4be3-b01a-9c372829dbba",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 10,
-    "created_at": "2025-09-20T13:51:18.597845+09:00",
-    "metrics": {},
-    "messages": [
-      "モデルをロード中..."
-    ],
-    "error": "CUDA driver error: out of memory",
-    "completed_at": "2025-09-20T14:04:53.993790+09:00"
-  },
-  "c4a8ee54-1d6b-4d6b-b249-71b36258a1aa": {
-    "id": "c4a8ee54-1d6b-4d6b-b249-71b36258a1aa",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 10,
-    "created_at": "2025-09-20T14:46:33.401732+09:00",
-    "metrics": {},
-    "messages": [
-      "モデルをロード中..."
-    ],
-    "error": "Some modules are dispatched on the CPU or the disk. Make sure you have enough GPU RAM to fit the quantized model. If you want to dispatch the model on the CPU or the disk while keeping these modules in 32-bit, you need to set `llm_int8_enable_fp32_cpu_offload=True` and pass a custom `device_map` to `from_pretrained`. Check https://huggingface.co/docs/transformers/main/en/main_classes/quantization#offload-between-cpu-and-gpu for more details. ",
-    "completed_at": "2025-09-20T14:59:47.649224+09:00"
-  },
-  "85ee58f5-4c78-4f7c-bb0e-738f5e836fe4": {
-    "id": "85ee58f5-4c78-4f7c-bb0e-738f5e836fe4",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 20,
-    "created_at": "2025-09-20T15:41:47.506713+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始..."
-    ],
-    "error": "TrainingConfig.__init__() got an unexpected keyword argument 'num_train_epochs'",
-    "completed_at": "2025-09-20T15:55:47.006182+09:00"
-  },
-  "b6b0658a-1fc8-45d6-b01a-967bf7dd8e1a": {
-    "id": "b6b0658a-1fc8-45d6-b01a-967bf7dd8e1a",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 20,
-    "created_at": "2025-09-20T16:32:26.890624+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始..."
-    ],
-    "error": "TextDataset.__init__() got an unexpected keyword argument 'data_path'",
-    "completed_at": "2025-09-20T16:46:25.957651+09:00"
-  },
-  "1a2e9866-4c4b-42d8-9957-35cf6d9de849": {
-    "id": "1a2e9866-4c4b-42d8-9957-35cf6d9de849",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 20,
-    "created_at": "2025-09-20T22:28:09.828386+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始..."
-    ],
-    "error": "'Qwen2ForCausalLM' object has no attribute 'tokenizer'",
-    "completed_at": "2025-09-20T22:42:13.348058+09:00"
-  },
-  "4368de81-c712-46a1-8fa1-ea9682f66ac1": {
-    "id": "4368de81-c712-46a1-8fa1-ea9682f66ac1",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 20,
-    "created_at": "2025-09-21T10:58:57.574244+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始..."
-    ],
-    "error": "'TrainingConfig' object has no attribute 'per_device_train_batch_size'",
-    "completed_at": "2025-09-21T11:12:38.027046+09:00"
-  },
-  "a20d15d4-e556-49d1-8261-53715e56aede": {
-    "id": "a20d15d4-e556-49d1-8261-53715e56aede",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 20,
-    "created_at": "2025-09-22T11:22:23.295806+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始..."
-    ],
-    "error": "DataLoader with IterableDataset: expected unspecified shuffle option, but got shuffle=True",
-    "completed_at": "2025-09-22T11:36:00.570568+09:00"
-  },
-  "893e213a-377d-426e-bfed-e6b0e719c475": {
-    "id": "893e213a-377d-426e-bfed-e6b0e719c475",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 30,
-    "created_at": "2025-09-22T12:32:46.214716+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始...",
-      "トレーニング開始..."
-    ],
-    "error": "object of type 'StreamingTextDataset' has no len()",
-    "completed_at": "2025-09-22T12:33:35.767737+09:00"
-  },
-  "d2d74d11-9e7d-41a1-8ed3-890f9c31abdd": {
-    "id": "d2d74d11-9e7d-41a1-8ed3-890f9c31abdd",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 30,
-    "created_at": "2025-09-22T12:48:33.050897+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始...",
-      "トレーニング開始..."
-    ],
-    "error": "cannot import name 'AdamW' from 'transformers' (/opt/conda/lib/python3.11/site-packages/transformers/__init__.py)",
-    "completed_at": "2025-09-22T12:49:26.229733+09:00"
-  },
-  "5ed35507-2448-4864-b705-891742c2b202": {
-    "id": "5ed35507-2448-4864-b705-891742c2b202",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 30,
-    "created_at": "2025-09-22T12:52:05.308536+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始...",
-      "トレーニング開始..."
-    ],
-    "error": "'TrainingConfig' object has no attribute 'weight_decay'",
-    "completed_at": "2025-09-22T12:53:02.603635+09:00"
-  },
-  "26d6673d-5971-4ecd-b91f-0cabb42dd2cf": {
-    "id": "26d6673d-5971-4ecd-b91f-0cabb42dd2cf",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 30,
-    "created_at": "2025-09-22T13:01:25.626062+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始...",
-      "トレーニング開始..."
-    ],
-    "error": "indices should be either on cpu or on the same device as the indexed tensor (cuda:0)",
-    "completed_at": "2025-09-22T13:02:26.308137+09:00"
-  },
-  "20519621-c68a-4f90-bf85-2b383b9173f1": {
-    "id": "20519621-c68a-4f90-bf85-2b383b9173f1",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 30,
-    "created_at": "2025-09-22T16:48:05.258630+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始...",
-      "トレーニング開始..."
-    ],
-    "error": "indices should be either on cpu or on the same device as the indexed tensor (cuda:0)",
-    "completed_at": "2025-09-22T17:02:30.040470+09:00"
-  },
-  "4f3f8fb4-ed0f-4e17-8eb8-719157caea73": {
-    "id": "4f3f8fb4-ed0f-4e17-8eb8-719157caea73",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 30,
-    "created_at": "2025-09-22T17:18:53.394233+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始...",
-      "トレーニング開始..."
-    ],
-    "error": "CUDA error: an illegal memory access was encountered\nCUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing CUDA_LAUNCH_BLOCKING=1\nCompile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.\n",
-    "completed_at": "2025-09-22T17:19:47.399600+09:00"
-  },
-  "2f59367b-87a7-43ee-a110-a321b4034eca": {
-    "id": "2f59367b-87a7-43ee-a110-a321b4034eca",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 30,
-    "created_at": "2025-09-22T18:14:10.916656+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始...",
-      "トレーニング開始..."
-    ],
-    "error": "CUDA error: an illegal memory access was encountered\nCUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing CUDA_LAUNCH_BLOCKING=1\nCompile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.\n",
-    "completed_at": "2025-09-22T18:28:36.880297+09:00"
-  },
-  "09a03d21-feae-4c68-8e55-8cc8feb3436d": {
-    "id": "09a03d21-feae-4c68-8e55-8cc8feb3436d",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 30,
-    "created_at": "2025-09-22T18:34:20.697940+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始...",
-      "トレーニング開始..."
-    ],
-    "error": "CUDA driver error: out of memory",
-    "completed_at": "2025-09-22T18:35:44.774426+09:00"
-  },
-  "ac0d402d-77e6-4e59-9261-4134e78878c9": {
-    "id": "ac0d402d-77e6-4e59-9261-4134e78878c9",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 10,
-    "created_at": "2025-09-22T19:13:01.815819+09:00",
-    "metrics": {},
-    "messages": [
-      "モデルをロード中..."
-    ],
-    "error": "Qwen2ForCausalLM.__init__() got an unexpected keyword argument 'llm_int8_enable_fp32_cpu_offload'",
-    "completed_at": "2025-09-22T19:26:08.481457+09:00"
-  },
-  "0a253545-8d26-477a-810b-02bdcbef107e": {
-    "id": "0a253545-8d26-477a-810b-02bdcbef107e",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 30,
-    "created_at": "2025-09-22T19:49:27.507768+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始...",
-      "トレーニング開始..."
-    ],
-    "error": "unsupported operand type(s) for +: 'dict' and 'Tensor'",
-    "completed_at": "2025-09-22T19:50:53.822314+09:00"
-  },
-  "570efb12-4dd1-464c-b59f-cca0718052f1": {
-    "id": "570efb12-4dd1-464c-b59f-cca0718052f1",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 30,
-    "created_at": "2025-09-24T13:48:12.053647+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始...",
-      "トレーニング開始..."
-    ],
-    "error": "Model did not return a loss. Ensure labels are provided in the batch.",
-    "completed_at": "2025-09-24T14:00:37.837870+09:00"
-  },
-  "00e8f247-3cfe-4607-9ca4-a2df0b6adcb3": {
-    "id": "00e8f247-3cfe-4607-9ca4-a2df0b6adcb3",
-    "type": "continual_learning",
-    "status": "failed",
-    "progress": 20,
-    "created_at": "2025-09-24T19:59:28.838532+09:00",
-    "metrics": {},
-    "messages": [
-      "継続学習を開始..."
-    ],
-    "error": "'BitsAndBytesConfig' object has no attribute 'get'",
-    "completed_at": "2025-09-24T20:11:56.980760+09:00"
-  },
   "8702a21f-b2cd-4210-a412-93d7fc410ff5": {
-    "id": "8702a21f-b2cd-4210-a412-93d7fc410ff5",
+    "task_id": "8702a21f-b2cd-4210-a412-93d7fc410ff5",
+    "task_name": "継続学習タスク",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-09-25T08:05:29.800574+09:00",
+    "config": {
+      "base_model": "不明",
+      "task_name": "継続学習タスク",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "不明",
+    "message": "継続学習が完了しました",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-09-25T12:17:08.287415+09:00",
+    "output_path": "outputs/continual_task_20250925_121708",
+    "model_info": {
+      "name": "continual_task",
+      "path": "outputs/continual_task_20250925_121708",
+      "base_model": "不明",
+      "training_method": "continual_ewc",
+      "created_at": "2025-09-25T12:17:08.287415+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 5000,
+        "use_previous_tasks": true
+      },
+      "task_history": "継続学習タスク"
+    }
+  },
+  "77af4567-e06e-4ec3-8c71-2aea48dfd5a2": {
+    "task_id": "77af4567-e06e-4ec3-8c71-2aea48dfd5a2",
+    "task_name": "継続学習タスク（失敗）",
+    "status": "failed",
+    "progress": 90,
+    "started_at": "2025-09-26T19:00:22.221542+09:00",
+    "config": {
+      "base_model": "不明",
+      "task_name": "継続学習タスク（失敗）",
+      "use_previous_tasks": true,
+      "ewc_lambda": 5000,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "dataset_path": "不明",
+    "message": "エラー: zero-size array to reduction operation maximum which has no identity",
+    "error": "zero-size array to reduction operation maximum which has no identity",
+    "current_epoch": 3,
+    "total_epochs": 3,
+    "completed_at": "2025-09-26T21:52:51.371185+09:00"
+  },
+  "4c35c72a-2389-45ac-af6b-fa51ca8fd58c": {
     "type": "continual_learning",
     "status": "completed",
     "progress": 100,
-    "created_at": "2025-09-25T08:05:29.800574+09:00",
-    "metrics": {},
+    "created_at": "2025-09-27T07:30:35.794055+09:00",
+    "metrics": {
+      "forgetting_results": {},
+      "report_path": "outputs/ewc_data/evaluation/forgetting_analysis_20250927_023249.png"
+    },
     "messages": [
       "評価を実行中...",
       "継続学習が完了しました"
     ],
-    "completed_at": "2025-09-25T12:17:08.287415+09:00"
+    "completed_at": "2025-09-27T11:32:49.319108+09:00",
+    "task_id": "4c35c72a-2389-45ac-af6b-fa51ca8fd58c",
+    "task_name": "継続学習タスク",
+    "started_at": "2025-09-27T07:30:35.794055+09:00"
   },
-  "c58cba72-a7b1-467e-b57b-3a44b42ce02b": {
-    "id": "c58cba72-a7b1-467e-b57b-3a44b42ce02b",
+  "14178241-fe5d-46ab-af66-ff63e7b42134": {
     "type": "continual_learning",
     "status": "failed",
-    "progress": 90,
-    "created_at": "2025-09-25T22:29:07.598329+09:00",
+    "progress": 80,
+    "created_at": "2025-09-27T13:13:14.967537+09:00",
     "metrics": {},
     "messages": [
-      "評価を実行中..."
+      "継続学習を開始...",
+      "トレーニング開始...",
+      "トレーニング完了",
+      "Fisher行列を計算中..."
     ],
-    "error": "zero-size array to reduction operation maximum which has no identity",
-    "completed_at": "2025-09-26T01:22:39.469203+09:00"
+    "error": "object of type 'StreamingTextDataset' has no len()",
+    "completed_at": "2025-09-27T17:28:51.179433+09:00",
+    "task_id": "14178241-fe5d-46ab-af66-ff63e7b42134",
+    "task_name": "継続学習タスク",
+    "started_at": "2025-09-27T13:13:14.967537+09:00"
+  },
+  "9793caa7-9442-4785-a8c7-325a98bc0f27": {
+    "type": "continual_learning",
+    "status": "failed",
+    "progress": 80,
+    "created_at": "2025-09-27T21:49:18.329177+09:00",
+    "metrics": {},
+    "messages": [
+      "継続学習を開始...",
+      "トレーニング開始...",
+      "トレーニング完了",
+      "Fisher行列を計算中..."
+    ],
+    "error": "object of type 'StreamingTextDataset' has no len()",
+    "completed_at": "2025-09-28T01:52:49.100511+09:00",
+    "task_id": "9793caa7-9442-4785-a8c7-325a98bc0f27",
+    "task_name": "継続学習タスク",
+    "started_at": "2025-09-27T21:49:18.329177+09:00"
+  },
+  "1b288dc0-d21d-40c5-9998-789a6d041b49": {
+    "task_id": "1b288dc0-d21d-40c5-9998-789a6d041b49",
+    "task_name": "継続学習タスク",
+    "started_at": "2025-09-28T07:25:59.717498+09:00",
+    "id": "1b288dc0-d21d-40c5-9998-789a6d041b49",
+    "type": "continual_learning",
+    "status": "failed",
+    "progress": 80,
+    "created_at": "2025-09-28T07:25:59.717498+09:00",
+    "metrics": {},
+    "messages": [
+      "継続学習を開始...",
+      "トレーニング開始...",
+      "トレーニング完了",
+      "Fisher行列を計算中..."
+    ],
+    "error": "object of type 'StreamingTextDataset' has no len()",
+    "completed_at": "2025-09-28T11:26:46.695648+09:00"
+  },
+  "4841ba1b-500b-4d6e-a655-b6d961079b81": {
+    "task_id": "4841ba1b-500b-4d6e-a655-b6d961079b81",
+    "task_name": "task_100",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-09-28T13:25:07+09:00",
+    "created_at": "2025-09-28T13:25:07+09:00",
+    "completed_at": "2025-09-28T17:39:07+09:00",
+    "id": "4841ba1b-500b-4d6e-a655-b6d961079b81",
+    "type": "continual_learning",
+    "output_path": "outputs/continual_task_100_20250928_043851",
+    "model_info": {
+      "name": "continual_task_100",
+      "path": "outputs/continual_task_100_20250928_043851/checkpoint-final",
+      "base_model": "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese",
+      "training_method": "continual_ewc",
+      "created_at": "2025-09-28T17:39:07+09:00",
+      "training_params": {
+        "epochs": 3,
+        "learning_rate": 2e-05,
+        "ewc_lambda": 1000.0,
+        "lora_rank": 16,
+        "lora_alpha": 32,
+        "format": "safetensors"
+      },
+      "task_history": "task_100"
+    },
+    "config": {
+      "base_model": "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese",
+      "task_name": "task_100",
+      "use_previous_tasks": false,
+      "ewc_lambda": 1000.0,
+      "epochs": 3,
+      "learning_rate": 2e-05,
+      "use_memory_efficient": true
+    },
+    "messages": [
+      "継続学習を開始...",
+      "トレーニング開始...",
+      "エポック 1/3 完了",
+      "エポック 2/3 完了",
+      "エポック 3/3 完了",
+      "トレーニング完了",
+      "モデルを保存中...",
+      "継続学習が完了しました"
+    ],
+    "metrics": {
+      "final_loss": 0.0,
+      "training_completed": true
+    }
   }
 }

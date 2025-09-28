@@ -20,6 +20,19 @@ from .training_utils import TrainingConfig, TextDataset
 logger = logging.getLogger(__name__)
 
 
+def safe_dataloader_len(dataloader, default=1000):
+    """
+    DataLoaderの長さを安全に取得する
+    StreamingTextDatasetなどIterableDatasetの場合はdefault値を返す
+    """
+    try:
+        return len(dataloader)
+    except (TypeError, AttributeError, NotImplementedError):
+        # IterableDatasetの場合
+        print(f"Note: Using iterable dataset, defaulting to {default} steps")
+        return default
+
+
 class EWCFullFinetuningTrainer(FullFinetuningTrainer):
     """EWC対応のフルファインチューニングトレーナー"""
     
@@ -308,7 +321,7 @@ class EWCFullFinetuningTrainer(FullFinetuningTrainer):
         # Map-style Dataset の場合は DataLoader の長さを使用
         try:
             loader = dataloader if dataloader is not None else self.train_dataloader
-            return len(loader)
+            return safe_dataloader_len(loader)
         except TypeError:
             return dataset_size
     
@@ -679,7 +692,7 @@ class EWCFullFinetuningTrainer(FullFinetuningTrainer):
         batches_per_epoch = self._train_batches_per_epoch
         if batches_per_epoch is None:
             try:
-                batches_per_epoch = len(self.train_dataloader)
+                batches_per_epoch = safe_dataloader_len(self.train_dataloader)
             except TypeError as exc:
                 raise ValueError(
                     "Unable to determine batches per epoch. Provide 'steps_per_epoch' in the training config "

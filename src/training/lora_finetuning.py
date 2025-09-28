@@ -27,6 +27,19 @@ from ..models.base_model import BaseModel
 logger = logging.getLogger(__name__)
 
 
+def safe_dataloader_len(dataloader, default=1000):
+    """
+    DataLoaderの長さを安全に取得する
+    StreamingTextDatasetなどIterableDatasetの場合はdefault値を返す
+    """
+    try:
+        return len(dataloader)
+    except (TypeError, AttributeError, NotImplementedError):
+        # IterableDatasetの場合
+        print(f"Note: Using iterable dataset, defaulting to {default} steps")
+        return default
+
+
 class LoRAConfig:
     """LoRA設定クラス"""
     def __init__(
@@ -203,7 +216,7 @@ class LoRAFinetuningTrainer:
             )
         
         # オプティマイザーとスケジューラーの準備
-        num_training_steps = len(train_dataloader) * self.training_config.num_epochs // self.training_config.gradient_accumulation_steps
+        num_training_steps = safe_dataloader_len(train_dataloader) * self.training_config.num_epochs // self.training_config.gradient_accumulation_steps
         optimizer, scheduler = get_optimizer_and_scheduler(
             self.model,
             self.training_config,

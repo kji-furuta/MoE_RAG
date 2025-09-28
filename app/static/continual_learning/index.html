@@ -649,20 +649,35 @@
                     return;
                 }
                 
-                taskList.innerHTML = tasks.map(task => `
-                    <div class="task-item">
-                        <h3>${task.id.substring(0, 8)}... <span class="status-badge status-${task.status}">${task.status}</span></h3>
-                        <p>タイプ: ${task.type}</p>
-                        <p>作成日時: ${new Date(task.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}</p>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${task.progress}%">${task.progress}%</div>
+                taskList.innerHTML = tasks.map(task => {
+                    // task_idまたはidのどちらかを使用
+                    const taskId = task.task_id || task.id || 'unknown';
+                    const taskIdShort = taskId.substring(0, 8);
+                    // started_atまたはcreated_atのどちらかを使用
+                    const startTime = task.started_at || task.created_at || new Date().toISOString();
+                    // タスク名を表示
+                    const taskName = task.task_name || task.name || 'タスク';
+                    // statusは正しく表示されているので、そのまま使う
+                    const statusText = task.status === 'completed' ? '完了' :
+                                     task.status === 'running' ? '実行中' :
+                                     task.status === 'failed' ? '失敗' :
+                                     task.status === 'pending' ? '待機中' : task.status;
+
+                    return `
+                        <div class="task-item">
+                            <h3>${taskName} (${taskIdShort}...) <span class="status-badge status-${task.status}">${statusText}</span></h3>
+                            <p>開始日時: ${new Date(startTime).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}</p>
+                            ${task.message ? `<p>状態: ${task.message}</p>` : ''}
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${task.progress || 0}%">${task.progress || 0}%</div>
+                            </div>
+                            ${task.status === 'completed' && task.output_path ?
+                                `<p>モデル: ${task.output_path}</p>` : ''}
+                            ${task.status === 'running' ?
+                                `<button class="btn btn-danger" onclick="cancelTask('${taskId}')">キャンセル</button>` : ''}
                         </div>
-                        ${task.status === 'completed' && task.metrics.report_path ? 
-                            `<button class="btn btn-success" onclick="viewReport('${task.id}')">レポートを表示</button>` : ''}
-                        ${task.status === 'running' ? 
-                            `<button class="btn btn-danger" onclick="cancelTask('${task.id}')">キャンセル</button>` : ''}
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             } catch (error) {
                 console.error('タスク一覧の取得エラー:', error);
             }

@@ -296,16 +296,54 @@ async def get_continual_tasks():
     try:
         # アクティブなタスクのみを返す
         active_tasks = []
-        for task_id, task in continual_tasks.items():
+        for task_id, task_data in continual_tasks.items():
+            # タスクデータを正規化
+            task = task_data.copy()
+
+            # 必須フィールドを確認・追加
+            if 'task_id' not in task:
+                task['task_id'] = task.get('id', task_id)
+
+            if 'task_name' not in task:
+                if 'type' in task and task['type'] == 'continual_learning':
+                    task['task_name'] = '継続学習タスク'
+                else:
+                    task['task_name'] = task.get('name', f'タスク_{task_id[:8]}')
+
+            if 'started_at' not in task:
+                task['started_at'] = task.get('created_at', datetime.now(JST).isoformat())
+
+            # statusフィールドを確認（progressの前に設定）
+            if 'status' not in task:
+                if task.get('error'):
+                    task['status'] = 'failed'
+                elif task.get('completed_at'):
+                    task['status'] = 'completed'
+                else:
+                    task['status'] = 'running'
+
+            # progressをstatusに基づいて設定
+            if 'progress' not in task:
+                if task['status'] == 'completed':
+                    task['progress'] = 100
+                elif task['status'] == 'failed':
+                    task['progress'] = task.get('progress', 80)  # 失敗時の既存progressを保持
+                else:
+                    task['progress'] = 0
+
+            # 後方互換性のためidフィールドも保持
+            if 'id' not in task and 'task_id' in task:
+                task['id'] = task['task_id']
+
             if task["status"] in ["pending", "running", "completed", "failed"]:
                 active_tasks.append(task)
-        
+
         # 新しい順にソート（started_atまたはcreated_atでソート）
         active_tasks.sort(
             key=lambda x: x.get("started_at") or x.get("created_at") or x.get("id", ""),
             reverse=True
         )
-        
+
         return active_tasks[:10]  # 最新10件を返す
         
     except Exception as e:
@@ -318,15 +356,36 @@ async def get_continual_history():
     """継続学習の履歴を取得"""
     try:
         history = []
-        
+
         # 完了したタスクを履歴として返す
-        for task_id, task in continual_tasks.items():
+        for task_id, task_data in continual_tasks.items():
+            # タスクデータを正規化（/tasksと同じ処理）
+            task = task_data.copy()
+
+            # 必須フィールドを確認・追加
+            if 'task_name' not in task:
+                if 'type' in task and task['type'] == 'continual_learning':
+                    task['task_name'] = '継続学習タスク'
+                else:
+                    task['task_name'] = task.get('name', f'タスク_{task_id[:8]}')
+
+            # statusフィールドを確認
+            if 'status' not in task:
+                if task.get('error'):
+                    task['status'] = 'failed'
+                elif task.get('completed_at'):
+                    task['status'] = 'completed'
+                else:
+                    task['status'] = 'running'
+
             if task["status"] == "completed":
+                # configフィールドがない場合のフォールバック
+                config = task.get("config", {})
                 history.append({
                     "task_name": task["task_name"],
-                    "base_model": task["config"].get("base_model", "unknown"),
+                    "base_model": config.get("base_model", "unknown"),
                     "completed_at": task.get("completed_at"),
-                    "epochs": task["config"].get("epochs", 0),
+                    "epochs": config.get("epochs", 0),
                     "final_loss": random.uniform(0.1, 0.5),  # ダミーデータ
                     "output_path": task.get("output_path")
                 })

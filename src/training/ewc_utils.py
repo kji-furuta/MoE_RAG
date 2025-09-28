@@ -98,7 +98,13 @@ class EWCHelper:
 
         # 最大バッチ数を制限（メモリ節約のため）
         if max_batches is None:
-            max_batches = min(len(dataloader), 100)  # デフォルトで最大100バッチ
+            # StreamingTextDatasetはlen()を持たないので、try-exceptで処理
+            try:
+                max_batches = min(len(dataloader), 100)  # デフォルトで最大100バッチ
+            except TypeError:
+                # StreamingTextDatasetの場合はlen()が使えないので固定値を使用
+                max_batches = 100
+                print("Note: Using streaming dataset, setting max_batches to 100")
         
         print(f"Computing Fisher matrix using {max_batches} batches...")
         

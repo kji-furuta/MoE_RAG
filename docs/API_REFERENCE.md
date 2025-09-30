@@ -1,665 +1,1032 @@
-# API リファレンス
+# MoE-RAG API Reference
 
-このドキュメントでは、AI Fine-tuning Toolkitの詳細なAPIリファレンスを提供します。
+## Base URL
 
-## 📋 目次
-
-1. [Models](#models)
-2. [Training](#training)
-3. [Utils](#utils)
-4. [Configuration](#configuration)
-
-## Models
-
-### JapaneseModel
-
-日本語LLMモデルの統一インターフェース。
-
-#### クラス定義
-
-```python
-class JapaneseModel(BaseModel):
-    def __init__(
-        self,
-        model_name: str = "stabilityai/japanese-stablelm-3b-4e1t-instruct",
-        device: Optional[torch.device] = None,
-        load_in_8bit: bool = False,
-        load_in_4bit: bool = False,
-        torch_dtype: Optional[torch.dtype] = None,
-        use_flash_attention: bool = True,
-        gradient_checkpointing: bool = False
-    )
+```
+http://localhost:8050
 ```
 
-#### パラメータ
+All API endpoints are served from a single unified FastAPI server.
 
-- **model_name** (str): HuggingFace Hub上のモデル名
-- **device** (torch.device, optional): 使用するデバイス
-- **load_in_8bit** (bool): 8bit量子化を使用するか
-- **load_in_4bit** (bool): 4bit量子化を使用するか
-- **torch_dtype** (torch.dtype, optional): モデルのデータ型
-- **use_flash_attention** (bool): Flash Attention 2を使用するか
-- **gradient_checkpointing** (bool): Gradient Checkpointingを使用するか
+---
 
-#### サポートモデル
+## Table of Contents
 
-```python
-SUPPORTED_MODELS = {
-    "cyberagent/calm3-DeepSeek-R1-Distill-Qwen-32B": {
-        "display_name": "CyberAgent DeepSeek-R1 Distill Qwen 32B Japanese",
-        "min_gpu_memory_gb": 64
-    },
-    "elyza/Llama-3-ELYZA-JP-8B": {
-        "display_name": "Llama-3 ELYZA Japanese 8B",
-        "min_gpu_memory_gb": 16
-    },
-    "stabilityai/japanese-stablelm-3b-4e1t-instruct": {
-        "display_name": "Japanese StableLM 3B Instruct",
-        "min_gpu_memory_gb": 8
-    },
-    # ... 他のモデル
+1. [Fine-tuning API](#fine-tuning-api)
+2. [RAG API](#rag-api)
+3. [Continual Learning API](#continual-learning-api)
+4. [Model Management API](#model-management-api)
+5. [System API](#system-api)
+6. [Common Response Codes](#common-response-codes)
+
+---
+
+## Fine-tuning API
+
+### Start Training
+
+**POST** `/api/train`
+
+Start a new fine-tuning job.
+
+<details>
+<summary><b>Request Body</b></summary>
+
+```json
+{
+  "model_name": "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese",
+  "training_file": "data/training_data.jsonl",
+  "validation_file": "data/validation_data.jsonl",
+  "output_dir": "outputs/my_model",
+  "learning_rate": 2e-5,
+  "num_train_epochs": 3,
+  "batch_size": 1,
+  "gradient_accumulation_steps": 16,
+  "lora_r": 16,
+  "lora_alpha": 32,
+  "lora_dropout": 0.05,
+  "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj"],
+  "use_dora": false,
+  "fp16": false,
+  "mixed_precision": "bf16"
 }
 ```
 
-#### メソッド
-
-##### load_model()
-
-```python
-def load_model() -> PreTrainedModel
-```
-
-モデルをロードします。
-
-**戻り値**: ロードされたTransformersモデル
-
-##### load_tokenizer()
-
-```python
-def load_tokenizer() -> PreTrainedTokenizer
-```
-
-トークナイザーをロードします。
-
-**戻り値**: ロードされたトークナイザー
-
-##### generate_japanese()
-
-```python
-def generate_japanese(
-    instruction: str,
-    input_text: Optional[str] = None,
-    max_new_tokens: int = 512,
-    temperature: float = 0.7,
-    top_p: float = 0.9,
-    top_k: int = 50,
-    do_sample: bool = True,
-    **kwargs
-) -> str
-```
-
-日本語テキストを生成します。
-
-**パラメータ**:
-- **instruction** (str): 指示文
-- **input_text** (str, optional): 入力テキスト
-- **max_new_tokens** (int): 最大生成トークン数
-- **temperature** (float): 生成の多様性
-- **top_p** (float): nucleus sampling
-- **top_k** (int): top-k sampling
-- **do_sample** (bool): サンプリングを使用するか
-
-**戻り値**: 生成されたテキスト
-
-##### load_with_fallback()
-
-```python
-def load_with_fallback(fallback_models: Optional[List[str]] = None) -> bool
-```
-
-フォールバックモデルを使用してロードします。
-
-**パラメータ**:
-- **fallback_models** (List[str], optional): フォールバックモデルのリスト
-
-**戻り値**: ロードに成功したかのブール値
-
-##### list_supported_models()
-
-```python
-@classmethod
-def list_supported_models(cls) -> Dict[str, Any]
-```
-
-サポートされているモデルの一覧を取得します。
-
-**戻り値**: モデル情報の辞書
-
-### BaseModel
-
-全てのモデルクラスの基底クラス。
-
-#### クラス定義
-
-```python
-class BaseModel(ABC):
-    def __init__(
-        self,
-        model_name: str,
-        device: Optional[torch.device] = None,
-        load_in_8bit: bool = False,
-        load_in_4bit: bool = False,
-        torch_dtype: Optional[torch.dtype] = None
-    )
-```
-
-#### 抽象メソッド
-
-- `load_model()`: サブクラスで実装必須
-- `load_tokenizer()`: サブクラスで実装必須
-
-## Training
-
-### FullFinetuningTrainer
-
-フルファインチューニングを実行するクラス。
-
-#### クラス定義
-
-```python
-class FullFinetuningTrainer:
-    def __init__(
-        self,
-        model: BaseModel,
-        config: TrainingConfig,
-        train_dataset: Optional[TextDataset] = None,
-        eval_dataset: Optional[TextDataset] = None,
-        use_accelerate: bool = True
-    )
-```
-
-#### メソッド
-
-##### train()
-
-```python
-def train(
-    train_texts: Optional[List[str]] = None,
-    eval_texts: Optional[List[str]] = None,
-    resume_from_checkpoint: Optional[str] = None
-) -> nn.Module
-```
-
-トレーニングを実行します。
-
-**パラメータ**:
-- **train_texts** (List[str], optional): 訓練用テキストのリスト
-- **eval_texts** (List[str], optional): 評価用テキストのリスト
-- **resume_from_checkpoint** (str, optional): 再開するチェックポイントのパス
-
-**戻り値**: 訓練されたモデル
-
-#### 🔥 検証済み機能
-
-**RTX A5000 x2環境でのテスト結果（4/5項目合格）**:
-- ✅ 基本的なファインチューニングループ: 正常動作
-- ✅ Accelerate統合による分散学習: 対応済み
-- ✅ メモリ最適化（Gradient Checkpointing、FP16）: 動作確認
-- ✅ 高度なトレーニング機能（勾配累積、クリッピング）: 実装済み
-- ⚠️ Multi-GPU DataParallel: 設定調整で解決可能
-
-**実証済み性能**:
-- 13Bモデルのトレーニングが可能
-- 48GB VRAM完全活用
-- データ並列で1.8倍高速化
-- 勾配累積で大きなバッチサイズ対応
-
-### LoRAFinetuningTrainer
-
-LoRA/QLoRAファインチューニングを実行するクラス。
-
-#### クラス定義
-
-```python
-class LoRAFinetuningTrainer:
-    def __init__(
-        self,
-        model: BaseModel,
-        lora_config: LoRAConfig,
-        training_config: TrainingConfig,
-        train_dataset: Optional[TextDataset] = None,
-        eval_dataset: Optional[TextDataset] = None
-    )
-```
-
-#### メソッド
-
-##### train()
-
-```python
-def train(
-    train_texts: Optional[List[str]] = None,
-    eval_texts: Optional[List[str]] = None,
-    resume_from_checkpoint: Optional[str] = None
-) -> nn.Module
-```
-
-LoRAトレーニングを実行します。
-
-##### load_lora_model()
-
-```python
-@staticmethod
-def load_lora_model(
-    base_model_name: str,
-    lora_adapter_path: str,
-    device: Optional[torch.device] = None
-) -> tuple
-```
-
-保存されたLoRAモデルをロードします。
-
-**パラメータ**:
-- **base_model_name** (str): ベースモデル名
-- **lora_adapter_path** (str): LoRAアダプターのパス
-- **device** (torch.device, optional): デバイス
-
-**戻り値**: (model, tokenizer) のタプル
-
-### AdvancedMultiGPUTrainer
-
-高度なマルチGPUトレーニングを実行するクラス。
-
-#### クラス定義
-
-```python
-class AdvancedMultiGPUTrainer:
-    def __init__(
-        self,
-        model: BaseModel,
-        config: MultiGPUTrainingConfig,
-        train_dataset: Optional[TextDataset] = None,
-        eval_dataset: Optional[TextDataset] = None
-    )
-```
-
-#### サポート戦略
-
-- **DDP (DistributedDataParallel)**: データ並列学習
-- **Model Parallel**: モデル並列学習
-- **Pipeline Parallel**: パイプライン並列学習（開発中）
-
-#### メソッド
-
-##### train()
-
-```python
-def train(
-    train_texts: Optional[List[str]] = None,
-    eval_texts: Optional[List[str]] = None,
-    resume_from_checkpoint: Optional[str] = None
-)
-```
-
-マルチGPUトレーニングを実行します。
-
-**RTX A5000 x2での実証済み性能**:
-- 13Bモデル対応
-- 1.8倍速度向上
-- 48GB VRAM活用
-
-### MultiGPUTrainingConfig
-
-マルチGPU用の拡張トレーニング設定。
-
-#### クラス定義
-
-```python
-class MultiGPUTrainingConfig(TrainingConfig):
-    def __init__(
-        self,
-        strategy: str = "ddp",  # "ddp", "model_parallel", "pipeline"
-        max_memory_per_gpu: Optional[Dict[int, str]] = None,
-        pipeline_parallel_size: int = 1,
-        tensor_parallel_size: int = 1,
-        **kwargs
-    )
-```
-
-#### パラメータ
-
-- **strategy** (str): 並列化戦略（"ddp", "model_parallel", "pipeline"）
-- **max_memory_per_gpu** (Dict[int, str]): GPU毎の最大メモリ
-- **pipeline_parallel_size** (int): パイプライン並列サイズ
-- **tensor_parallel_size** (int): テンソル並列サイズ
-
-### QuantizationOptimizer
-
-モデルの量子化を行うクラス。
-
-#### クラス定義
-
-```python
-class QuantizationOptimizer:
-    def __init__(
-        self,
-        model_name_or_path: str,
-        device: Optional[torch.device] = None
-    )
-```
-
-#### メソッド
-
-##### quantize_to_8bit()
-
-```python
-def quantize_to_8bit(
-    output_dir: str,
-    compute_dtype: torch.dtype = torch.float16,
-    llm_int8_threshold: float = 6.0,
-    llm_int8_has_fp16_weight: bool = False,
-    llm_int8_enable_fp32_cpu_offload: bool = False
-) -> AutoModelForCausalLM
-```
-
-8bit量子化を実行します。
-
-##### quantize_to_4bit()
-
-```python
-def quantize_to_4bit(
-    output_dir: str,
-    compute_dtype: torch.dtype = torch.float16,
-    quant_type: str = "nf4",
-    use_double_quant: bool = True
-) -> AutoModelForCausalLM
-```
-
-4bit量子化を実行します。
-
-##### benchmark_quantization()
-
-```python
-def benchmark_quantization(
-    original_model: nn.Module,
-    quantized_model: nn.Module,
-    test_inputs: List[torch.Tensor],
-    num_runs: int = 100
-) -> Dict[str, Any]
-```
-
-量子化モデルのベンチマークを実行します。
-
-**パラメータ**:
-- **original_model** (nn.Module): 元のモデル
-- **quantized_model** (nn.Module): 量子化後のモデル
-- **test_inputs** (List[torch.Tensor]): テスト入力のリスト
-- **num_runs** (int): ベンチマーク実行回数
-
-**戻り値**: ベンチマーク結果の辞書
-
-## Utils
-
-### GPU Utils
-
-GPU関連のユーティリティ関数。
-
-#### 関数一覧
-
-##### get_available_device()
-
-```python
-def get_available_device() -> torch.device
-```
-
-利用可能なデバイスを取得します。
-
-**戻り値**: 利用可能なデバイス（CUDA、MPS、またはCPU）
-
-##### get_gpu_memory_info()
-
-```python
-def get_gpu_memory_info() -> Dict[str, Any]
-```
-
-GPU メモリ情報を取得します。
-
-**戻り値**: GPU情報の辞書
-
-```python
+**Parameters**:
+- `model_name` (string, required): Base model identifier
+- `training_file` (string, required): Path to training data (JSONL format)
+- `validation_file` (string, optional): Path to validation data
+- `output_dir` (string, required): Output directory for checkpoints
+- `learning_rate` (float): Learning rate (default: 2e-5)
+- `num_train_epochs` (int): Number of training epochs (default: 3)
+- `batch_size` (int): Per-device batch size (default: 1)
+- `gradient_accumulation_steps` (int): Gradient accumulation steps (default: 16)
+- `lora_r` (int): LoRA rank (default: 16)
+- `lora_alpha` (int): LoRA alpha (default: 32)
+- `lora_dropout` (float): LoRA dropout (default: 0.05)
+- `target_modules` (array[string]): Target modules for LoRA
+- `use_dora` (bool): Use DoRA instead of LoRA (default: false)
+- `fp16` (bool): Use FP16 precision (default: false)
+- `mixed_precision` (string): Mixed precision mode ("bf16", "fp16", "no")
+
+</details>
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
 {
-    "available": bool,
-    "device_count": int,
-    "devices": [
-        {
-            "index": int,
-            "name": str,
-            "total_memory_gb": float,
-            "allocated_memory_gb": float,
-            "free_memory_gb": float,
-            "multi_processor_count": int
+  "task_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "status": "started"
+}
+```
+
+**Status Codes**:
+- `200`: Training started successfully
+- `400`: Invalid request parameters
+- `500`: Internal server error
+
+</details>
+
+---
+
+### Get Training Status
+
+**GET** `/api/training-status/{task_id}`
+
+Get the status and progress of a training job.
+
+<details>
+<summary><b>Path Parameters</b></summary>
+
+- `task_id` (string, required): Training task UUID
+
+</details>
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
+{
+  "task_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "status": "running",
+  "progress": 45,
+  "current_step": 450,
+  "total_steps": 1000,
+  "loss": 0.234,
+  "learning_rate": 1.5e-5,
+  "output_dir": "outputs/my_model",
+  "started_at": "2025-09-30T10:30:00+09:00",
+  "estimated_completion": "2025-09-30T12:00:00+09:00"
+}
+```
+
+**Status Values**:
+- `pending`: Waiting to start
+- `running`: Currently training
+- `completed`: Successfully finished
+- `failed`: Training failed
+- `cancelled`: User cancelled
+
+</details>
+
+---
+
+### Generate Text
+
+**POST** `/api/generate`
+
+Generate text using a trained model.
+
+<details>
+<summary><b>Request Body</b></summary>
+
+```json
+{
+  "model_path": "outputs/my_model/checkpoint-final",
+  "prompt": "道路の設計速度が80km/hの場合、",
+  "max_new_tokens": 512,
+  "temperature": 0.7,
+  "top_p": 0.9,
+  "do_sample": true
+}
+```
+
+**Parameters**:
+- `model_path` (string, required): Path to model checkpoint
+- `prompt` (string, required): Input text prompt
+- `max_new_tokens` (int): Maximum tokens to generate (default: 512)
+- `temperature` (float): Sampling temperature (default: 0.7)
+- `top_p` (float): Nucleus sampling threshold (default: 0.9)
+- `do_sample` (bool): Enable sampling (default: true)
+
+</details>
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
+{
+  "generated_text": "道路の設計速度が80km/hの場合、最小曲線半径は280mとなります。",
+  "model_path": "outputs/my_model/checkpoint-final",
+  "generation_time_seconds": 1.234
+}
+```
+
+</details>
+
+---
+
+## RAG API
+
+### Query Documents
+
+**POST** `/rag/query`
+
+Search and answer questions using RAG.
+
+<details>
+<summary><b>Request Body</b></summary>
+
+```json
+{
+  "query": "設計速度80km/hの道路の最小曲線半径は？",
+  "top_k": 5,
+  "search_type": "hybrid",
+  "model": "ollama:deepseek-32b-finetuned:latest",
+  "filters": {
+    "document_type": "道路構造令",
+    "chapter": "第3章"
+  },
+  "document_ids": ["uuid-1", "uuid-2"],
+  "include_sources": true
+}
+```
+
+**Parameters**:
+- `query` (string, required): Search query or question
+- `top_k` (int): Number of chunks to retrieve (default: 5)
+- `search_type` (string): Search algorithm
+  - `hybrid`: Vector + keyword (default)
+  - `vector`: Vector search only
+  - `keyword`: BM25 keyword only
+- `model` (string, optional): Override default LLM
+  - Format: `ollama:<model_name>`
+  - Format: `finetuned:<model_path>`
+- `filters` (object, optional): Metadata filters
+- `document_ids` (array[string], optional): Restrict to specific documents
+- `include_sources` (bool): Include source citations (default: true)
+
+</details>
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
+{
+  "answer": "設計速度80km/hの道路における最小曲線半径は280mです。",
+  "sources": [
+    {
+      "document_id": "uuid-1",
+      "document_name": "道路構造令.pdf",
+      "chunk_id": "chunk-123",
+      "content": "第三章 第三条 設計速度80km/hにおける曲線半径は280m以上とする。",
+      "page_number": 15,
+      "relevance_score": 0.92,
+      "metadata": {
+        "chapter": "第3章",
+        "section": "第3条"
+      }
+    }
+  ],
+  "query_time_seconds": 0.876,
+  "model_used": "ollama:deepseek-32b-finetuned:latest"
+}
+```
+
+</details>
+
+---
+
+### Stream Query
+
+**POST** `/rag/stream-query`
+
+Stream RAG responses using Server-Sent Events (SSE).
+
+<details>
+<summary><b>Request Body</b></summary>
+
+Same as `/rag/query` but returns streaming response.
+
+</details>
+
+<details>
+<summary><b>Response</b></summary>
+
+**Content-Type**: `text/event-stream`
+
+```
+data: {"type": "search", "status": "retrieving", "top_k": 5}
+
+data: {"type": "search", "status": "completed", "num_results": 5}
+
+data: {"type": "generation", "status": "started"}
+
+data: {"type": "token", "content": "設計速度"}
+
+data: {"type": "token", "content": "80km/h"}
+
+data: {"type": "generation", "status": "completed"}
+
+data: {"type": "sources", "sources": [...]}
+```
+
+**Event Types**:
+- `search`: Document retrieval status
+- `generation`: LLM generation status
+- `token`: Generated token (streaming)
+- `sources`: Source citations
+- `error`: Error message
+
+</details>
+
+---
+
+### Upload Document
+
+**POST** `/rag/upload-document`
+
+Upload and index a new document.
+
+<details>
+<summary><b>Request</b></summary>
+
+**Content-Type**: `multipart/form-data`
+
+**Form Fields**:
+- `file` (file, required): PDF/TXT document
+- `document_name` (string, optional): Custom document name
+- `metadata` (string, optional): JSON metadata object
+- `chunk_size` (int, optional): Override chunk size
+- `chunk_overlap` (int, optional): Override chunk overlap
+
+**Example** (curl):
+```bash
+curl -X POST http://localhost:8050/rag/upload-document \
+  -F "file=@/path/to/document.pdf" \
+  -F "document_name=道路構造令" \
+  -F 'metadata={"type":"法令","version":"令和3年"}'
+```
+
+</details>
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
+{
+  "document_id": "uuid-1234",
+  "document_name": "道路構造令.pdf",
+  "status": "processing",
+  "chunks_created": 0,
+  "estimated_time_seconds": 120,
+  "upload_id": "upload-5678"
+}
+```
+
+</details>
+
+---
+
+### List Documents
+
+**GET** `/rag/documents`
+
+List all indexed documents.
+
+<details>
+<summary><b>Query Parameters</b></summary>
+
+- `skip` (int): Pagination offset (default: 0)
+- `limit` (int): Max results (default: 100)
+- `document_type` (string, optional): Filter by type
+
+</details>
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
+{
+  "documents": [
+    {
+      "document_id": "uuid-1",
+      "document_name": "道路構造令.pdf",
+      "chunk_count": 156,
+      "upload_date": "2025-09-30T10:00:00+09:00",
+      "file_size_bytes": 2048576,
+      "metadata": {
+        "type": "法令",
+        "version": "令和3年"
+      }
+    }
+  ],
+  "total": 1,
+  "skip": 0,
+  "limit": 100
+}
+```
+
+</details>
+
+---
+
+### Delete Document
+
+**DELETE** `/rag/documents/{document_id}`
+
+Delete a document and all its chunks.
+
+<details>
+<summary><b>Path Parameters</b></summary>
+
+- `document_id` (string, required): Document UUID
+
+</details>
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
+{
+  "status": "deleted",
+  "document_id": "uuid-1",
+  "chunks_deleted": 156
+}
+```
+
+</details>
+
+---
+
+### Health Check
+
+**GET** `/rag/health`
+
+Check RAG system health.
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
+{
+  "status": "healthy",
+  "components": {
+    "vector_store": {
+      "status": "connected",
+      "collection": "road_design_docs",
+      "point_count": 15678
+    },
+    "embedding_model": {
+      "status": "loaded",
+      "model": "intfloat/multilingual-e5-large",
+      "dimension": 1024
+    },
+    "llm": {
+      "status": "available",
+      "provider": "ollama",
+      "model": "deepseek-32b-finetuned:latest"
+    }
+  },
+  "uptime_seconds": 86400
+}
+```
+
+</details>
+
+---
+
+## Continual Learning API
+
+### Start Continual Learning Task
+
+**POST** `/api/continual/train`
+
+Start a new continual learning task with EWC.
+
+<details>
+<summary><b>Request Body</b></summary>
+
+```json
+{
+  "task_name": "task_11",
+  "base_model": "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese",
+  "previous_model_path": "outputs/continual_task_10_20250930_031616/checkpoint-final",
+  "training_file": "data/continual/task_11_data.jsonl",
+  "output_dir": "outputs/continual_task_11",
+  "ewc_lambda": 5000,
+  "learning_rate": 1e-5,
+  "num_train_epochs": 3,
+  "lora_r": 16,
+  "lora_alpha": 32
+}
+```
+
+**Parameters**:
+- `task_name` (string, required): Task identifier
+- `base_model` (string, required): Base model or previous task model
+- `previous_model_path` (string, optional): Path to previous task checkpoint
+- `training_file` (string, required): New task training data
+- `output_dir` (string, required): Output directory
+- `ewc_lambda` (float): EWC regularization strength (default: 5000)
+- `learning_rate` (float): Learning rate (default: 1e-5)
+- `num_train_epochs` (int): Training epochs (default: 3)
+- `lora_r` (int): LoRA rank (default: 16)
+- `lora_alpha` (int): LoRA alpha (default: 32)
+
+</details>
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
+{
+  "task_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "task_name": "task_11",
+  "status": "started",
+  "ewc_enabled": true,
+  "num_previous_tasks": 10
+}
+```
+
+</details>
+
+---
+
+### List Tasks
+
+**GET** `/api/continual/tasks`
+
+List all continual learning tasks.
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
+{
+  "tasks": [
+    {
+      "task_id": "uuid-1",
+      "task_name": "task_10",
+      "type": "continual_learning",
+      "status": "completed",
+      "progress": 100,
+      "output_path": "outputs/continual_task_10_20250930_031616",
+      "model_info": {
+        "path": "outputs/continual_task_10_20250930_031616/checkpoint-final",
+        "base_model": "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese",
+        "training_params": {
+          "lora_rank": 16,
+          "lora_alpha": 32,
+          "format": "safetensors"
         }
-    ]
+      },
+      "created_at": "2025-09-30T03:16:16+09:00",
+      "completed_at": "2025-09-30T05:45:30+09:00"
+    }
+  ],
+  "total": 19
 }
 ```
 
-##### optimize_model_for_gpu()
+</details>
 
-```python
-def optimize_model_for_gpu(
-    model: torch.nn.Module,
-    device: Optional[torch.device] = None,
-    enable_mixed_precision: bool = True,
-    gradient_checkpointing: bool = False
-) -> Tuple[torch.nn.Module, torch.device]
-```
+---
 
-モデルをGPU用に最適化します。
+### Get Task Status
 
-##### clear_gpu_memory()
+**GET** `/api/continual/task/{task_id}`
 
-```python
-def clear_gpu_memory()
-```
+Get detailed status of a specific task.
 
-GPU メモリをクリアします。
+<details>
+<summary><b>Path Parameters</b></summary>
 
-##### set_memory_fraction()
+- `task_id` (string, required): Task UUID
 
-```python
-def set_memory_fraction(fraction: float = 0.9)
-```
+</details>
 
-GPU メモリ使用率の上限を設定します。
+<details>
+<summary><b>Response</b></summary>
 
-## Configuration
-
-### TrainingConfig
-
-トレーニング設定を管理するクラス。
-
-#### クラス定義
-
-```python
-class TrainingConfig:
-    def __init__(
-        self,
-        learning_rate: float = 2e-5,
-        batch_size: int = 4,
-        gradient_accumulation_steps: int = 4,
-        num_epochs: int = 3,
-        warmup_steps: int = 100,
-        max_grad_norm: float = 1.0,
-        eval_steps: int = 100,
-        save_steps: int = 500,
-        logging_steps: int = 10,
-        output_dir: str = "./outputs",
-        fp16: bool = True,
-        gradient_checkpointing: bool = True,
-        ddp: bool = False,
-        local_rank: int = -1,
-        world_size: int = 1
-    )
-```
-
-#### パラメータ
-
-- **learning_rate** (float): 学習率
-- **batch_size** (int): バッチサイズ
-- **gradient_accumulation_steps** (int): 勾配累積ステップ数
-- **num_epochs** (int): エポック数
-- **warmup_steps** (int): ウォームアップステップ数
-- **max_grad_norm** (float): 勾配クリッピングの閾値
-- **eval_steps** (int): 評価ステップ間隔
-- **save_steps** (int): 保存ステップ間隔
-- **logging_steps** (int): ログ出力ステップ間隔
-- **output_dir** (str): 出力ディレクトリ
-- **fp16** (bool): Mixed Precisionを使用するか
-- **gradient_checkpointing** (bool): Gradient Checkpointingを使用するか
-- **ddp** (bool): DistributedDataParallelを使用するか
-- **local_rank** (int): 分散学習でのローカルランク
-- **world_size** (int): 分散学習でのワールドサイズ
-
-### LoRAConfig
-
-LoRA設定を管理するクラス。
-
-#### クラス定義
-
-```python
-class LoRAConfig:
-    def __init__(
-        self,
-        r: int = 16,
-        lora_alpha: int = 32,
-        target_modules: Optional[List[str]] = None,
-        lora_dropout: float = 0.05,
-        bias: str = "none",
-        task_type: str = "CAUSAL_LM",
-        use_qlora: bool = False,
-        qlora_4bit: bool = True
-    )
-```
-
-#### パラメータ
-
-- **r** (int): LoRAランク
-- **lora_alpha** (int): LoRAアルファ値
-- **target_modules** (List[str], optional): 対象モジュールのリスト
-- **lora_dropout** (float): ドロップアウト率
-- **bias** (str): バイアスの扱い（"none", "all", "lora_only"）
-- **task_type** (str): タスクタイプ
-- **use_qlora** (bool): QLoRAを使用するか
-- **qlora_4bit** (bool): 4bit量子化を使用するか（Falseの場合8bit）
-
-### TextDataset
-
-テキストデータセットクラス。
-
-#### クラス定義
-
-```python
-class TextDataset(Dataset):
-    def __init__(self, texts: List[str], tokenizer, max_length: int = 512)
-```
-
-#### パラメータ
-
-- **texts** (List[str]): テキストのリスト
-- **tokenizer**: トークナイザー
-- **max_length** (int): 最大トークン長
-
-#### メソッド
-
-##### __getitem__()
-
-```python
-def __getitem__(self, idx) -> Dict[str, torch.Tensor]
-```
-
-データセットアイテムを取得します。
-
-**戻り値**: 
-```python
+```json
 {
-    "input_ids": torch.Tensor,
-    "attention_mask": torch.Tensor,
-    "labels": torch.Tensor
+  "task_id": "uuid-1",
+  "task_name": "task_10",
+  "status": "completed",
+  "progress": 100,
+  "current_step": 1000,
+  "total_steps": 1000,
+  "ewc_info": {
+    "enabled": true,
+    "lambda": 5000,
+    "num_previous_tasks": 9,
+    "fisher_matrix_path": "outputs/ewc_data/fisher_task_10.pt"
+  },
+  "model_info": {
+    "path": "outputs/continual_task_10_20250930_031616/checkpoint-final",
+    "format": "safetensors",
+    "size_mb": 1024
+  },
+  "training_metrics": {
+    "final_loss": 0.456,
+    "best_loss": 0.423,
+    "training_time_seconds": 8934
+  }
 }
 ```
 
-## 使用例
+</details>
 
-### 基本的な使用例
+---
 
-```python
-from src.models.japanese_model import JapaneseModel
-from src.training.lora_finetuning import LoRAFinetuningTrainer, LoRAConfig
-from src.training.training_utils import TrainingConfig
+### Update Models List
 
-# モデル初期化
-model = JapaneseModel("stabilityai/japanese-stablelm-3b-4e1t-instruct")
+**POST** `/api/continual/update-models`
 
-# LoRA設定
-lora_config = LoRAConfig(r=16, lora_alpha=32)
+Refresh the list of available models from Ollama and filesystem.
 
-# 訓練設定
-training_config = TrainingConfig(
-    learning_rate=3e-4,
-    batch_size=4,
-    num_epochs=5
-)
+<details>
+<summary><b>Response</b></summary>
 
-# トレーナー初期化
-trainer = LoRAFinetuningTrainer(model, lora_config, training_config)
-
-# 訓練実行
-trained_model = trainer.train(train_texts=your_texts)
+```json
+{
+  "status": "updated",
+  "ollama_models": [
+    "deepseek-32b-finetuned:latest",
+    "gpt-neox-20b-finetuned:latest"
+  ],
+  "local_models": [
+    "outputs/continual_task_10_20250930_031616/checkpoint-final"
+  ],
+  "total_models": 15
+}
 ```
 
-### 量子化の例
+</details>
 
-```python
-from src.training.quantization import QuantizationOptimizer
+---
 
-# 量子化オプティマイザー
-quantizer = QuantizationOptimizer("your-model-name")
+## Model Management API
 
-# 4bit量子化
-quantized_model = quantizer.quantize_to_4bit("./output_dir")
+### List Models
+
+**GET** `/api/models`
+
+List all available models (fine-tuned, Ollama, base).
+
+<details>
+<summary><b>Query Parameters</b></summary>
+
+- `type` (string, optional): Filter by type
+  - `finetuned`: Local fine-tuned models
+  - `ollama`: Ollama models
+  - `base`: Base HuggingFace models
+
+</details>
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
+{
+  "models": [
+    {
+      "name": "deepseek-32b-finetuned",
+      "type": "ollama",
+      "tag": "latest",
+      "size_gb": 18.4,
+      "modified_at": "2025-09-30T10:00:00+09:00"
+    },
+    {
+      "name": "task_10_model",
+      "type": "finetuned",
+      "path": "outputs/continual_task_10_20250930_031616/checkpoint-final",
+      "format": "safetensors",
+      "size_mb": 1024
+    }
+  ],
+  "total": 15
+}
 ```
 
-## 🚀 パフォーマンス最適化情報
+</details>
 
-### RTX A5000 x2環境での最適化
+---
 
-**現在の性能**:
-- GPU利用率: 50% (1/2 GPU使用)
-- 対応モデルサイズ: 最大7B
-- 学習速度: 100 tokens/sec
+### Convert to Ollama
 
-**最適化後の期待性能**:
-- GPU利用率: 100% (2/2 GPU使用)
-- 対応モデルサイズ: 最大30B+
-- 学習速度: 180-280 tokens/sec (1.8-2.8倍高速化)
+**POST** `/api/convert-to-ollama`
 
-### 推奨最適化設定
+Convert a fine-tuned model to Ollama GGUF format.
 
-```python
-# 13Bモデルでのモデル並列学習
-config = MultiGPUTrainingConfig(
-    strategy='model_parallel',
-    max_memory_per_gpu={0: '22GB', 1: '22GB'},
-    fp16=True,
-    gradient_checkpointing=True
-)
+<details>
+<summary><b>Request Body</b></summary>
 
-# QLoRAでの30Bモデル学習
-qlora_config = LoRAConfig(
-    r=8,
-    use_qlora=True,
-    qlora_4bit=True
-)
+```json
+{
+  "model_path": "outputs/my_model/checkpoint-final",
+  "model_name": "my-custom-model",
+  "quantization": "q4_k_m"
+}
 ```
 
-このAPIリファレンスを参考に、効率的なファインチューニングを実装してください。
+**Parameters**:
+- `model_path` (string, required): Path to fine-tuned model
+- `model_name` (string, required): Name for Ollama model
+- `quantization` (string): GGUF quantization level
+  - `q4_k_m`: 4-bit (default, balanced)
+  - `q5_k_m`: 5-bit (better quality)
+  - `q8_0`: 8-bit (highest quality)
+
+</details>
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
+{
+  "status": "converting",
+  "conversion_id": "conv-1234",
+  "estimated_time_minutes": 15,
+  "output_model": "my-custom-model:latest"
+}
+```
+
+</details>
+
+---
+
+### Delete Model
+
+**DELETE** `/api/models/{model_name}`
+
+Delete a local fine-tuned model.
+
+<details>
+<summary><b>Path Parameters</b></summary>
+
+- `model_name` (string, required): Model directory name
+
+</details>
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
+{
+  "status": "deleted",
+  "model_name": "my_model",
+  "path": "outputs/my_model",
+  "freed_space_mb": 1024
+}
+```
+
+</details>
+
+---
+
+### Delete Ollama Model
+
+**DELETE** `/api/ollama-models/{model_name}`
+
+Delete an Ollama model.
+
+<details>
+<summary><b>Path Parameters</b></summary>
+
+- `model_name` (string, required): Ollama model name with tag
+
+**Example**: `deepseek-32b-finetuned:latest`
+
+</details>
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
+{
+  "status": "deleted",
+  "model_name": "deepseek-32b-finetuned:latest",
+  "freed_space_gb": 18.4
+}
+```
+
+</details>
+
+---
+
+## System API
+
+### System Info
+
+**GET** `/api/system-info`
+
+Get system resource information.
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
+{
+  "system": {
+    "os": "Linux",
+    "python_version": "3.10.12",
+    "cuda_available": true,
+    "cuda_version": "12.1",
+    "pytorch_version": "2.1.0"
+  },
+  "gpu": [
+    {
+      "id": 0,
+      "name": "NVIDIA A100 80GB PCIe",
+      "memory_total_gb": 81.92,
+      "memory_used_gb": 45.67,
+      "memory_free_gb": 36.25,
+      "utilization_percent": 65
+    }
+  ],
+  "cpu": {
+    "cores": 32,
+    "usage_percent": 23
+  },
+  "memory": {
+    "total_gb": 128,
+    "used_gb": 87,
+    "free_gb": 41
+  },
+  "disk": {
+    "total_gb": 2048,
+    "used_gb": 1234,
+    "free_gb": 814
+  }
+}
+```
+
+</details>
+
+---
+
+### Metrics
+
+**GET** `/api/metrics`
+
+Get system metrics (Prometheus-compatible format planned).
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
+{
+  "training": {
+    "total_jobs": 156,
+    "active_jobs": 2,
+    "completed_jobs": 149,
+    "failed_jobs": 5
+  },
+  "rag": {
+    "total_queries": 12345,
+    "avg_query_time_ms": 876,
+    "documents_indexed": 234,
+    "total_chunks": 156789
+  },
+  "continual_learning": {
+    "total_tasks": 19,
+    "completed_tasks": 18,
+    "failed_tasks": 1
+  }
+}
+```
+
+</details>
+
+---
+
+### Health Check
+
+**GET** `/health`
+
+Overall system health check.
+
+<details>
+<summary><b>Response</b></summary>
+
+```json
+{
+  "status": "healthy",
+  "version": "4.0.0",
+  "services": {
+    "api": "healthy",
+    "rag": "healthy",
+    "ollama": "healthy",
+    "qdrant": "healthy"
+  },
+  "uptime_seconds": 86400,
+  "timestamp": "2025-09-30T12:00:00+09:00"
+}
+```
+
+</details>
+
+---
+
+## Common Response Codes
+
+| Code | Meaning | Description |
+|------|---------|-------------|
+| 200 | OK | Request successful |
+| 201 | Created | Resource created successfully |
+| 400 | Bad Request | Invalid request parameters |
+| 401 | Unauthorized | Authentication required |
+| 403 | Forbidden | Access denied |
+| 404 | Not Found | Resource not found |
+| 409 | Conflict | Resource conflict (e.g., duplicate name) |
+| 422 | Unprocessable Entity | Validation error |
+| 500 | Internal Server Error | Server error |
+| 503 | Service Unavailable | Service temporarily unavailable |
+
+## Error Response Format
+
+All error responses follow this format:
+
+```json
+{
+  "detail": "Error message describing what went wrong",
+  "error_code": "VALIDATION_ERROR",
+  "timestamp": "2025-09-30T12:00:00+09:00"
+}
+```
+
+## Rate Limiting
+
+Currently not implemented. Planned for future releases:
+- 100 requests/minute per IP for query endpoints
+- 10 requests/minute per IP for training endpoints
+- 1000 requests/minute per IP for health/info endpoints
+
+## Authentication
+
+Currently not implemented. Planned JWT-based authentication:
+
+```bash
+# Future authentication flow
+curl -X POST http://localhost:8050/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "user", "password": "pass"}'
+
+# Response
+{
+  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+  "token_type": "bearer",
+  "expires_in": 3600
+}
+
+# Use token
+curl -X POST http://localhost:8050/api/train \
+  -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc..." \
+  -d '{"model_name": "...", ...}'
+```
+
+## WebSocket API
+
+### Training Progress
+
+**WebSocket** `/ws/training/{task_id}`
+
+Real-time training progress updates.
+
+**Example** (JavaScript):
+```javascript
+const ws = new WebSocket('ws://localhost:8050/ws/training/' + taskId);
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log('Progress:', data.progress, '%');
+  console.log('Loss:', data.loss);
+  console.log('Step:', data.step, '/', data.total_steps);
+};
+```
+
+### Continual Learning Progress
+
+**WebSocket** `/api/continual/ws/{task_id}`
+
+Real-time continual learning updates.
+
+## SDK Examples
+
+### Python
+
+```python
+import requests
+
+# Start training
+response = requests.post('http://localhost:8050/api/train', json={
+    'model_name': 'cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese',
+    'training_file': 'data/training.jsonl',
+    'output_dir': 'outputs/my_model',
+    'num_train_epochs': 3
+})
+task_id = response.json()['task_id']
+
+# RAG query
+response = requests.post('http://localhost:8050/rag/query', json={
+    'query': '設計速度80km/hの最小曲線半径は？',
+    'top_k': 5
+})
+answer = response.json()['answer']
+```
+
+### cURL
+
+```bash
+# Start training
+curl -X POST http://localhost:8050/api/train \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model_name": "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese",
+    "training_file": "data/training.jsonl",
+    "output_dir": "outputs/my_model"
+  }'
+
+# RAG query
+curl -X POST http://localhost:8050/rag/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "設計速度80km/hの最小曲線半径は？",
+    "top_k": 5
+  }'
+
+# Upload document
+curl -X POST http://localhost:8050/rag/upload-document \
+  -F "file=@/path/to/document.pdf" \
+  -F "document_name=道路構造令"
+```
+
+## Changelog
+
+### v4.0.0 (2025-09-30)
+- ✅ All three core systems operational (Fine-tuning, RAG, Continual Learning)
+- ✅ Unified API server on port 8050
+- ✅ Ollama integration with automatic GGUF detection
+- ✅ EWC-based continual learning with task state persistence
+- ✅ Hybrid RAG search (vector + keyword)
+- ✅ WebSocket support for real-time progress
+
+---
+
+For more information, see:
+- [README.md](../README.md) - Quick start and overview
+- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
+- [GitHub Repository](https://github.com/kji-furuta/MoE_RAG)

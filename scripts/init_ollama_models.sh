@@ -154,15 +154,19 @@ EOF
     fi
     
     # ファインチューニング済みモデルの検索と登録
-    # 番号付きモデル（0_から99_まで）
-    for i in {0..99}; do
-        model_path="/workspace/models/${i}_deepseek-32b-finetuned.gguf"
-        model_name="${i}_deepseek-32b-finetuned:latest"
-        
+    # 番号付きモデル（ワイルドカードで全パターンを検索）
+    echo "🔍 ファインチューニング済みモデルを検索中..."
+    for model_path in /workspace/models/*_deepseek-32b-finetuned.gguf; do
         if [ -f "$model_path" ]; then
+            # ファイル名から番号部分を抽出（例: 020_deepseek-32b-finetuned.gguf → 020）
+            basename_file=$(basename "$model_path" .gguf)
+            model_name="${basename_file}:latest"
+
             if ! ollama list 2>/dev/null | grep -q "$model_name"; then
                 echo "📝 $model_name を登録中..."
-                cat > /tmp/Modelfile_${i}_deepseek << EOF
+                # 安全なファイル名（スラッシュを除去）
+                safe_name=$(echo "$basename_file" | tr '/' '_')
+                cat > /tmp/Modelfile_${safe_name} << EOF
 FROM $model_path
 
 PARAMETER temperature 0.6
@@ -177,9 +181,11 @@ SYSTEM """あなたは土木道路設計の専門知識を持つAIアシスタ�
 
 TEMPLATE """[INST] {{ .System }} {{ .Prompt }} [/INST]"""
 EOF
-                ollama create "$model_name" -f /tmp/Modelfile_${i}_deepseek
-                rm -f /tmp/Modelfile_${i}_deepseek
+                ollama create "$model_name" -f /tmp/Modelfile_${safe_name}
+                rm -f /tmp/Modelfile_${safe_name}
                 echo -e "${GREEN}✅ $model_name の登録が完了しました${NC}"
+            else
+                echo -e "${GREEN}✅ $model_name は既に登録済みです${NC}"
             fi
         fi
     done

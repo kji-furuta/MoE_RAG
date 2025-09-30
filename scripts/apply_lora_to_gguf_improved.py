@@ -279,15 +279,54 @@ class ImprovedLoRAToOllamaConverter:
             
     def download_base_model(self, model_url: str, model_name: str) -> Path:
         """ベースモデル（GGUF）をダウンロード"""
+
+        # ollama://スキームの処理
+        if model_url.startswith("ollama://"):
+            logger.info(f"Ollamaモデルが指定されました: {model_url}")
+            ollama_model = model_url.replace("ollama://", "")
+
+            # Ollamaモデルのパスを確認
+            try:
+                # Ollamaモデルの場所を取得
+                result = subprocess.run(
+                    ["ollama", "show", ollama_model, "--modelfile"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+
+                if result.returncode == 0:
+                    # Modelfileの内容からFROM句を探す
+                    for line in result.stdout.split('\n'):
+                        if line.startswith("FROM "):
+                            model_file = line.replace("FROM ", "").strip()
+                            if os.path.exists(model_file):
+                                logger.info(f"Ollamaモデルファイルを発見: {model_file}")
+                                return Path(model_file)
+            except Exception as e:
+                logger.warning(f"Ollamaモデルの取得に失敗: {e}")
+
+            # Ollamaモデルが取得できない場合、DeepSeekモデルにフォールバック
+            logger.info("DeepSeek-R1-Distill-Qwen-32B GGUFモデルをダウンロードします")
+
+            # 既存のdeepseek-32b-base GGUFファイルを確認
+            existing_gguf = self.models_dir / "deepseek-32b-base.gguf"
+            if existing_gguf.exists():
+                logger.info(f"既存のDeepSeekモデルを使用: {existing_gguf}")
+                return existing_gguf
+
+            model_url = "https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-32B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf"
+            model_name = "DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf"
+
         model_path = self.models_dir / model_name
-        
+
         if model_path.exists():
             file_size = model_path.stat().st_size / 1024 / 1024 / 1024
             logger.info(f"モデルは既に存在します: {model_path} ({file_size:.2f} GB)")
             return model_path
-            
+
         logger.info(f"モデルをダウンロード中: {model_url}")
-        
+
         try:
             # wgetでダウンロード
             cmd = [
@@ -296,13 +335,13 @@ class ImprovedLoRAToOllamaConverter:
                 model_url
             ]
             result = subprocess.run(cmd, capture_output=False, text=True)
-            
+
             if result.returncode != 0:
                 raise Exception(f"ダウンロード失敗")
-                
+
             logger.info(f"ダウンロード完了: {model_path}")
             return model_path
-            
+
         except Exception as e:
             logger.error(f"ダウンロードエラー: {e}")
             if model_path.exists():

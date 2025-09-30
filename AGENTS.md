@@ -1,46 +1,37 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `src/` — core Python modules
-  - `rag/` (query engine, indexing, retrieval), `training/` (LoRA/DoRA, continual), `moe_rag_integration/`, `inference/`, `utils/`.
-- `app/` — FastAPI app (`app/main_unified.py`) and UI assets.
-- `scripts/` — ops and utilities (start web, model prep, conversions).
-- `tests/` — unit/integration tests (`test_*.py`).
-- `docker/` — Dockerfile, `docker-compose.yml` for full stack.
-- `config/`, `configs/` — runtime and training configs.
-- Data and outputs: `data/`, `models/`, `outputs/`, `templates/`.
+- `src/` hosts core packages: `rag/` for retrieval, `training/` for LoRA/DoRA and continual learning, `moe_rag_integration/`, shared `inference/`, and `utils/` helpers.
+- `app/` serves the FastAPI entrypoint (`app/main_unified.py`) and UI assets; `scripts/` centralizes launchers and model prep tasks; `docker/` provides deployment manifests.
+- Config lives in `config/` and `configs/`; generated artifacts belong in `data/`, `models/`, `outputs/`, and `templates/`.
+- Tests reside in `tests/` using `test_*.py`; heavier demos land in `examples/` and `notebooks/`.
 
 ## Build, Test, and Development Commands
-- Setup (local): `python -m venv venv && source venv/bin/activate && pip install -e .[dev]` (or `pip install -r requirements.txt`).
-- Lint/Format: `black . && isort . && flake8 src tests`.
-- Tests: `pytest -q` (skip heavy tests: `pytest -m "not integration"`).
-- Run API (local): `python -m uvicorn app.main_unified:app --host 0.0.0.0 --port 8050 --reload`.
-- Docker stack: `cd docker && docker-compose up -d --build` then `bash scripts/start_web_interface.sh`.
+- Bootstrap: `python -m venv venv && source venv/bin/activate && pip install -e .[dev]` (or `pip install -r requirements.txt`).
+- Quality gates: `black . && isort . && flake8 src tests` keeps formatting and linting aligned with CI.
+- Unit suite: `pytest -q`; skip integration jobs with `pytest -m "not integration"`.
+- Local API: `python -m uvicorn app.main_unified:app --host 0.0.0.0 --port 8050 --reload`.
+- Full stack: `cd docker && docker-compose up -d --build` then `bash scripts/start_web_interface.sh`.
 
 ## Coding Style & Naming Conventions
-- Python 3.8+; Black line length 88, isort profile “black”.
-- Indentation 4 spaces; UTF-8; keep functions small and cohesive.
-- Naming: modules/files `snake_case.py`, classes `CapWords`, functions/vars `snake_case`, constants `UPPER_SNAKE`.
-- Keep public APIs stable in `src/rag/` and `app/`; add docstrings for new modules.
+- Target Python 3.8+, Black’s 88-char limit, isort profile "black", and 4-space indentation.
+- Use `snake_case` for modules and functions, `CapWords` for classes, and `UPPER_SNAKE` for constants.
+- Keep public interfaces in `src/rag/` and `app/` stable; add tight docstrings for new modules or intricate logic.
 
 ## Testing Guidelines
-- Primary: pytest; some unittest suites exist.
-- Location: `tests/` with `test_*.py` per component (e.g., RAG, MoE, deps).
-- Marks: long‑running/infra tests use `@pytest.mark.integration`.
-- Run locally: `pytest -q`; before PRs: `pytest -q && flake8 && black --check . && isort --check-only .`.
+- Rely on pytest; mirror package structure when adding `test_*.py` files under `tests/`.
+- Run `pytest -q` before pushes; for release branches include `pytest -q && flake8 && black --check . && isort --check-only .`.
 
 ## Commit & Pull Request Guidelines
-- Use Conventional Commits seen in history: `feat: …`, `fix: …`, `docs: …`, `chore: …` (EN/JP OK). Example: `feat: RAG model selection improvements`.
-- PRs must include: purpose, scope, test plan/output, screenshots or logs for UI/API, related issues, and migration notes if configs change.
-- Do not commit large artifacts; keep `data/`, `models/`, `outputs/` out of Git unless tiny samples.
+- Follow Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`). Example: `feat: improve hybrid retriever scoring`.
+- PRs must outline purpose, scope, and linked issues; attach logs or screenshots for UI/API changes and note config or data migrations.
+- Exclude large weights or datasets—only minimal samples belong in Git.
 
 ## Security & Configuration Tips
-- Secrets via `.env` (see `.env.example`); never commit keys.
-- Config lives in `config/` and `src/rag/config/`; document defaults/overrides.
-- GPU/Docker paths are referenced by scripts—avoid renaming without updating `scripts/` and `docker/`.
+- Load secrets through `.env` (see `.env.example`); never hard-code credentials.
+- Document overrides when editing `config/` or `src/rag/config/` and update related scripts or Docker references.
+- Treat `data/`, `models/`, and `outputs/` as runtime storage; purge sensitive artifacts before sharing.
 
-## Agent-Specific Notes
-- Prefer minimal, focused diffs; follow Black/isort.
-- Avoid breaking public endpoints or path conventions without updating docs/tests.
-- Use `rg` for search; keep changes within scope and update README when user‑facing behavior changes.
-
+## Agent Playbook
+- Prefer targeted diffs, rely on `rg` for search, and run quick smoke checks after edits.
+- Surface blocking issues immediately; avoid resetting user changes unless instructed.

@@ -35,6 +35,26 @@ if command -v ollama &> /dev/null; then
             echo "✅ モデルは既に登録済みです（${model_count}個）"
         fi
     fi
+
+    # GGUFモデルレジストリの初期化
+    if [ -f /workspace/scripts/init_gguf_models.py ]; then
+        echo "📚 GGUFモデルレジストリを初期化中..."
+        python3 /workspace/scripts/init_gguf_models.py
+        echo "✅ GGUFモデルレジストリの初期化が完了しました"
+    fi
+
+    # Ollamaモデル設定の更新（バックグラウンドで実行）
+    if [ -f /workspace/scripts/wait_and_update_ollama.sh ]; then
+        echo "📋 Ollamaモデル設定の更新をスケジュール..."
+        chmod +x /workspace/scripts/wait_and_update_ollama.sh
+        nohup bash /workspace/scripts/wait_and_update_ollama.sh > /workspace/logs/ollama_update.log 2>&1 &
+        echo "✅ バックグラウンドでOllamaモデル設定の更新を開始しました"
+    elif [ -f /workspace/scripts/update_ollama_models_config.py ]; then
+        # フォールバック: 古い方法で更新
+        echo "🔄 Ollamaモデル設定を更新中..."
+        python3 /workspace/scripts/update_ollama_models_config.py
+        echo "✅ Ollamaモデル設定の更新が完了しました"
+    fi
 fi
 
 # 作業ディレクトリを設定

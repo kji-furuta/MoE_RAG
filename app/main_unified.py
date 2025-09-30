@@ -2074,11 +2074,12 @@ async def get_finetuned_lora_models():
 
 @app.get("/api/available-models")
 async def get_available_models():
-    """利用可能なファインチューニング済みモデルとOllamaモデルを取得"""
+    """利用可能なファインチューニング済みモデル、Ollamaモデル、GGUFモデルを取得"""
     try:
         models = {
             "finetuned_models": [],
-            "ollama_models": []
+            "ollama_models": [],
+            "gguf_models": []
         }
         
         # ファインチューニング済みモデルの検索
@@ -2172,6 +2173,48 @@ async def get_available_models():
                         models["finetuned_models"].append(model_info)
                         logger.info(f"ファインチューニング済みモデルを検出: {model_dir.name}")
         
+        # GGUFモデルレジストリから読み込み
+        try:
+            gguf_registry_file = Path("/workspace/models/gguf_registry.json")
+            if gguf_registry_file.exists():
+                with open(gguf_registry_file, 'r', encoding='utf-8') as f:
+                    gguf_registry = json.load(f)
+                    for model in gguf_registry.get("models", []):
+                        # ファイルの存在確認
+                        model_path = Path(model["path"])
+                        if model_path.exists():
+                            models["gguf_models"].append({
+                                "name": model["name"],
+                                "path": model["path"],
+                                "type": model.get("type", "gguf"),
+                                "format": "GGUF",
+                                "size": f"{model.get('size_mb', 0):.1f} MB",
+                                "modified": model.get("modified", "Unknown"),
+                                "registered": model.get("registered_at", "Unknown")
+                            })
+                            logger.info(f"GGUFモデルをレジストリから読み込み: {model['name']}")
+                        else:
+                            logger.warning(f"GGUFモデルファイルが見つかりません: {model['path']}")
+            else:
+                # レジストリファイルがない場合は直接スキャン（サブディレクトリも含む）
+                models_dir = Path("/workspace/models")
+                if models_dir.exists():
+                    for gguf_file in models_dir.rglob("*.gguf"):
+                        # 相対パスを取得してサブディレクトリ構造を保持
+                        relative_path = gguf_file.relative_to(models_dir)
+                        models["gguf_models"].append({
+                            "name": gguf_file.stem,
+                            "path": str(gguf_file),
+                            "type": "gguf",
+                            "format": "GGUF",
+                            "size": f"{gguf_file.stat().st_size / (1024*1024):.1f} MB",
+                            "modified": datetime.fromtimestamp(gguf_file.stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
+                            "relative_path": str(relative_path)
+                        })
+                        logger.info(f"GGUFモデルを直接検出: {relative_path}")
+        except Exception as e:
+            logger.warning(f"GGUFモデル読み込みエラー: {e}")
+        
         # Ollamaモデルの検索
         if OLLAMA_AVAILABLE:
             try:
@@ -2233,7 +2276,7 @@ async def get_available_models():
         
     except Exception as e:
         logger.error(f"モデル一覧取得エラー: {str(e)}")
-        return {"finetuned_models": [], "ollama_models": [], "error": str(e)}
+        return {"finetuned_models": [], "ollama_models": [], "gguf_models": [], "error": str(e)}
 
 @app.delete("/api/models/{model_name}")
 async def delete_model(model_name: str):

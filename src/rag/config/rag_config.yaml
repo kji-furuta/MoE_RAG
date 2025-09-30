@@ -32,12 +32,16 @@ evaluation:
   test_dataset_path: ./data/rag_documents/test_queries.json
 llm:
   available_models:
-  - gpt-neox-20b-dynamic-lora
+  - 01_deepseek-32b-finetuned:latest
+  - 06_deepseek-32b-finetuned:latest
+  - 08_deepseek-32b-finetuned:latest
+  - deepseek-32b-base:latest
   - deepseek-32b-finetuned:latest
-  - gpt-neox:20b
-  - llama3.2:3b
   - deepseek-r1:32b
-  base_model: gpt-neox-20b-dynamic-lora
+  - gpt-neox:20b
+  - llama3.2:1b
+  - llama3.2:3b
+  base_model: llama3.2:3b
   device_map: auto
   finetuned_model_path: null
   load_in_8bit: true
@@ -45,7 +49,7 @@ llm:
     0: 36GB
     1: 36GB
   max_new_tokens: 1024
-  model_name: ollama:010_deepseek-32b-finetuned:latest
+  model_name: ollama:08_deepseek-32b-finetuned:latest
   model_path: outputs/lora_20250906_104924
   moe_experts_per_token: 2
   moe_model_path: /workspace/outputs/moe_d63ec0db-4f34-48d2-89c1-35b485a819f1
@@ -53,11 +57,11 @@ llm:
   ollama:
     base_url: http://localhost:11434
     max_tokens: 4096
-    model: 010_deepseek-32b-finetuned:latest
+    model: 08_deepseek-32b-finetuned:latest
     temperature: 0.6
     top_p: 0.9
   ollama_host: http://localhost:11434
-  ollama_model: 010_deepseek-32b-finetuned:latest
+  ollama_model: 08_deepseek-32b-finetuned:latest
   ollama_models:
   - description: LoRA fine-tuned model
     name: 1_deepseek-32b-finetuned
@@ -103,6 +107,12 @@ llm:
     tag: latest
   - description: LoRA fine-tuned model
     name: 010_deepseek-32b-finetuned
+    tag: latest
+  - description: LoRA fine-tuned model
+    name: 06_deepseek-32b-finetuned
+    tag: latest
+  - description: LoRA fine-tuned model
+    name: 08_deepseek-32b-finetuned
     tag: latest
   provider: ollama
   quantization:

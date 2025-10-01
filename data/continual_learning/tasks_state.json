@@ -576,5 +576,24 @@
       "final_loss": 0.0,
       "training_completed": true
     }
+  },
+  "3fd0c537-0dbe-4f9d-bfbe-3c9209186879": {
+    "task_id": "3fd0c537-0dbe-4f9d-bfbe-3c9209186879",
+    "task_name": "task_10_01",
+    "started_at": "2025-10-01T13:58:40.958577+09:00",
+    "id": "3fd0c537-0dbe-4f9d-bfbe-3c9209186879",
+    "type": "continual_learning",
+    "created_at": "2025-10-01T13:58:40.958590+09:00",
+    "status": "completed",
+    "progress": 100,
+    "metrics": {},
+    "messages": [
+      "継続学習を開始...",
+      "トレーニング開始...",
+      "トレーニング完了",
+      "Fisher行列を計算中..."
+    ],
+    "error": "object of type 'StreamingTextDataset' has no len()",
+    "completed_at": "2025-10-01T18:16:06.711356+09:00"
   }
 }

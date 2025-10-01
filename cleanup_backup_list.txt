@@ -1,0 +1,65 @@
+# ストレージクリーンアップ バックアップリスト
+# 作成日: 2025-09-28
+# 削除前のストレージ使用率: 87% (823GB/1007GB)
+
+## 削除対象ファイル
+
+### 1. 重複GGUF モデル (models/ ディレクトリ)
+# 合計: 約360GB削減可能
+# 最新の020_deepseek-32b-finetuned.ggufを残し、古いバージョンを削除
+
+削除対象:
+- models/00_deepseek-32b-finetuned.gguf (24GB)
+- models/01_deepseek-32b-finetuned.gguf (24GB)
+- models/010_deepseek-32b-finetuned.gguf (24GB)
+- models/1_deepseek-32b-finetuned.gguf (24GB)
+- models/4_deepseek-32b-finetuned.gguf (24GB)
+- models/5_deepseek-32b-finetuned.gguf (24GB)
+- models/6_deepseek-32b-finetuned.gguf (24GB)
+- models/7_deepseek-32b-finetuned.gguf (24GB)
+- models/8_deepseek-32b-finetuned.gguf (24GB)
+- models/11_deepseek-32b-finetuned.gguf (24GB)
+- models/87_deepseek-32b-finetuned.gguf (24GB)
+- models/88_deepseek-32b-finetuned.gguf (24GB)
+- models/89_deepseek-32b-finetuned.gguf (24GB)
+- models/task1_deepseek-32b-finetuned.gguf (24GB)
+- models/deepseek-32b-finetuned.gguf (24GB) # 番号なしの古いバージョン
+
+保持:
+- models/020_deepseek-32b-finetuned.gguf (最新)
+- models/DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf (量子化版)
+- models/gpt-neox-20b関連 (別モデル)
+
+### 2. 古い継続学習モデル (outputs/ ディレクトリ)
+# 合計: 約1.4GB削減可能
+
+削除対象（7日以上前の小さいモデル）:
+- outputs/continual_task_100_20250913_100331
+- outputs/continual_task_100_20250917_220204
+- outputs/continual_task_100_20250918_170000
+- outputs/continual_task_1_20250908_181104
+
+保持:
+- 最新の継続学習タスク（9/24以降）
+- 実際に学習データが入っているモデル（100MB以上）
+
+### 3. バックアップファイル (data/continual_learning/)
+削除対象:
+- data/continual_learning/tasks_state.json.backup_*
+- data/continual_learning/tasks_state_backup_*.json
+
+### 4. 検証・テストスクリプト (scripts/)
+削除対象（一時的な修正確認スクリプト）:
+- scripts/fix_*.py
+- scripts/verify_*.py
+- scripts/test_*.py
+- scripts/check_*.py
+
+### 予想削除効果
+- GGUFモデル削除: 約360GB
+- 継続学習モデル: 約1.4GB
+- その他: 約0.1GB
+-------------------
+合計: 約361.5GB削減予定
+
+削除後の予想ストレージ使用率: 約51% (461GB/1007GB)

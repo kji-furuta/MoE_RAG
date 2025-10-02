@@ -636,7 +636,34 @@ async def run_training_task(task_id: str, request: TrainingRequest):
         training_tasks[task_id].message = f"エラー: {str(e)}"
 
     finally:
-        # AcceleratorStateのクリーンアップ（重要！）
+        # GPUメモリのクリーンアップ（最優先）
+        # ファインチューニング後に継続学習を実行する際のメモリ不足を防ぐ
+        try:
+            # モデルとトークナイザーを明示的に削除
+            if 'model' in locals():
+                del model
+            if 'tokenizer' in locals():
+                del tokenizer
+            if 'trainer' in locals():
+                del trainer
+
+            # GPUメモリを完全にクリア
+            if torch.cuda.is_available():
+                import gc
+                gc.collect()
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()
+                logger.info(f"Task {task_id}: GPUメモリをクリアしました")
+
+                # メモリ使用状況をログ
+                for i in range(torch.cuda.device_count()):
+                    allocated = torch.cuda.memory_allocated(i) / 1024**3
+                    reserved = torch.cuda.memory_reserved(i) / 1024**3
+                    logger.info(f"Task {task_id}: GPU {i} - Allocated: {allocated:.2f}GB, Reserved: {reserved:.2f}GB")
+        except Exception as gpu_cleanup_error:
+            logger.warning(f"Task {task_id}: GPUメモリクリーンアップ警告: {str(gpu_cleanup_error)}")
+
+        # AcceleratorStateのクリーンアップ
         # ファインチューニング後に継続学習を実行する際のAcceleratorState競合を防ぐ
         try:
             from accelerate.state import AcceleratorState
@@ -645,4 +672,11 @@ async def run_training_task(task_id: str, request: TrainingRequest):
                 logger.info(f"Task {task_id}: AcceleratorStateをリセットしました")
         except Exception as cleanup_error:
             logger.warning(f"Task {task_id}: AcceleratorStateクリーンアップ警告: {str(cleanup_error)}")
+
+        # CUDA_VISIBLE_DEVICES環境変数のクリーンアップ
+        # 継続学習で設定した環境変数が残ると、次のタスクでデバイスエラーが発生する
+        if "CUDA_VISIBLE_DEVICES" in os.environ:
+            cuda_visible_devices = os.environ.pop("CUDA_VISIBLE_DEVICES", None)
+            if cuda_visible_devices:
+                logger.info(f"Task {task_id}: CUDA_VISIBLE_DEVICES環境変数をクリア (was: {cuda_visible_devices})")
 

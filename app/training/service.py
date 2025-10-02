@@ -566,24 +566,35 @@ async def run_training_task(task_id: str, request: TrainingRequest):
         # トレーニング実行
         logger.info(f"Task {task_id}: 実際のトレーニング開始 (メソッド: {request.training_method})")
         logger.info(f"Task {task_id}: トレーニング設定 - ステップ数: {max_steps}, バッチサイズ: {batch_size}, 学習率: {learning_rate}")
-        
+
         try:
             train_result = trainer.train()
-            
+
             # トレーニング結果のログ
             if hasattr(train_result, 'metrics'):
                 logger.info(f"Task {task_id}: トレーニング完了 - メトリクス: {train_result.metrics}")
             else:
                 logger.info(f"Task {task_id}: トレーニング完了")
-                
+
             # 継続学習の場合は追加情報をログ
             if use_ewc:
                 logger.info(f"Task {task_id}: 継続学習（EWC）によるトレーニングが正常に完了しました")
-                
+
         except Exception as train_error:
+            import traceback
             logger.error(f"Task {task_id}: トレーニングエラー: {str(train_error)}")
-            # エラーが発生してもモデルは保存して続行
-        
+            logger.error(f"Task {task_id}: エラー詳細:\n{traceback.format_exc()}")
+
+            # 失敗状態に確実に遷移
+            training_tasks[task_id].status = "failed"
+            training_tasks[task_id].message = f"訓練失敗: {str(train_error)}"
+            training_tasks[task_id].error = str(train_error)
+
+            # 後続処理をスキップ（保存処理を実行しない）
+            logger.error(f"Task {task_id}: 訓練が失敗したため、モデル保存をスキップします")
+            return
+
+        # トレーニングが成功した場合のみ、ここに到達する
         # モデル保存
         training_tasks[task_id].message = "モデルを保存中..."
         training_tasks[task_id].progress = 95.0
@@ -616,11 +627,22 @@ async def run_training_task(task_id: str, request: TrainingRequest):
         training_tasks[task_id].message = f"{method_name}ファインチューニング完了！"
         training_tasks[task_id].model_path = str(output_dir)
         logger.info(f"Task {task_id}: {method_name}ファインチューニング完了 - {output_dir}")
-        
+
     except Exception as e:
         import traceback
         logger.error(f"Task {task_id}: エラー発生: {str(e)}")
         logger.error(traceback.format_exc())
         training_tasks[task_id].status = "failed"
         training_tasks[task_id].message = f"エラー: {str(e)}"
+
+    finally:
+        # AcceleratorStateのクリーンアップ（重要！）
+        # ファインチューニング後に継続学習を実行する際のAcceleratorState競合を防ぐ
+        try:
+            from accelerate.state import AcceleratorState
+            if AcceleratorState._shared_state:
+                AcceleratorState._reset_state(reset_partial_state=True)
+                logger.info(f"Task {task_id}: AcceleratorStateをリセットしました")
+        except Exception as cleanup_error:
+            logger.warning(f"Task {task_id}: AcceleratorStateクリーンアップ警告: {str(cleanup_error)}")
 

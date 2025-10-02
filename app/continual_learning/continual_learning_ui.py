@@ -186,6 +186,9 @@ async def run_continual_learning_task(
                 trust_remote_code=True
             )
 
+        # モデル生成完了フラグ
+        model_saved = False
+
         model = pipeline.run_continual_task(
             model=model,
             tokenizer=tokenizer,  # トークナイザーを追加
@@ -196,30 +199,37 @@ async def run_continual_learning_task(
             fisher_importance=config.ewc_lambda,
             progress_callback=progress_callback
         )
-        
-        # 評価の実行
-        task_manager.update_task(task_id, progress=90, messages=["評価を実行中..."])
-        
-        from src.evaluation.continual_metrics import ContinualLearningEvaluator
-        evaluator = ContinualLearningEvaluator()
-        
-        # 破滅的忘却の評価
-        if len(pipeline.task_history) > 1:
-            forgetting_results = evaluator.evaluate_forgetting(
-                model, pipeline.task_history
-            )
-            
-            # レポート生成
-            report_path = evaluator.generate_report(forgetting_results)
-            
-            task_manager.update_task(
-                task_id,
-                metrics={
-                    "forgetting_results": forgetting_results,
-                    "report_path": str(report_path)
-                }
-            )
-        
+
+        # モデル保存が完了
+        model_saved = True
+        logger.info(f"Task {task_id}: モデル生成完了 - {pipeline.get_latest_model_path()}")
+
+        # 評価の実行（エラーが出ても継続学習は成功とみなす）
+        try:
+            task_manager.update_task(task_id, progress=90, messages=["評価を実行中..."])
+
+            from src.evaluation.continual_metrics import ContinualLearningEvaluator
+            evaluator = ContinualLearningEvaluator()
+
+            # 破滅的忘却の評価
+            if len(pipeline.task_history) > 1:
+                forgetting_results = evaluator.evaluate_forgetting(
+                    model, pipeline.task_history
+                )
+
+                # レポート生成
+                report_path = evaluator.generate_report(forgetting_results)
+
+                task_manager.update_task(
+                    task_id,
+                    metrics={
+                        "forgetting_results": forgetting_results,
+                        "report_path": str(report_path)
+                    }
+                )
+        except Exception as eval_error:
+            logger.warning(f"Task {task_id}: 評価処理でエラー（継続学習は成功）: {str(eval_error)}")
+
         # GGUF変換（オプション）
         try:
             from src.training.gguf_integration import gguf_integration
@@ -242,8 +252,8 @@ async def run_continual_learning_task(
                             f"✅ GGUF変換とOllama登録完了: {gguf_result['steps']['ollama_registration']['model_name']}"
                         ]
                     )
-        except Exception as e:
-            logger.warning(f"GGUF変換はスキップされました: {e}")
+        except Exception as gguf_error:
+            logger.warning(f"Task {task_id}: GGUF変換はスキップされました: {str(gguf_error)}")
 
         # タスク完了
         task_manager.update_task(
@@ -256,18 +266,43 @@ async def run_continual_learning_task(
         
     except Exception as e:
         logger.error(f"継続学習エラー: {str(e)}", exc_info=True)
-        task_manager.update_task(
-            task_id,
-            status="failed",
-            error=str(e),
-            completed_at=datetime.now(JST).isoformat()
-        )
+
+        # モデル保存が完了していれば、エラーでも"completed"として扱う
+        if model_saved:
+            logger.warning(f"Task {task_id}: モデル生成完了後のエラーのため、ステータスをcompletedに設定")
+            task_manager.update_task(
+                task_id,
+                status="completed",
+                progress=100,
+                completed_at=datetime.now(JST).isoformat(),
+                messages=task_manager.get_task(task_id)["messages"] + [
+                    "継続学習が完了しました（一部オプション処理でエラー）"
+                ]
+            )
+        else:
+            # モデル生成前のエラーは失敗として扱う
+            task_manager.update_task(
+                task_id,
+                status="failed",
+                error=str(e),
+                completed_at=datetime.now(JST).isoformat()
+            )
     finally:
         # クリーンアップ処理
         if 'continual_helper' in locals():
             continual_helper.cleanup_offload_dirs()
             continual_helper.restore_memory_allocator()
             logger.info("リソースのクリーンアップ完了")
+
+        # AcceleratorStateのクリーンアップ（重要！）
+        # 継続学習後にファインチューニングや別の継続学習を実行する際のAcceleratorState競合を防ぐ
+        try:
+            from accelerate.state import AcceleratorState
+            if AcceleratorState._shared_state:
+                AcceleratorState._reset_state(reset_partial_state=True)
+                logger.info(f"Task {task_id}: AcceleratorStateをリセットしました")
+        except Exception as cleanup_error:
+            logger.warning(f"Task {task_id}: AcceleratorStateクリーンアップ警告: {str(cleanup_error)}")
 
 # FastAPIルーター
 def create_continual_learning_router():

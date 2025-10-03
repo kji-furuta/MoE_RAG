@@ -73,6 +73,11 @@ def get_config_value(config, key, default, value_type):
 
 async def run_training_task(task_id: str, request: TrainingRequest):
     """バックグラウンドでトレーニングを実行"""
+    # finally節で確実にクリーンアップできるよう事前定義
+    model = None
+    tokenizer = None
+    trainer = None
+
     try:
         # ステータス更新
         training_tasks[task_id].status = "preparing"
@@ -639,29 +644,49 @@ async def run_training_task(task_id: str, request: TrainingRequest):
         # GPUメモリのクリーンアップ（最優先）
         # ファインチューニング後に継続学習を実行する際のメモリ不足を防ぐ
         try:
-            # モデルとトークナイザーを明示的に削除
-            if 'model' in locals():
-                del model
-            if 'tokenizer' in locals():
-                del tokenizer
-            if 'trainer' in locals():
-                del trainer
+            logger.info(f"Task {task_id}: finally節開始 - クリーンアップ実行")
 
-            # GPUメモリを完全にクリア
+            # トレーナーを先に削除（モデルへの参照を切る）
+            if trainer is not None:
+                trainer = None
+                logger.info(f"Task {task_id}: trainerを削除")
+
+            # モデルをCPUに移動してから削除
+            if model is not None:
+                try:
+                    model.to("cpu")
+                    logger.info(f"Task {task_id}: modelをCPUに移動")
+                except Exception:
+                    pass
+                model = None
+                logger.info(f"Task {task_id}: modelを削除")
+
+            if tokenizer is not None:
+                tokenizer = None
+                logger.info(f"Task {task_id}: tokenizerを削除")
+
+            # ガベージコレクション
+            import gc
+            gc.collect()
+            logger.info(f"Task {task_id}: gc.collect()実行")
+
+            # 全GPUのキャッシュをクリア（重要！）
             if torch.cuda.is_available():
-                import gc
-                gc.collect()
-                torch.cuda.empty_cache()
-                torch.cuda.synchronize()
-                logger.info(f"Task {task_id}: GPUメモリをクリアしました")
+                num_gpus = torch.cuda.device_count()
+                logger.info(f"Task {task_id}: {num_gpus}個のGPUをクリーンアップ開始")
 
-                # メモリ使用状況をログ
-                for i in range(torch.cuda.device_count()):
-                    allocated = torch.cuda.memory_allocated(i) / 1024**3
-                    reserved = torch.cuda.memory_reserved(i) / 1024**3
-                    logger.info(f"Task {task_id}: GPU {i} - Allocated: {allocated:.2f}GB, Reserved: {reserved:.2f}GB")
+                for device_idx in range(num_gpus):
+                    with torch.cuda.device(device_idx):
+                        torch.cuda.empty_cache()
+                        torch.cuda.ipc_collect()
+                        torch.cuda.synchronize()
+                        allocated = torch.cuda.memory_allocated(device_idx) / 1024**3
+                        reserved = torch.cuda.memory_reserved(device_idx) / 1024**3
+                        logger.info(f"Task {task_id}: GPU {device_idx} クリア完了 - Allocated: {allocated:.2f}GB, Reserved: {reserved:.2f}GB")
+
+                logger.info(f"Task {task_id}: 全GPUメモリクリア完了")
         except Exception as gpu_cleanup_error:
-            logger.warning(f"Task {task_id}: GPUメモリクリーンアップ警告: {str(gpu_cleanup_error)}")
+            logger.error(f"Task {task_id}: GPUメモリクリーンアップエラー: {str(gpu_cleanup_error)}", exc_info=True)
 
         # AcceleratorStateのクリーンアップ
         # ファインチューニング後に継続学習を実行する際のAcceleratorState競合を防ぐ

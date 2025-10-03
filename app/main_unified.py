@@ -540,6 +540,11 @@ async def rag_page(request: Request):
     """RAGシステム画面"""
     return templates.TemplateResponse("rag.html", {"request": request, "rag_available": RAG_AVAILABLE})
 
+@app.get("/dpo")
+async def dpo_page(request: Request):
+    """DPO Preference収集画面"""
+    return templates.TemplateResponse("dpo.html", {"request": request})
+
 # 削除: startup_eventは後で定義される
 
 # Ollama統合のインポート

@@ -170,6 +170,10 @@ try:
     task_manager = continual_task_manager
     continual_learning_router = create_continual_learning_router()
     app.include_router(continual_learning_router, prefix="/api/continual-learning")
+
+    # DPO preference collection router
+    from app.dpo.preference_ui import router as dpo_router
+    app.include_router(dpo_router)
     logger.info("継続学習モジュールを正常にロードしました")
 except Exception as e:
     websocket_endpoint = None

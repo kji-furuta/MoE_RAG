@@ -77,14 +77,16 @@ async def run_training_task(task_id: str, request: TrainingRequest):
     model = None
     tokenizer = None
     trainer = None
+    dpo_trainer_instance = None  # DPO用
 
     try:
         # ステータス更新
         training_tasks[task_id].status = "preparing"
         method_name = {
             "lora": "LoRA",
-            "qlora": "QLoRA (4bit)", 
-            "full": "フルファインチューニング"
+            "qlora": "QLoRA (4bit)",
+            "full": "フルファインチューニング",
+            "dpo": "DPO (Direct Preference Optimization)"
         }.get(request.training_method, "LoRA")
         training_tasks[task_id].message = f"{method_name}でモデルを準備中..."
         training_tasks[task_id].progress = 10.0
@@ -194,6 +196,63 @@ async def run_training_task(task_id: str, request: TrainingRequest):
                 model.gradient_checkpointing_enable()
                 logger.info(f"Task {task_id}: Gradient checkpointing有効化（継続学習用）")
         
+        # DPO (Direct Preference Optimization) の場合
+        if request.training_method == "dpo":
+            try:
+                from src.training.dpo_trainer import DPOQLoRATrainer, DPOTrainingConfig
+
+                training_tasks[task_id].message = "DPOトレーナーを準備中..."
+                training_tasks[task_id].progress = 30.0
+
+                # DPO設定の作成
+                dpo_config = DPOTrainingConfig(
+                    model_name=request.model_name,
+                    output_dir=output_dir,
+                    lora_r=get_config_value(request.lora_config, "r", 64, int),
+                    lora_alpha=get_config_value(request.lora_config, "lora_alpha", 128, int),
+                    beta=get_config_value(request.training_config, "beta", 0.1, float),
+                    max_prompt_length=get_config_value(request.training_config, "max_prompt_length", 1024, int),
+                    max_length=get_config_value(request.training_config, "max_length", 2048, int),
+                    per_device_train_batch_size=1,
+                    gradient_accumulation_steps=8,
+                    learning_rate=get_config_value(request.training_config, "learning_rate", 5e-6, float),
+                    num_train_epochs=get_config_value(request.training_config, "num_epochs", 1, int),
+                )
+
+                # DPOトレーナーのインスタンス化
+                dpo_trainer_instance = DPOQLoRATrainer(dpo_config)
+
+                training_tasks[task_id].message = "DPOでファインチューニング中..."
+                training_tasks[task_id].progress = 50.0
+
+                # データセットパスの取得
+                dataset_path = request.training_data[0] if request.training_data else "data/dpo/preference_dataset.jsonl"
+
+                # DPOパイプラインの実行
+                dpo_trainer_instance.run_full_pipeline(
+                    dataset_path=dataset_path,
+                    adapter_output_path=output_dir
+                )
+
+                # 成功
+                training_tasks[task_id].status = "completed"
+                training_tasks[task_id].message = "DPOファインチューニングが完了しました"
+                training_tasks[task_id].progress = 100.0
+                training_tasks[task_id].result = {
+                    "adapter_path": output_dir,
+                    "model_name": request.model_name,
+                    "method": "dpo"
+                }
+
+                logger.info(f"Task {task_id}: DPOファインチューニング完了 - {output_dir}")
+                return
+
+            except Exception as e:
+                logger.error(f"Task {task_id}: DPO実行エラー: {str(e)}", exc_info=True)
+                training_tasks[task_id].status = "failed"
+                training_tasks[task_id].message = f"DPO実行エラー: {str(e)}"
+                return
+
         # LoRA設定（継続学習も含む）
         if request.training_method in ["lora", "qlora", "continual"]:
             training_tasks[task_id].message = "LoRAアダプターを設定中..."

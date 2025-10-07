@@ -205,16 +205,51 @@ async def run_training_task(task_id: str, request: TrainingRequest):
                 training_tasks[task_id].progress = 30.0
 
                 # DPO設定の作成
+                # ⚠️ DPOは通常のLoRAの約2倍のメモリを使用するため、UIの値を無視して強制的に最適化設定を適用
+                logger.warning("=" * 80)
+                logger.warning("⚠️  DPO実行のため、メモリ最適化設定を強制適用します（UI設定は無視されます）")
+                logger.warning("=" * 80)
+
+                # モデルサイズに応じた設定（全てUI設定を無視）
+                is_large_model = any(x in request.model_name.lower() for x in ["32b", "22b", "30b"])
+
+                if is_large_model:
+                    # 大型モデル（32B等）: 超最適化設定
+                    logger.warning(f"   モデル: {request.model_name} (大型モデル)")
+                    logger.warning("   LoRA rank: 16 (固定)")
+                    logger.warning("   max_prompt_length: 128 (固定)")
+                    logger.warning("   max_length: 384 (固定)")
+                    logger.warning("   gradient_accumulation_steps: 32 (固定)")
+                    lora_r = 16
+                    lora_alpha = 32
+                    max_prompt_length = 128
+                    max_length = 384
+                    gradient_accumulation_steps = 32
+                else:
+                    # 小〜中型モデル（7B/8B等）: 標準最適化設定
+                    logger.warning(f"   モデル: {request.model_name} (標準モデル)")
+                    logger.warning("   LoRA rank: 32 (固定)")
+                    logger.warning("   max_prompt_length: 256 (固定)")
+                    logger.warning("   max_length: 512 (固定)")
+                    logger.warning("   gradient_accumulation_steps: 16 (固定)")
+                    lora_r = 32
+                    lora_alpha = 64
+                    max_prompt_length = 256
+                    max_length = 512
+                    gradient_accumulation_steps = 16
+
+                logger.warning("=" * 80)
+
                 dpo_config = DPOTrainingConfig(
                     model_name=request.model_name,
                     output_dir=output_dir,
-                    lora_r=get_config_value(request.lora_config, "r", 64, int),
-                    lora_alpha=get_config_value(request.lora_config, "lora_alpha", 128, int),
+                    lora_r=lora_r,
+                    lora_alpha=lora_alpha,
                     beta=get_config_value(request.training_config, "beta", 0.1, float),
-                    max_prompt_length=get_config_value(request.training_config, "max_prompt_length", 1024, int),
-                    max_length=get_config_value(request.training_config, "max_length", 2048, int),
+                    max_prompt_length=max_prompt_length,
+                    max_length=max_length,
                     per_device_train_batch_size=1,
-                    gradient_accumulation_steps=8,
+                    gradient_accumulation_steps=gradient_accumulation_steps,
                     learning_rate=get_config_value(request.training_config, "learning_rate", 5e-6, float),
                     num_train_epochs=get_config_value(request.training_config, "num_epochs", 1, int),
                 )
@@ -228,10 +263,12 @@ async def run_training_task(task_id: str, request: TrainingRequest):
                 # データセットパスの取得
                 dataset_path = request.training_data[0] if request.training_data else "data/dpo/preference_dataset.jsonl"
 
-                # DPOパイプラインの実行
+                # DPOパイプラインの実行（ロード済みのモデルとトークナイザーを渡す）
                 dpo_trainer_instance.run_full_pipeline(
                     dataset_path=dataset_path,
-                    adapter_output_path=output_dir
+                    adapter_output_path=output_dir,
+                    model=model,
+                    tokenizer=tokenizer
                 )
 
                 # 成功

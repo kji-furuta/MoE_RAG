@@ -8,7 +8,7 @@ import os
 import torch
 import logging
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 from dataclasses import dataclass
 
 from datasets import load_dataset, Dataset
@@ -39,14 +39,15 @@ class DPOTrainingConfig:
 
     # DPO設定
     beta: float = 0.1  # DPOのbetaパラメータ
-    max_prompt_length: int = 1024
-    max_length: int = 2048
+    max_prompt_length: int = 512  # メモリ削減（1024→512）
+    max_length: int = 1024  # メモリ削減（2048→1024）
 
     # 学習設定
     per_device_train_batch_size: int = 1  # VRAM制約のため
-    gradient_accumulation_steps: int = 8
+    gradient_accumulation_steps: int = 16  # メモリ削減のため増加（8→16）
     learning_rate: float = 5e-6
     num_train_epochs: int = 1
+    max_steps: int = -1  # -1は無効（num_train_epochsを使用）
     lr_scheduler_type: str = "cosine"
 
     # メモリ最適化
@@ -57,9 +58,10 @@ class DPOTrainingConfig:
     # ログ・保存
     logging_steps: int = 10
     save_steps: int = 100
+    eval_steps: int = 100
 
-    # GPU制約
-    max_memory_per_gpu: str = "22GiB"
+    # GPU制約（25GB GPUを有効活用するため23GiBに調整）
+    max_memory_per_gpu: str = "23GiB"
     max_cpu_memory: str = "40GiB"
 
 
@@ -87,16 +89,20 @@ class DPOQLoRATrainer:
         # メモリ制約の設定
         self.max_memory = self._setup_memory_constraints()
 
-    def _setup_memory_constraints(self) -> Dict[str, str]:
+    def _setup_memory_constraints(self) -> Dict[Union[int, str], str]:
         """
         メモリ制約の設定
         Codex MCP推奨: 明示的なmax_memoryでAccelerateのヒューリスティック回避
+
+        注意: accelerateライブラリはGPUデバイスを整数インデックスで指定する必要があります
+        文字列 "cuda:0" ではなく整数 0 を使用
         """
         max_memory = {}
 
         if self.num_gpus > 0:
             for i in range(self.num_gpus):
-                max_memory[f"cuda:{i}"] = self.config.max_memory_per_gpu
+                # 整数インデックスを使用（accelerate要件）
+                max_memory[i] = self.config.max_memory_per_gpu
 
         max_memory["cpu"] = self.config.max_cpu_memory
 
@@ -209,6 +215,33 @@ class DPOQLoRATrainer:
 
         logger.info("モデルの準備完了")
 
+    def _prepare_external_model_for_training(self):
+        """
+        外部から提供された量子化済みモデルを学習用に準備
+        prepare_model_for_kbit_training()をスキップし、LoRAアダプターのみ適用
+        """
+        logger.info("外部モデルを学習用に準備中（量子化済みのためLoRAアダプターのみ適用）...")
+
+        # キャッシュ無効化（学習時は不要）
+        if hasattr(self.model, 'config'):
+            self.model.config.use_cache = False
+
+        # Gradient checkpointingの有効化（メモリ節約）
+        if self.config.gradient_checkpointing and hasattr(self.model, 'gradient_checkpointing_enable'):
+            self.model.gradient_checkpointing_enable()
+            logger.info("Gradient checkpointing有効化")
+
+        # LoRA設定の取得
+        peft_config = self._get_lora_config()
+
+        # PEFTモデルの作成
+        self.model = get_peft_model(self.model, peft_config)
+
+        # 学習可能なパラメータ数の表示
+        self.model.print_trainable_parameters()
+
+        logger.info("外部モデルの準備完了")
+
     def load_preference_dataset(self, dataset_path: str, split: str = "train") -> Dataset:
         """
         Preference datasetのロード
@@ -237,24 +270,46 @@ class DPOQLoRATrainer:
 
     def setup_trainer(self, train_dataset: Dataset):
         """
-        DPOTrainerのセットアップ
+        DPOTrainerのセットアップ (TRL 0.8.0+ compatible)
         prompt_kji.md Lines 267-294 に基づく
         """
         logger.info("DPOTrainerのセットアップ中...")
+        logger.warning("⚠️  参照モデルのlog_probsを事前計算中 - メモリピークが発生します")
+        logger.warning("⚠️  この工程で一時的にメモリ使用量が増加しますが、完了後は減少します")
 
-        # TrainingArgumentsの設定
-        training_args = TrainingArguments(
+        # DPOConfigの設定 (TRL 0.8.0+ではDPOConfig使用)
+        from trl import DPOConfig
+
+        training_args = DPOConfig(
+            # 基本設定
+            output_dir=self.config.output_dir,
             per_device_train_batch_size=self.config.per_device_train_batch_size,
             gradient_accumulation_steps=self.config.gradient_accumulation_steps,
             gradient_checkpointing=self.config.gradient_checkpointing,
             learning_rate=self.config.learning_rate,
             lr_scheduler_type=self.config.lr_scheduler_type,
             num_train_epochs=self.config.num_train_epochs,
+            max_steps=self.config.max_steps if self.config.max_steps > 0 else -1,
+
+            # ロギング・保存
             logging_steps=self.config.logging_steps,
             save_steps=self.config.save_steps,
-            output_dir=self.config.output_dir,
+            eval_steps=self.config.eval_steps,
+
+            # 最適化設定
             optim=self.config.optim,
             bf16=self.config.bf16,
+
+            # DPO固有の設定
+            beta=self.config.beta,
+            max_prompt_length=self.config.max_prompt_length,
+            max_length=self.config.max_length,
+
+            # メモリ効率化設定
+            precompute_ref_log_probs=True,  # 参照モデルのlog_probsを事前計算（メモリ節約）
+            precompute_ref_batch_size=2,  # 事前計算時のバッチサイズ（4→2に削減でピークメモリ削減）
+
+            # その他
             remove_unused_columns=False,
             report_to="none",  # wandb統合は後で追加可能
         )
@@ -267,10 +322,7 @@ class DPOQLoRATrainer:
             ref_model=None,  # 自動生成（凍結コピー）
             args=training_args,
             train_dataset=train_dataset,
-            tokenizer=self.tokenizer,
-            beta=self.config.beta,
-            max_prompt_length=self.config.max_prompt_length,
-            max_length=self.config.max_length,
+            processing_class=self.tokenizer,  # TRL 0.8.0+ではprocessing_classを使用
         )
 
         logger.info("DPOTrainerのセットアップ完了")
@@ -306,20 +358,30 @@ class DPOQLoRATrainer:
 
         logger.info(f"アダプタの保存完了: {adapter_path}")
 
-    def run_full_pipeline(self, dataset_path: str, adapter_output_path: str):
+    def run_full_pipeline(self, dataset_path: str, adapter_output_path: str,
+                         model=None, tokenizer=None):
         """
         完全なDPOパイプラインの実行
 
         Args:
             dataset_path: Preference datasetのパス (JSONL or HF dataset)
             adapter_output_path: LoRAアダプタの保存先パス
+            model: 事前にロード済みのモデル (Noneの場合は新規ロード)
+            tokenizer: 事前にロード済みのトークナイザー (Noneの場合は新規ロード)
         """
         try:
-            # 1. モデルとトークナイザのロード
-            self.load_model_and_tokenizer()
-
-            # 2. モデルを学習用に準備
-            self.prepare_model_for_training()
+            # 1. モデルとトークナイザのロード（未提供の場合のみ）
+            if model is not None and tokenizer is not None:
+                logger.info("外部から提供されたモデルとトークナイザーを使用")
+                self.model = model
+                self.tokenizer = tokenizer
+                # 外部モデルは既に量子化済みのため、LoRAアダプターのみ適用
+                self._prepare_external_model_for_training()
+            else:
+                logger.info("新規にモデルとトークナイザーをロード")
+                self.load_model_and_tokenizer()
+                # 2. モデルを学習用に準備
+                self.prepare_model_for_training()
 
             # 3. データセットのロード
             train_dataset = self.load_preference_dataset(dataset_path)
@@ -335,6 +397,34 @@ class DPOQLoRATrainer:
 
             logger.info("DPOパイプラインが正常に完了しました")
 
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower() or "cuda" in str(e).lower():
+                logger.error("=" * 60)
+                logger.error("GPU メモリ不足エラー (OOM) が発生しました")
+                logger.error("=" * 60)
+                logger.error(f"エラー詳細: {str(e)}")
+                logger.error("")
+                logger.error("推奨される対処法:")
+                logger.error("  1. シーケンス長を削減:")
+                logger.error(f"     現在: max_prompt_length={self.config.max_prompt_length}, max_length={self.config.max_length}")
+                logger.error("     推奨: max_prompt_length=256, max_length=512")
+                logger.error("")
+                logger.error("  2. Gradient Accumulationを増加:")
+                logger.error(f"     現在: gradient_accumulation_steps={self.config.gradient_accumulation_steps}")
+                logger.error(f"     推奨: gradient_accumulation_steps={self.config.gradient_accumulation_steps * 2}")
+                logger.error("")
+                logger.error("  3. LoRAランクを削減:")
+                logger.error(f"     現在: lora_r={self.config.lora_r}")
+                logger.error("     推奨: lora_r=32")
+                logger.error("")
+                logger.error("  4. メモリ状況を確認:")
+                if torch.cuda.is_available():
+                    for i in range(torch.cuda.device_count()):
+                        allocated = torch.cuda.memory_allocated(i) / 1e9
+                        total = torch.cuda.get_device_properties(i).total_memory / 1e9
+                        logger.error(f"     GPU {i}: {allocated:.2f}GB / {total:.2f}GB 使用中")
+                logger.error("=" * 60)
+            raise
         except Exception as e:
             logger.error(f"DPOパイプライン実行中にエラーが発生: {str(e)}", exc_info=True)
             raise

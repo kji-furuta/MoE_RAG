@@ -354,3 +354,14 @@ pip install trl>=0.7.4 --upgrade
 **対応モデル**: cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese
 **GPU要件**: 2x 24GB (合計48GB)
 **ステータス**: Production Ready
+
+```bash
+コミット済みファイル:
+src/training/dpo_trainer.py (NEW)
+app/dpo/preference_ui.py (NEW)
+app/training/service.py (MODIFIED)
+app/main_unified.py (MODIFIED)
+requirements.txt (MODIFIED)
+docs/DPO_IMPLEMENTATION_GUIDE.md (NEW)
+ステータス: ✅ ローカルコミット完了、GitHub pushは未実施
+```

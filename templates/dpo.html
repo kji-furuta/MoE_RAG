@@ -144,6 +144,102 @@
             </form>
         </div>
     </div>
+
+    <!-- DPO学習実行 -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5>🚀 DPO学習を実行</h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <strong>💡 ヒント:</strong> 収集したPreferenceデータを使ってDPO学習を実行できます。
+                学習には2x24GB GPU環境で約30-60分かかります。
+            </div>
+
+            <form id="dpoTrainingForm">
+                <div class="mb-3">
+                    <label for="trainingModelName" class="form-label">ベースモデル</label>
+                    <select class="form-select" id="trainingModelName" required>
+                        <option value="">モデルを選択...</option>
+                        <option value="cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese">DeepSeek-R1-Distill-Qwen-32B-Japanese</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="datasetName" class="form-label">使用するデータセット</label>
+                    <select class="form-select" id="datasetName" required>
+                        <option value="preference_dataset.jsonl">preference_dataset.jsonl (デフォルト)</option>
+                    </select>
+                    <small class="text-muted">上記で収集したPreferenceデータを使用します</small>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="loraR" class="form-label">LoRA Rank (r)</label>
+                            <input type="number" class="form-control" id="loraR" value="64" min="8" max="256">
+                            <small class="text-muted">推奨: 64 (高い→表現力↑、メモリ↑)</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="loraAlpha" class="form-label">LoRA Alpha</label>
+                            <input type="number" class="form-control" id="loraAlpha" value="128" min="16" max="512">
+                            <small class="text-muted">推奨: 2×r = 128</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="dpoBeta" class="form-label">DPO Beta</label>
+                            <input type="number" class="form-control" id="dpoBeta" value="0.1" min="0.01" max="1" step="0.01">
+                            <small class="text-muted">推奨: 0.1 (低い→積極的、高い→保守的)</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="learningRate" class="form-label">学習率</label>
+                            <input type="number" class="form-control" id="learningRate" value="0.000005" step="0.000001">
+                            <small class="text-muted">推奨: 5e-6</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="numEpochs" class="form-label">エポック数</label>
+                            <input type="number" class="form-control" id="numEpochs" value="1" min="1" max="5">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="maxLength" class="form-label">最大トークン長</label>
+                            <input type="number" class="form-control" id="maxLength" value="2048" min="512" max="4096" step="512">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-lg w-100">
+                    <i class="bi bi-rocket-takeoff"></i> DPO学習を開始
+                </button>
+            </form>
+
+            <!-- 学習ステータス表示 -->
+            <div id="trainingStatus" class="mt-4" style="display: none;">
+                <div class="alert alert-warning">
+                    <h6>学習中...</h6>
+                    <div class="progress">
+                        <div id="trainingProgress" class="progress-bar progress-bar-striped progress-bar-animated"
+                             role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <p id="trainingMessage" class="mt-2 mb-0">準備中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -277,6 +373,111 @@ async function deleteDataset(name) {
     } catch (error) {
         console.error('削除エラー:', error);
         alert('削除に失敗しました');
+    }
+}
+
+// DPO学習フォーム送信
+let currentTaskId = null;
+let statusCheckInterval = null;
+
+document.getElementById('dpoTrainingForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const formData = {
+        model_name: document.getElementById('trainingModelName').value,
+        training_method: "dpo",
+        training_data: [`data/dpo/${document.getElementById('datasetName').value}`],
+        lora_config: {
+            r: parseInt(document.getElementById('loraR').value),
+            lora_alpha: parseInt(document.getElementById('loraAlpha').value),
+            dropout: 0.05
+        },
+        training_config: {
+            beta: parseFloat(document.getElementById('dpoBeta').value),
+            num_epochs: parseInt(document.getElementById('numEpochs').value),
+            learning_rate: parseFloat(document.getElementById('learningRate').value),
+            max_prompt_length: 1024,
+            max_length: parseInt(document.getElementById('maxLength').value)
+        }
+    };
+
+    try {
+        const response = await fetch('/api/train', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            currentTaskId = result.task_id;
+
+            // ステータス表示を表示
+            document.getElementById('trainingStatus').style.display = 'block';
+            document.getElementById('trainingMessage').textContent = 'DPO学習を開始しました...';
+
+            alert(`DPO学習を開始しました！\nタスクID: ${currentTaskId}`);
+
+            // ステータス更新を開始
+            startStatusCheck();
+        } else {
+            const error = await response.json();
+            alert('エラー: ' + (error.detail || 'DPO学習の開始に失敗しました'));
+        }
+    } catch (error) {
+        console.error('DPO学習開始エラー:', error);
+        alert('DPO学習の開始に失敗しました');
+    }
+});
+
+// ステータスチェック開始
+function startStatusCheck() {
+    if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+    }
+
+    statusCheckInterval = setInterval(checkTrainingStatus, 3000); // 3秒ごと
+    checkTrainingStatus(); // 即座に1回実行
+}
+
+// 学習ステータス確認
+async function checkTrainingStatus() {
+    if (!currentTaskId) return;
+
+    try {
+        const response = await fetch(`/api/training-status/${currentTaskId}`);
+        const data = await response.json();
+
+        // 進捗バーを更新
+        const progress = data.progress || 0;
+        document.getElementById('trainingProgress').style.width = `${progress}%`;
+        document.getElementById('trainingProgress').textContent = `${progress.toFixed(1)}%`;
+
+        // メッセージを更新
+        document.getElementById('trainingMessage').textContent = data.message || 'DPO学習中...';
+
+        // 完了または失敗時
+        if (data.status === 'completed') {
+            clearInterval(statusCheckInterval);
+            document.getElementById('trainingStatus').innerHTML = `
+                <div class="alert alert-success">
+                    <h6>✅ DPO学習が完了しました！</h6>
+                    <p class="mb-0">アダプターパス: ${data.result?.adapter_path || 'outputs/dpo_adapter'}</p>
+                </div>
+            `;
+            alert('DPO学習が完了しました！');
+        } else if (data.status === 'failed') {
+            clearInterval(statusCheckInterval);
+            document.getElementById('trainingStatus').innerHTML = `
+                <div class="alert alert-danger">
+                    <h6>❌ DPO学習が失敗しました</h6>
+                    <p class="mb-0">${data.message}</p>
+                </div>
+            `;
+            alert('DPO学習が失敗しました: ' + data.message);
+        }
+    } catch (error) {
+        console.error('ステータス確認エラー:', error);
     }
 }
 

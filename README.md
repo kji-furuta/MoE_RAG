@@ -202,6 +202,119 @@ MoE_RAG/
 
 この仕組みにより、道路設計の専門的な内容を含む文書が優先的に上位にランクされ、より関連性の高い検索結果が得られます。
 
+### 🎯 DPO (Direct Preference Optimization) 学習システム（NEW）
+- **人間のフィードバックから直接学習**: RLHFの代替手法として効率的な学習を実現
+- **Preference データ収集**: UIから (prompt, chosen, rejected) 形式のデータを収集
+- **統合学習パイプライン**: データ収集からDPO学習まで単一ページで完結
+- **リアルタイム進捗監視**: 学習状況を3秒ごとに更新して表示
+- **LoRA + DPO統合**: メモリ効率的なDPO学習をサポート
+- **ハイパーパラメータ調整**: Beta値、学習率、LoRA設定などをUIから制御可能
+
+#### 📚 DPO学習の詳細仕様
+
+##### 1. DPO（Direct Preference Optimization）とは
+DPOは、強化学習（RLHF）を使わずに人間のフィードバックからモデルを直接学習させる手法です。
+
+**主な利点**:
+- **シンプル**: 報酬モデルや強化学習が不要
+- **安定**: PPOなどの不安定な学習アルゴリズムを使用しない
+- **効率的**: メモリ効率的でLoRAと組み合わせ可能
+
+##### 2. データ形式
+DPO学習には、以下の形式のPreferenceデータが必要です：
+
+```json
+{
+  "prompt": "設計速度80km/hの道路の最小曲線半径は？",
+  "chosen": "設計速度80km/hの場合、最小曲線半径は280mです。道路構造令第15条に基づきます。",
+  "rejected": "だいたい200mくらいです。",
+  "margin": 2.0
+}
+```
+
+- **prompt**: モデルへの入力質問
+- **chosen**: 好ましい（正しい）回答
+- **rejected**: 好ましくない（不適切な）回答
+- **margin**: 選好の強さ（オプション、デフォルト1.0）
+
+##### 3. データ収集方法
+
+**方法1: Web UIでの手動収集** (推奨)
+1. http://localhost:8050/dpo にアクセス
+2. プロンプト、好ましい回答、好ましくない回答を入力
+3. 「Preferenceを追加」ボタンでデータ保存
+4. `data/dpo/preference_dataset.jsonl` に自動保存
+
+**方法2: JSONLファイルアップロード**
+1. ローカルでJSONLファイルを作成
+2. Web UIの「ファイルからアップロード」でアップロード
+3. 既存データに追加される
+
+**方法3: API経由**
+```bash
+curl -X POST "http://localhost:8050/api/dpo/add-preference" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "質問",
+    "chosen": "良い回答",
+    "rejected": "悪い回答"
+  }'
+```
+
+##### 4. DPO学習の実行
+
+**UIからの実行** (推奨)
+1. http://localhost:8050/dpo の「🚀 DPO学習を実行」セクション
+2. ベースモデル選択（例: DeepSeek-R1-Distill-Qwen-32B-Japanese）
+3. ハイパーパラメータ設定:
+   - LoRA Rank (r): 64 推奨
+   - LoRA Alpha: 128 推奨（2×r）
+   - DPO Beta: 0.1 推奨（低い→積極的、高い→保守的）
+   - 学習率: 5e-6 推奨
+   - エポック数: 1-3
+4. 「DPO学習を開始」をクリック
+5. リアルタイムで進捗を監視
+
+**API経由での実行**
+```bash
+curl -X POST "http://localhost:8050/api/train" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model_name": "cyberagent/DeepSeek-R1-Distill-Qwen-32B-Japanese",
+    "training_method": "dpo",
+    "training_data": ["data/dpo/preference_dataset.jsonl"],
+    "lora_config": {
+      "r": 64,
+      "lora_alpha": 128,
+      "dropout": 0.05
+    },
+    "training_config": {
+      "beta": 0.1,
+      "num_epochs": 1,
+      "learning_rate": 5e-6,
+      "max_prompt_length": 1024,
+      "max_length": 2048
+    }
+  }'
+```
+
+##### 5. ハイパーパラメータの意味
+
+| パラメータ | 推奨値 | 説明 |
+|----------|--------|------|
+| **LoRA r** | 64 | LoRAのランク（高いほど表現力↑、メモリ↑） |
+| **LoRA Alpha** | 128 | スケーリング係数（通常2×r） |
+| **DPO Beta** | 0.1 | 選好の強さ（低い→積極的、高い→保守的） |
+| **学習率** | 5e-6 | 学習の速度（大きいほど速いが不安定） |
+| **エポック数** | 1 | データセット全体を学習する回数 |
+| **Max Length** | 2048 | 最大トークン長（長いほどメモリ使用↑） |
+
+##### 6. 学習済みモデルの利用
+- 保存先: `outputs/dpo_adapter/`
+- RAGシステムで選択可能
+- 継続学習のベースモデルとして使用可能
+- Ollama形式に変換してRAGで利用可能
+
 ### 🔄 継続学習システム（NEW）
 - **EWCベース継続学習**: Fisher情報行列による重要パラメータの保護
 - **破滅的忘却の防止**: 以前のタスクの知識を保持しながら新タスクを学習
@@ -282,6 +395,7 @@ Webインターフェースの「モデル更新」ボタンは、**利用可能
 - **⚡ LoRA**: パラメータ効率的学習（低メモリ）
 - **🌟 DoRA (NEW)**: Weight-Decomposed LoRA - LoRAを超える精度と効率性
 - **💎 QLoRA**: 4bit/8bit量子化による超省メモリ学習
+- **🎯 DPO (NEW)**: Direct Preference Optimization - 人間のフィードバックから直接学習
 - **🧠 EWC**: 継続的学習による破滅的忘却の抑制
 - **🚀 AWQ (NEW)**: 4ビット量子化で75%メモリ削減
 - **⚙️ vLLM (NEW)**: PagedAttentionによる高速推論エンジン
@@ -571,7 +685,12 @@ docker exec -d ai-ft-container python -m uvicorn app.main_unified:app --host 0.0
 ### 🎯 統合機能一覧
 - **統合ダッシュボード**: システム状況とタスク管理
 - **ファインチューニング**: データアップロードと学習実行
-- **RAGシステム**: 土木道路設計文書の検索・質問応答（NEW）
+- **DPO Preference収集**: 人間のフィードバックデータ収集とDPO学習（NEW）
+  - Preferenceデータの収集（prompt, chosen, rejected）
+  - データセット管理・統計表示
+  - LoRA + DPO統合学習
+  - リアルタイム学習進捗監視
+- **RAGシステム**: 土木道路設計文書の検索・質問応答
   - 文書アップロード・インデックス化
   - ハイブリッド検索（ベクトル+キーワード）
   - ストリーミング応答
@@ -623,6 +742,24 @@ docker exec -d ai-ft-container python -m uvicorn app.main_unified:app --host 0.0
    - モデル保存場所を確認
    - 生成テストで品質評価
    - モデル管理ページで一覧表示
+
+#### 🎯 **DPO Preference収集** (`/dpo`) - NEW
+1. **Preferenceデータ収集**
+   - プロンプト（質問）を入力
+   - 好ましい回答（Chosen）を入力
+   - 好ましくない回答（Rejected）を入力
+   - 「Preferenceを追加」で保存
+
+2. **データセット管理**
+   - 収集済みデータの一覧表示
+   - データ統計情報の確認
+   - JSONLファイルでのアップロード
+
+3. **DPO学習実行**
+   - ベースモデル選択
+   - ハイパーパラメータ設定（LoRA r/alpha, DPO beta）
+   - 「DPO学習を開始」ボタンでトレーニング開始
+   - リアルタイム進捗監視（3秒ごと更新）
 
 #### 🤖 **テキスト生成** (`/generate`)
 1. **モデル選択**

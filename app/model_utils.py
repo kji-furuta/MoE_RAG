@@ -147,8 +147,9 @@ def create_quantization_config(
     
     # DeepSeek-R1-Distill-Qwen-32Bの特別処理（強化されたメモリ最適化）
     if "DeepSeek-R1-Distill-Qwen-32B" in model_name:
-        if training_method == "qlora":
-            # QLoRAの場合は最大限のメモリ最適化
+        if training_method in ["qlora", "dpo"]:
+            # QLoRA/DPOの場合は最大限のメモリ最適化
+            # DPOはPolicy/Referenceの2モデル必要なため4-bit必須
             return BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=torch.float16,
@@ -416,7 +417,7 @@ def load_model_and_tokenizer(
 
                 model_kwargs["max_memory"] = max_memory
                 model_kwargs["offload_folder"] = str(offload_dir)
-                model_kwargs["offload_state_dict"] = True
+                # offload_state_dict removed - not compatible with newer transformers
                 logger.info(f"Set max_memory for model distribution: {max_memory}")
                 logger.info(f"Total allocated GPU memory: {total_model_memory}GiB across {len(max_memory)-1} GPUs")
     

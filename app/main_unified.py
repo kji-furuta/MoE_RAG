@@ -174,7 +174,11 @@ try:
     # DPO preference collection router
     from app.dpo.preference_ui import router as dpo_router
     app.include_router(dpo_router)
-    logger.info("継続学習モジュールを正常にロードしました")
+
+    # DPO training API router
+    from app.dpo.training_api import router as dpo_training_router
+    app.include_router(dpo_training_router)
+    logger.info("継続学習モジュールとDPO APIを正常にロードしました")
 except Exception as e:
     websocket_endpoint = None
     logger.warning(f"継続学習モジュールのロードをスキップ: {str(e)}")

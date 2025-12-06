@@ -35,14 +35,16 @@ class HybridSearchResult:
     vector_score: float = 0.0
     keyword_score: float = 0.0
     hybrid_score: float = 0.0
+    tech_boost: float = 0.0  # 技術用語ブースト係数
     rank: int = 0
-    
+
     @classmethod
-    def from_search_result(cls, 
-                          result: SearchResult, 
+    def from_search_result(cls,
+                          result: SearchResult,
                           vector_score: float,
                           keyword_score: float,
                           hybrid_score: float,
+                          tech_boost: float,
                           rank: int) -> 'HybridSearchResult':
         """SearchResultから変換"""
         return cls(
@@ -52,6 +54,7 @@ class HybridSearchResult:
             vector_score=vector_score,
             keyword_score=keyword_score,
             hybrid_score=hybrid_score,
+            tech_boost=tech_boost,
             rank=rank
         )
 
@@ -427,22 +430,22 @@ class HybridSearchEngine:
         else:  # hybrid
             return self._hybrid_search(query_text, keywords, filters, top_k)
             
-    def _vector_only_search(self, 
-                           query_text: str, 
-                           filters: Optional[Dict[str, Any]], 
+    def _vector_only_search(self,
+                           query_text: str,
+                           filters: Optional[Dict[str, Any]],
                            top_k: int) -> List[HybridSearchResult]:
         """ベクトル検索のみ"""
-        
+
         # クエリの埋め込みを生成
         query_embedding = self.embedding_model.encode([query_text], is_query=True)[0]
-        
+
         # ベクトル検索を実行
         vector_results = self.vector_store.search(
             query_embedding=query_embedding,
             top_k=top_k,
             filters=filters
         )
-        
+
         # 結果を変換
         hybrid_results = []
         for i, result in enumerate(vector_results):
@@ -451,18 +454,19 @@ class HybridSearchEngine:
                 vector_score=result.score,
                 keyword_score=0.0,
                 hybrid_score=result.score,
+                tech_boost=0.0,
                 rank=i + 1
             )
             hybrid_results.append(hybrid_result)
-            
+
         return hybrid_results
         
     def _keyword_only_search(self, query_text: str, top_k: int) -> List[HybridSearchResult]:
         """キーワード検索のみ"""
-        
+
         # キーワード検索を実行
         keyword_results = self.keyword_engine.search(query_text, top_k=top_k)
-        
+
         # 結果を変換
         hybrid_results = []
         for i, (doc_id, score) in enumerate(keyword_results):
@@ -475,10 +479,11 @@ class HybridSearchEngine:
                 vector_score=0.0,
                 keyword_score=score,
                 hybrid_score=score,
+                tech_boost=0.0,
                 rank=i + 1
             )
             hybrid_results.append(hybrid_result)
-            
+
         return hybrid_results
         
     def _hybrid_search(self, 
@@ -520,23 +525,24 @@ class HybridSearchEngine:
             
             # ハイブリッドスコアを計算
             hybrid_score = (
-                self.vector_weight * vector_score + 
+                self.vector_weight * vector_score +
                 self.keyword_weight * keyword_score
             )
-            
+
             # 技術用語マッチングによるブースト
             tech_boost = self._calculate_technical_boost(result.text, keywords)
             boosted_hybrid_score = hybrid_score * (1.0 + tech_boost)
-            
+
             # デバッグログ
             if tech_boost > 0:
                 logger.debug(f"Tech boost applied: {tech_boost:.3f} ({tech_boost*100:.1f}%)")
-            
+
             hybrid_result = HybridSearchResult.from_search_result(
                 result=result,
                 vector_score=vector_score,
                 keyword_score=keyword_score,
                 hybrid_score=boosted_hybrid_score,
+                tech_boost=tech_boost,
                 rank=0  # 後で設定
             )
             hybrid_results.append(hybrid_result)
@@ -554,6 +560,7 @@ class HybridSearchEngine:
                     vector_score=0.0,
                     keyword_score=keyword_score,
                     hybrid_score=self.keyword_weight * keyword_score,
+                    tech_boost=0.0,
                     rank=0
                 )
                 hybrid_results.append(hybrid_result)
@@ -586,9 +593,9 @@ class HybridSearchEngine:
         
     def explain_search(self, query: SearchQuery, top_k: int = 3) -> Dict[str, Any]:
         """検索結果の説明を生成"""
-        
+
         results = self.search(query, top_k)
-        
+
         explanation = {
             'query': query.text,
             'search_type': query.search_type,
@@ -598,20 +605,28 @@ class HybridSearchEngine:
             },
             'results': []
         }
-        
+
         for result in results:
+            # 基本スコア(ブースト前)を計算
+            base_hybrid_score = (
+                self.vector_weight * result.vector_score +
+                self.keyword_weight * result.keyword_score
+            )
+
             result_explanation = {
                 'rank': result.rank,
                 'id': result.id,
                 'scores': {
                     'vector': result.vector_score,
                     'keyword': result.keyword_score,
-                    'hybrid': result.hybrid_score
+                    'base_hybrid': base_hybrid_score,
+                    'tech_boost': result.tech_boost,
+                    'final_hybrid': result.hybrid_score
                 },
                 'text_preview': result.text[:200] + "..." if len(result.text) > 200 else result.text
             }
             explanation['results'].append(result_explanation)
-            
+
         return explanation
 
 

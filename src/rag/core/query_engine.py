@@ -527,7 +527,7 @@ class LLMGenerator:
         except Exception as e:
             logger.error(f"Generation error: {e}")
             return self._fallback_generation(prompt, context)
-    
+
     def _ollama_generation(self, prompt: str, context: str) -> str:
         """メモリ不足時のOllamaフォールバック生成"""
         
@@ -576,13 +576,18 @@ class LLMGenerator:
             result = self.ollama.generate_text(
                 model_name=ollama_model,
                 prompt=full_prompt,
-                temperature=0.7,
+                temperature=0.7,  # 安定性のため0.7に戻す
                 top_p=0.9,
-                max_tokens=1024
+                max_tokens=2048,  # 回答の途中切断を防ぐために2048に増加
+                repetition_penalty=1.3,  # 繰り返し防止を強化
+                frequency_penalty=0.7,  # 頻度ペナルティ追加
+                presence_penalty=0.6  # 存在ペナルティ追加
             )
             
             if result.get("success", False):
                 generated_text = result.get("generated_text", "")
+                # 中国語簡体字を日本語に変換（ポストプロセッシング）
+                generated_text = self._convert_chinese_to_japanese(generated_text)
                 logger.info("Ollamaでの生成が成功しました")
                 return memory_warning + generated_text if memory_warning else generated_text
             else:
@@ -593,11 +598,13 @@ class LLMGenerator:
         except Exception as e:
             logger.error(f"Ollamaフォールバックエラー: {e}")
             return f"エラー: 生成に失敗しました - {str(e)}{memory_warning}"
-            
+
     def _build_prompt(self, query: str, context: str) -> str:
         """プロンプトを構築"""
-        
+
         prompt_template = """あなたは道路設計の専門家です。以下の参考資料に基づいて、質問に正確に回答してください。
+
+**重要: 回答は必ず日本語のみを使用してください。中国語の簡体字や繁体字は使用しないでください。**
 
 重要な指示:
 1. 数値や基準値は必ず参考資料から正確に引用すること
@@ -605,6 +612,7 @@ class LLMGenerator:
 3. 複数の基準がある場合は、すべて列挙すること
 4. 不明な場合は推測せず「参考資料に該当する情報が見つかりません」と回答すること
 5. 回答は簡潔で実践的にすること
+6. **日本語の漢字のみを使用**し、中国語の簡体字（例: 车、学、国）は使わないでください
 
 参考資料:
 {context}
@@ -612,7 +620,7 @@ class LLMGenerator:
 質問: {query}
 
 回答:"""
-        
+
         return prompt_template.format(context=context, query=query)
         
     def _fallback_generation(self, query: str, context: str) -> str:
@@ -1143,6 +1151,7 @@ class RoadDesignQueryEngine:
                         source_data['vector_score'] = getattr(chunk, 'vector_score', 0.0)
                         source_data['keyword_score'] = getattr(chunk, 'keyword_score', 0.0)
                         source_data['hybrid_score'] = getattr(chunk, 'hybrid_score', 0.0)
+                        source_data['tech_boost'] = getattr(chunk, 'tech_boost', 0.0)
                         source_data['score'] = getattr(chunk, 'hybrid_score', getattr(chunk, 'score', 0.0))
                         
                         # その他の属性
@@ -1302,13 +1311,18 @@ class RoadDesignQueryEngine:
                 result = self.llm_generator.ollama.generate_text(
                     model_name=ollama_model,
                     prompt=enhanced_prompt,
-                    temperature=0.7,
+                    temperature=0.7,  # 安定性のため0.7に戻す
                     top_p=0.9,
-                    max_tokens=2048  # 文字数を大幅に拡張
+                    max_tokens=2048,  # 文字数を大幅に拡張
+                    repetition_penalty=1.3,  # 繰り返し防止を強化
+                    frequency_penalty=0.7,  # 頻度ペナルティ追加
+                    presence_penalty=0.6  # 存在ペナルティ追加
                 )
                 
                 if result.get("success", False):
                     answer = result.get("generated_text", "")
+                    # 中国語簡体字を日本語に変換（ポストプロセッシング）
+                    answer = self._convert_chinese_to_japanese(answer)
                     confidence = 0.6  # Ollamaフォールバックの信頼度
                 else:
                     answer = f"エラー: Ollama生成に失敗 - {result.get('error', 'Unknown error')}"
@@ -1404,13 +1418,18 @@ class RoadDesignQueryEngine:
                 result = self.llm_generator.ollama.generate_text(
                     model_name=ollama_model,
                     prompt=enhanced_prompt,
-                    temperature=0.7,
+                    temperature=0.7,  # 安定性のため0.7に戻す
                     top_p=0.9,
-                    max_tokens=2048  # 文字数を大幅に拡張
+                    max_tokens=2048,  # 文字数を大幅に拡張
+                    repetition_penalty=1.3,  # 繰り返し防止を強化
+                    frequency_penalty=0.7,  # 頻度ペナルティ追加
+                    presence_penalty=0.6  # 存在ペナルティ追加
                 )
                 
                 if result.get("success", False):
                     answer = result.get("generated_text", "")
+                    # 中国語簡体字を日本語に変換（ポストプロセッシング）
+                    answer = self._convert_chinese_to_japanese(answer)
                     confidence = 0.8 if context_texts else 0.6  # コンテキストがある場合は高い信頼度
                 else:
                     answer = f"エラー: Ollama生成に失敗 - {result.get('error', 'Unknown error')}"
@@ -1440,7 +1459,11 @@ class RoadDesignQueryEngine:
                             'id': i,
                             'text': result.text[:200] + "..." if len(result.text) > 200 else result.text,
                             'source': result.metadata.get('title', f'文書{i}'),
-                            'score': getattr(result, 'hybrid_score', getattr(result, 'score', 0.0))
+                            'score': getattr(result, 'hybrid_score', getattr(result, 'score', 0.0)),
+                            'vector_score': getattr(result, 'vector_score', 0.0),
+                            'keyword_score': getattr(result, 'keyword_score', 0.0),
+                            'hybrid_score': getattr(result, 'hybrid_score', 0.0),
+                            'tech_boost': getattr(result, 'tech_boost', 0.0)
                         })
                     return citations
             
@@ -1467,6 +1490,8 @@ class RoadDesignQueryEngine:
 
 あなたは経験豊富な道路設計の専門家です。以下の参考資料を基に、質問に対して**詳細で実用的な回答**を提供してください。
 
+**重要: 回答は必ず日本語のみを使用してください。中国語の簡体字や繁体字は使用しないでください。**
+
 ## 参考資料
 {context}
 
@@ -1480,12 +1505,15 @@ class RoadDesignQueryEngine:
 4. **関連する法規や基準**があれば言及してください
 5. **1500-3000文字程度**の充実した回答をお願いします
 6. 参考資料の情報を根拠として、**[出典: …]という形で出典を明記**してください
+7. **日本語の漢字のみを使用**し、中国語の簡体字（例: 车、学、国）は使わないでください
 
 ## 回答"""
         else:
             prompt = f"""# 道路設計の専門家としての回答
 
 あなたは経験豊富な道路設計の専門家です。以下の質問に対して、一般的な知識を基に**詳細で実用的な回答**を提供してください。
+
+**重要: 回答は必ず日本語のみを使用してください。中国語の簡体字や繁体字は使用しないでください。**
 
 ## 質問
 {query}
@@ -1496,6 +1524,7 @@ class RoadDesignQueryEngine:
 3. **関連する法規や基準**があれば言及してください
 4. **1500-3000文字程度**の充実した回答をお願いします
 5. 参考資料がないため、一般的な道路設計の知識を活用してください
+6. **日本語の漢字のみを使用**し、中国語の簡体字（例: 车、学、国）は使わないでください
 
 ## 回答"""
         
@@ -1567,14 +1596,135 @@ class RoadDesignQueryEngine:
         
     def reload_config(self, config_path: Optional[str] = None):
         """設定を再読み込み"""
-        
+
         logger.info("Reloading configuration...")
         self.config = load_config(config_path)
-        
+
         # 必要に応じてコンポーネントを再初期化
         if self.is_initialized:
             logger.info("Reinitializing components with new config...")
             self.initialize()
+
+    def _convert_chinese_to_japanese(self, text: str) -> str:
+        """中国語の簡体字を日本語の漢字に変換（ポストプロセッシング）"""
+
+        # よく混入する中国語簡体字 → 日本語漢字の変換マップ
+        chinese_to_japanese = {
+            # 交通・道路関連
+            '车': '車',
+            '辆': '両',
+            '驾': '駕',
+            '驶': '駛',
+            '轮': '輪',
+            '铁': '鉄',
+            '路': '路',  # 同じ
+            '桥': '橋',
+            '隧': '隧',  # 同じ
+            '灯': '灯',  # 同じ（簡体字と同じ）
+
+            # 一般的な簡体字
+            '学': '学',  # 同じ（新字体）
+            '国': '国',  # 同じ（新字体）
+            '时': '時',
+            '间': '間',
+            '实': '実',
+            '际': '際',
+            '经': '経',
+            '验': '験',
+            '应': '応',
+            '该': '該',
+            '证': '証',
+            '标': '標',
+            '规': '規',
+            '设': '設',
+            '计': '計',
+            '备': '備',
+            '记': '記',
+            '认': '認',
+            '为': '為',
+            '号': '号',  # 同じ
+            '条': '条',  # 同じ
+            '项': '項',
+            '务': '務',
+            '业': '業',
+            '区': '区',  # 同じ（新字体）
+            '产': '産',
+            '质': '質',
+            '检': '検',
+            '查': '査',
+            '题': '題',
+            '问': '問',
+            '观': '観',
+            '环': '環',
+            '现': '現',
+            '发': '発',
+            '变': '変',
+            '达': '達',
+            '过': '過',
+            '还': '還',
+            '进': '進',
+            '远': '遠',
+            '连': '連',
+            '运': '運',
+            '迁': '遷',
+            '适': '適',
+            '选': '選',
+            '择': '択',
+            '处': '処',
+            '级': '級',
+            '纪': '紀',
+            '约': '約',
+            '组': '組',
+            '织': '織',
+            '维': '維',
+            '综': '総',
+            '线': '線',
+            '练': '練',
+            '继': '継',
+            '续': '続',
+            '统': '統',
+            '绩': '績',
+            '缘': '縁',
+            '编': '編',
+            '县': '県',
+            '听': '聴',
+            '职': '職',
+            '联': '聯',
+            '声': '声',  # 同じ
+            '壳': '殻',
+            '贝': '貝',
+            '负': '負',
+            '财': '財',
+            '货': '貨',
+            '贸': '貿',
+            '费': '費',
+            '贴': '貼',
+            '贯': '貫',
+            '责': '責',
+            '败': '敗',
+            '账': '帳',
+            '货': '貨',
+            '质': '質',
+            '购': '購',
+            '贩': '販',
+            '贷': '貸',
+            '资': '資',
+            '赋': '賦',
+            '赖': '頼',
+            '赞': '賛',
+            '赛': '際',
+            '赢': '勝',
+        }
+
+        # 文字列を一文字ずつ変換
+        result = []
+        for char in text:
+            if char in chinese_to_japanese:
+                result.append(chinese_to_japanese[char])
+            else:
+                result.append(char)
+
+        return ''.join(result)
 
 
 # グローバルエンジンインスタンス

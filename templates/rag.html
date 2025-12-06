@@ -1710,12 +1710,22 @@ document.addEventListener('DOMContentLoaded', function() {
 // 検索結果表示関数（再利用可能）
 function displaySearchResult(data) {
     const resultDiv = document.getElementById('searchResult');
-    const formattedAnswer = data.answer.replace(/\n/g, '<br>');
-    
+
+    // マークダウンをHTMLに変換（Marked.jsを使用）
+    let formattedAnswer;
+    if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+        // Marked.jsとDOMPurifyが利用可能な場合
+        const rawHtml = marked.parse(data.answer);
+        formattedAnswer = DOMPurify.sanitize(rawHtml);
+    } else {
+        // フォールバック: 改行のみ変換
+        formattedAnswer = data.answer.replace(/\n/g, '<br>');
+    }
+
     let html = '<div class="card mt-3">';
     html += '<div class="card-body">';
     html += '<h4>💡 回答</h4>';
-    html += `<div class="answer-content" style="white-space: pre-wrap; line-height: 1.6;">${formattedAnswer}</div>`;
+    html += `<div class="answer-content markdown-content" style="line-height: 1.8;">${formattedAnswer}</div>`;
     
     // 信頼度スコアの表示
     if (data.confidence_score !== undefined) {
@@ -1731,49 +1741,87 @@ function displaySearchResult(data) {
     // 引用元の表示
     if (data.citations && data.citations.length > 0) {
         html += '<h5 class="mt-4">📚 引用・参考資料</h5>';
-        html += '<div class="citations-list">';
-        data.citations.forEach(cite => {
-            html += '<div class="card mb-2">';
-            html += '<div class="card-body" style="padding: 10px;">';
-            html += `<strong>[出典: ${cite.source || '不明'}]</strong><br>`;
-            html += `<small>${cite.text}</small>`;
+        html += '<div class="citations-list accordion" id="citationsAccordion">';
+        data.citations.forEach((cite, index) => {
+            // 引用文もマークダウン変換
+            let citeText = cite.text;
+            if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+                const rawCiteHtml = marked.parseInline(citeText); // インライン要素のみ
+                citeText = DOMPurify.sanitize(rawCiteHtml);
+            }
+
+            // 引用文の長さをチェック（200文字以上なら折りたたみ可能に）
+            const isLong = cite.text.length > 200;
+            const collapseId = `collapse-cite-${index}`;
+
+            html += '<div class="accordion-item mb-2">';
+            html += `<h2 class="accordion-header" id="heading-cite-${index}">`;
+            html += `<button class="accordion-button ${isLong ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="${!isLong}" aria-controls="${collapseId}" style="padding: 10px; background-color: #f8f9fa;">`;
+            html += `<strong>[出典 ${index + 1}: ${cite.source || '不明'}]</strong>`;
+            html += `</button>`;
+            html += `</h2>`;
+            html += `<div id="${collapseId}" class="accordion-collapse collapse ${isLong ? '' : 'show'}" aria-labelledby="heading-cite-${index}">`;
+            html += '<div class="accordion-body" style="padding: 10px;">';
+            html += `<div class="markdown-content" style="font-size: 0.95em; line-height: 1.6;">${citeText}</div>`;
             if (cite.score !== undefined) {
                 html += `<br><span class="badge bg-secondary">スコア: ${cite.score.toFixed(3)}</span>`;
             }
-            if (cite.vector_score !== undefined || cite.keyword_score !== undefined) {
+            if (cite.vector_score !== undefined || cite.keyword_score !== undefined || cite.tech_boost !== undefined) {
                 html += '<br>';
                 if (cite.vector_score !== undefined) {
                     html += `<span class="badge bg-primary me-1">ベクトル: ${cite.vector_score.toFixed(3)}</span>`;
                 }
                 if (cite.keyword_score !== undefined) {
-                    html += `<span class="badge bg-info">キーワード: ${cite.keyword_score.toFixed(3)}</span>`;
+                    html += `<span class="badge bg-info me-1">キーワード: ${cite.keyword_score.toFixed(3)}</span>`;
+                }
+                if (cite.tech_boost !== undefined && cite.tech_boost > 0) {
+                    const techBoostPercent = (cite.tech_boost * 100).toFixed(1);
+                    html += `<span class="badge bg-warning text-dark me-1">ブースト: +${techBoostPercent}%</span>`;
+                }
+                if (cite.hybrid_score !== undefined) {
+                    html += `<span class="badge bg-success">最終: ${cite.hybrid_score.toFixed(3)}</span>`;
                 }
             }
-            html += '</div></div>';
+            html += '</div>'; // Close accordion-body
+            html += '</div>'; // Close accordion-collapse
+            html += '</div>'; // Close accordion-item
         });
-        html += '</div>';
+        html += '</div>'; // Close citations accordion container
     }
     
     // 検索結果ソース
     if (data.sources && data.sources.length > 0) {
         html += '<h5 class="mt-4">🔍 検索結果詳細</h5>';
         html += '<table class="table table-sm">';
-        html += '<thead><tr><th>タイトル</th><th>ベクトルスコア</th><th>キーワードスコア</th><th>ハイブリッドスコア</th></tr></thead>';
+        html += '<thead><tr><th>タイトル</th><th>ベクトルスコア</th><th>キーワードスコア</th><th>技術用語ブースト</th><th>最終ハイブリッドスコア</th></tr></thead>';
         html += '<tbody>';
         data.sources.forEach(source => {
-            const vectorScore = source.vector_score !== undefined ? source.vector_score.toFixed(3) : 
+            const vectorScore = source.vector_score !== undefined ? source.vector_score.toFixed(3) :
                                 (source.score !== undefined ? source.score.toFixed(3) : 'N/A');
             const keywordScore = source.keyword_score !== undefined ? source.keyword_score.toFixed(3) : 'N/A';
-            const hybridScore = source.hybrid_score !== undefined ? source.hybrid_score.toFixed(3) : 
+            const techBoost = source.tech_boost !== undefined ? source.tech_boost.toFixed(3) : '0.000';
+            const techBoostPercent = source.tech_boost !== undefined ? (source.tech_boost * 100).toFixed(1) : '0.0';
+            const hybridScore = source.hybrid_score !== undefined ? source.hybrid_score.toFixed(3) :
                                (source.score !== undefined ? source.score.toFixed(3) : 'N/A');
             html += `<tr>`;
             html += `<td>${source.title || source.metadata?.title || '不明'}</td>`;
             html += `<td><span class="badge bg-primary">${vectorScore}</span></td>`;
             html += `<td><span class="badge bg-info">${keywordScore}</span></td>`;
+            html += `<td><span class="badge bg-warning text-dark" title="技術用語マッチング率: ${techBoostPercent}%">+${techBoostPercent}%</span></td>`;
             html += `<td><span class="badge bg-success">${hybridScore}</span></td>`;
             html += `</tr>`;
         });
         html += '</tbody></table>';
+
+        // スコア計算式の説明を追加
+        html += '<div class="alert alert-info mt-2">';
+        html += '<small>';
+        html += '<strong>📊 スコア計算式:</strong><br>';
+        html += '基本ハイブリッドスコア = ベクトルスコア × 0.7 + キーワードスコア × 0.3<br>';
+        html += '最終ハイブリッドスコア = 基本ハイブリッドスコア × (1.0 + 技術用語ブースト)<br>';
+        html += '<em>※ 技術用語ブーストは、クエリに含まれる専門用語が文書内にどれだけマッチしているかに基づき、最大20%まで増幅します</em>';
+        html += '</small>';
+        html += '</div>';
     }
     
     // 処理時間
@@ -2195,4 +2243,145 @@ document.addEventListener('DOMContentLoaded', () => {
     loadLoRAModels();  // LoRAモデルリストを動的に読み込む
 });
 </script>
+
+{% block extra_scripts %}
+<!-- Marked.js: マークダウンパーサー -->
+<script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+<!-- DOMPurify: XSS対策のためのHTMLサニタイザー -->
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
+
+<style>
+/* マークダウンコンテンツのスタイリング */
+.markdown-content {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.markdown-content h1 {
+    font-size: 1.8em;
+    font-weight: bold;
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.3em;
+}
+
+.markdown-content h2 {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-top: 0.8em;
+    margin-bottom: 0.4em;
+    color: #34495e;
+    border-bottom: 1px solid #95a5a6;
+    padding-bottom: 0.2em;
+}
+
+.markdown-content h3 {
+    font-size: 1.3em;
+    font-weight: bold;
+    margin-top: 0.6em;
+    margin-bottom: 0.3em;
+    color: #34495e;
+}
+
+.markdown-content h4 {
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-top: 0.5em;
+    margin-bottom: 0.2em;
+    color: #34495e;
+}
+
+.markdown-content p {
+    margin-bottom: 0.8em;
+    line-height: 1.8;
+}
+
+.markdown-content strong {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.markdown-content em {
+    font-style: italic;
+    color: #555;
+}
+
+.markdown-content code {
+    background-color: #f4f4f4;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+    color: #c7254e;
+}
+
+.markdown-content pre {
+    background-color: #f8f8f8;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 10px;
+    overflow-x: auto;
+    margin-bottom: 1em;
+}
+
+.markdown-content pre code {
+    background-color: transparent;
+    padding: 0;
+    color: #333;
+}
+
+.markdown-content ul, .markdown-content ol {
+    margin-left: 1.5em;
+    margin-bottom: 0.8em;
+    line-height: 1.8;
+}
+
+.markdown-content li {
+    margin-bottom: 0.3em;
+}
+
+.markdown-content blockquote {
+    border-left: 4px solid #3498db;
+    padding-left: 1em;
+    margin-left: 0;
+    margin-bottom: 0.8em;
+    color: #555;
+    font-style: italic;
+}
+
+.markdown-content table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 1em;
+}
+
+.markdown-content th, .markdown-content td {
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+    text-align: left;
+}
+
+.markdown-content th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+.markdown-content a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.markdown-content a:hover {
+    text-decoration: underline;
+}
+
+.markdown-content hr {
+    border: none;
+    border-top: 2px solid #ddd;
+    margin: 1.5em 0;
+}
+</style>
+{% endblock %}
+
 {% endblock %}

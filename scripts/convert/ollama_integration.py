@@ -113,15 +113,39 @@ class OllamaIntegration:
             }
             
             # 追加パラメータの処理
+            ollama_params["options"] = {}
+
             if "temperature" in kwargs:
-                ollama_params["options"] = {"temperature": kwargs["temperature"]}
+                ollama_params["options"]["temperature"] = kwargs["temperature"]
             if "top_p" in kwargs:
-                if "options" not in ollama_params:
-                    ollama_params["options"] = {}
                 ollama_params["options"]["top_p"] = kwargs["top_p"]
             if "max_tokens" in kwargs:
-                ollama_params["options"] = ollama_params.get("options", {})
                 ollama_params["options"]["num_predict"] = kwargs["max_tokens"]
+
+            # 繰り返し防止パラメータ（強化版）
+            if "repetition_penalty" in kwargs:
+                ollama_params["options"]["repeat_penalty"] = kwargs["repetition_penalty"]
+            else:
+                # 繰り返しペナルティを1.3に強化
+                ollama_params["options"]["repeat_penalty"] = 1.3
+
+            # 頻度ペナルティ（同じトークンの出現頻度を抑制）
+            if "frequency_penalty" in kwargs:
+                ollama_params["options"]["frequency_penalty"] = kwargs["frequency_penalty"]
+            else:
+                ollama_params["options"]["frequency_penalty"] = 0.7
+
+            # 存在ペナルティ（既出トークンを抑制）
+            if "presence_penalty" in kwargs:
+                ollama_params["options"]["presence_penalty"] = kwargs["presence_penalty"]
+            else:
+                ollama_params["options"]["presence_penalty"] = 0.6
+
+            # コンテキストウィンドウを拡大（文脈維持）
+            ollama_params["options"]["num_ctx"] = 4096
+
+            # 最小生成トークン数を設定（途中切断防止）
+            ollama_params["options"]["min_p"] = 0.05
             
             logger.info(f"Ollama生成リクエスト: {ollama_params}")
             

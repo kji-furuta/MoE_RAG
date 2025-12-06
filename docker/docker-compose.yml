@@ -64,6 +64,8 @@ services:
       - ai_ft_rag_processed:/workspace/outputs/rag_index
       # Ollamaモデル永続化（正しいパスに修正）
       - ollama_models:/home/ai-user/.ollama
+      # GGUFモデル永続化
+      - ../gguf_models:/workspace/gguf_models
     
     # Working directory
     working_dir: /workspace

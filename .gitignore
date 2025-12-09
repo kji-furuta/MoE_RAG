@@ -141,3 +141,10 @@ notebooks/
 # Patches
 patches/
 llama.cpp/
+
+# Data files (keep structure, exclude large data)
+data/uploaded/
+data/feedback/
+data/logs/
+data/continual_learning/
+*.jsonl

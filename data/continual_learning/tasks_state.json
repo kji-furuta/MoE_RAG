@@ -633,5 +633,91 @@
     ],
     "error": "object of type 'StreamingTextDataset' has no len()",
     "completed_at": "2025-10-03T15:41:33.434511+09:00"
+  },
+  "841dcd31-bc32-4818-b8ac-6cd2d55bc4d7": {
+    "task_id": "841dcd31-bc32-4818-b8ac-6cd2d55bc4d7",
+    "task_name": "task_100",
+    "started_at": "2025-12-09T08:22:12.917601+09:00",
+    "id": "841dcd31-bc32-4818-b8ac-6cd2d55bc4d7",
+    "type": "continual_learning",
+    "created_at": "2025-12-09T08:22:12.917614+09:00",
+    "status": "failed",
+    "progress": 80,
+    "metrics": {},
+    "messages": [
+      "継続学習を開始...",
+      "トレーニング開始...",
+      "トレーニング完了",
+      "Fisher行列を計算中..."
+    ],
+    "error": "Subclasses of Dataset should implement __getitem__.",
+    "completed_at": "2025-12-09T08:23:44.980435+09:00"
+  },
+  "ff7d8804-4bf5-4e2b-a610-901919a7feec": {
+    "task_id": "ff7d8804-4bf5-4e2b-a610-901919a7feec",
+    "task_name": "task_101",
+    "started_at": "2025-12-09T08:33:47.915866+09:00",
+    "id": "ff7d8804-4bf5-4e2b-a610-901919a7feec",
+    "type": "continual_learning",
+    "created_at": "2025-12-09T08:33:47.915881+09:00",
+    "status": "failed",
+    "progress": 80,
+    "metrics": {},
+    "messages": [
+      "継続学習を開始...",
+      "トレーニング開始...",
+      "トレーニング完了",
+      "Fisher行列を計算中..."
+    ],
+    "error": "CUDA driver error: out of memory",
+    "completed_at": "2025-12-09T08:53:32.850258+09:00"
+  },
+  "bbf6a7cb-5fba-47ea-8234-2a0adcf32ca9": {
+    "task_id": "bbf6a7cb-5fba-47ea-8234-2a0adcf32ca9",
+    "task_name": "task_102",
+    "started_at": "2025-12-09T08:59:03.950546+09:00",
+    "id": "bbf6a7cb-5fba-47ea-8234-2a0adcf32ca9",
+    "type": "continual_learning",
+    "created_at": "2025-12-09T08:59:03.950562+09:00",
+    "status": "failed",
+    "progress": 80,
+    "metrics": {},
+    "messages": [
+      "継続学習を開始...",
+      "トレーニング開始...",
+      "トレーニング完了",
+      "Fisher行列を計算中..."
+    ],
+    "error": "CUDA driver error: out of memory",
+    "completed_at": "2025-12-09T09:18:43.389189+09:00"
+  },
+  "1e038f04-f614-44e6-83d9-6ca955b0682f": {
+    "task_id": "1e038f04-f614-44e6-83d9-6ca955b0682f",
+    "task_name": "task_103",
+    "started_at": "2025-12-09T09:24:02.052883+09:00",
+    "id": "1e038f04-f614-44e6-83d9-6ca955b0682f",
+    "type": "continual_learning",
+    "created_at": "2025-12-09T09:24:02.052898+09:00",
+    "status": "completed",
+    "progress": 100,
+    "metrics": {
+      "forgetting_results": {
+        "task_103": {
+          "task_index": 5,
+          "current_performance": {
+            "error": "Expecting value: line 2 column 1 (char 2)"
+          },
+          "original_performance": {},
+          "forgetting_score": 0.0,
+          "timestamp": "2025-12-09T00:43:48.427532"
+        }
+      },
+      "report_path": "outputs/ewc_data/evaluation/forgetting_analysis_20251209_004348.png"
+    },
+    "messages": [
+      "評価を実行中...",
+      "継続学習が完了しました"
+    ],
+    "completed_at": "2025-12-09T09:43:48.909117+09:00"
   }
 }

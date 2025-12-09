@@ -41,6 +41,72 @@ class OllamaIntegration:
         self.available_models = []
         self._load_available_models()
     
+    def _clean_generated_text(self, text: str, original_prompt: str) -> str:
+        """生成されたテキストから重複やプロンプトタグをクリーンアップ"""
+        import re
+
+        if not text:
+            return text
+
+        # 1. プロンプトタグの除去（[INST], [/INST], <s>, </s>など）
+        text = re.sub(r'\[INST\].*?\[/INST\]', '', text, flags=re.DOTALL)
+        text = re.sub(r'<s>|</s>', '', text)
+        text = re.sub(r'<\|.*?\|>', '', text)  # 特殊トークン
+
+        # 2. 元のプロンプトテキストが含まれている場合は除去
+        # プロンプトの最初の100文字を使って検索
+        if original_prompt and len(original_prompt) > 50:
+            prompt_snippet = original_prompt[:100]
+            if prompt_snippet in text:
+                # プロンプト部分以降のテキストのみを抽出
+                text = text.split(prompt_snippet)[-1]
+
+        # 3. 重複した大きなテキストブロックの検出と除去
+        # テキストを2つに分割して、前半と後半が同じか確認
+        text_length = len(text)
+        if text_length > 200:  # 十分長いテキストの場合のみチェック
+            # 文章の境界で分割するため、中央付近の改行を探す
+            mid_point = text_length // 2
+            search_start = max(0, mid_point - 100)
+            search_end = min(text_length, mid_point + 100)
+
+            # 中央付近で改行を探す
+            middle_section = text[search_start:search_end]
+            newline_positions = [i for i, c in enumerate(middle_section) if c == '\n']
+
+            if newline_positions:
+                # 中央に最も近い改行位置を使用
+                closest_newline = min(newline_positions, key=lambda x: abs(x - (search_end - search_start) // 2))
+                split_point = search_start + closest_newline + 1
+
+                first_half = text[:split_point].strip()
+                second_half = text[split_point:].strip()
+
+                # 前半と後半の類似度をチェック（正規化して比較）
+                # 完全一致または90%以上の一致の場合は重複とみなす
+                if first_half == second_half:
+                    logger.info("完全重複を検出、前半のみを使用")
+                    text = first_half
+                elif len(first_half) > 50 and len(second_half) > 50:
+                    # Levenshtein距離の簡易版：文字単位の一致率
+                    # 長いテキストの場合は最初の500文字で比較
+                    comparison_length = 500
+                    first_sample = first_half[:comparison_length]
+                    second_sample = second_half[:comparison_length]
+
+                    # 単純な一致率計算
+                    matches = sum(1 for a, b in zip(first_sample, second_sample) if a == b)
+                    similarity = matches / max(len(first_sample), len(second_sample))
+
+                    if similarity > 0.9:
+                        logger.info(f"高類似度重複を検出 (類似度: {similarity:.2%})、前半のみを使用")
+                        text = first_half
+
+        # 4. 前後の空白をトリム
+        text = text.strip()
+
+        return text
+
     def _load_available_models(self):
         """利用可能なOllamaモデルを取得"""
         try:
@@ -157,9 +223,14 @@ class OllamaIntegration:
             
             if response.status_code == 200:
                 result = response.json()
-                logger.info(f"Ollama生成成功: {len(result.get('response', ''))}文字")
+                generated_text = result.get("response", "")
+
+                # 重複テキストとプロンプトタグのクリーンアップ
+                generated_text = self._clean_generated_text(generated_text, prompt)
+
+                logger.info(f"Ollama生成成功: {len(generated_text)}文字")
                 return {
-                    "generated_text": result.get("response", ""),
+                    "generated_text": generated_text,
                     "model": model_name,
                     "usage": result.get("usage", {}),
                     "success": True

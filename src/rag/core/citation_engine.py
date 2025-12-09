@@ -53,10 +53,19 @@ class Citation:
         
     def to_inline_citation(self) -> str:
         """インライン引用形式を生成"""
-        if self.document_title and self.page:
-            return f"[{self.document_title}, p.{self.page}]"
+        # 文書タイトルがあれば優先的に使用
+        if self.document_title:
+            parts = [self.document_title]
+            if self.page:
+                parts.append(f"p.{self.page}")
+            elif self.section:
+                parts.append(f"第{self.section}節")
+            return f"[{', '.join(parts)}]"
+        # ソースIDのみの場合でも表示
         elif self.source:
-            return f"[{self.source}]"
+            # UUIDを短く表示（最初の8文字）
+            short_source = self.source[:8] if len(self.source) > 8 else self.source
+            return f"[出典: {short_source}]"
         else:
             return f"[出典{self.id}]"
 
@@ -434,10 +443,11 @@ class CitationQueryEngine:
         return response
         
     def _build_context(self, results: List[Union[HybridSearchResult, RerankedResult]]) -> str:
-        """検索結果からコンテキストを構築"""
-        
+        """検索結果からコンテキストを構築（重複除去機能付き）"""
+
         context_parts = []
-        
+        seen_texts = set()  # 重複チェック用のセット
+
         for i, result in enumerate(results, 1):
             if hasattr(result, 'original_result'):
                 text = result.original_result.text
@@ -445,16 +455,37 @@ class CitationQueryEngine:
             else:
                 text = result.text
                 metadata = result.metadata
-                
+
+            # テキストの重複チェック（正規化して比較）
+            normalized_text = text.strip().lower()
+            if normalized_text in seen_texts:
+                logger.debug(f"Skipping duplicate text from result {i}")
+                continue
+
+            seen_texts.add(normalized_text)
+
             # メタデータ情報を含めたコンテキスト
             source_info = f"[出典{i}]"
-            if 'filename' in metadata:
-                source_info += f" {metadata['filename']}"
-            if 'page' in metadata:
+
+            # ファイル名を優先的に表示
+            if 'filename' in metadata and metadata['filename']:
+                # .pdfを除去してよりクリーンな表示に
+                clean_filename = str(metadata['filename']).replace('.pdf', '')
+                source_info += f" {clean_filename}"
+            elif 'source' in metadata and metadata['source']:
+                source_info += f" {metadata['source']}"
+
+            # ページ番号があれば追加
+            if 'page' in metadata and metadata['page']:
                 source_info += f" p.{metadata['page']}"
-                
+
+            # セクション情報があれば追加
+            if 'section_title' in metadata and metadata['section_title']:
+                source_info += f" - {metadata['section_title']}"
+
             context_parts.append(f"{source_info}\n{text}\n")
-            
+
+        logger.info(f"Built context from {len(context_parts)} unique results (filtered from {len(results)} total)")
         return "\n".join(context_parts)
         
     def _generate_fallback_response(self, 

@@ -277,24 +277,40 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="dataset">学習データセット (JSONL形式):</label>
-                        <input type="file" id="dataset" accept=".jsonl" required>
+                        <label for="dataset">学習データセット (JSON/JSONL形式):</label>
+                        <input type="file" id="dataset" accept=".json,.jsonl" required onchange="validateDatasetFile(this)">
+                        <small style="display: block; margin-top: 5px; color: #666;">
+                            ✓ JSON配列形式 (RARdata.json) または JSONL形式に対応
+                        </small>
+                        <div id="datasetValidation" style="margin-top: 10px;"></div>
                     </div>
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                         <div class="form-group">
-                            <label for="ewcLambda">EWC重要度 (λ):</label>
+                            <label for="ewcLambda">
+                                EWC重要度 (λ):
+                                <span style="cursor: help; color: #666;" title="推奨値: 5000 (破滅的忘却の防止強度)">ℹ️</span>
+                            </label>
                             <input type="number" id="ewcLambda" value="5000" min="0" step="100">
+                            <small style="display: block; margin-top: 3px; color: #27ae60;">✓ 推奨値: 5000</small>
                         </div>
-                        
+
                         <div class="form-group">
-                            <label for="epochs">エポック数:</label>
+                            <label for="epochs">
+                                エポック数:
+                                <span style="cursor: help; color: #666;" title="推奨値: 3 (学習の反復回数)">ℹ️</span>
+                            </label>
                             <input type="number" id="epochs" value="3" min="1" max="10">
+                            <small style="display: block; margin-top: 3px; color: #27ae60;">✓ 推奨値: 3</small>
                         </div>
-                        
+
                         <div class="form-group">
-                            <label for="learningRate">学習率:</label>
+                            <label for="learningRate">
+                                学習率:
+                                <span style="cursor: help; color: #666;" title="推奨値: 2e-5 (0.00002)">ℹ️</span>
+                            </label>
                             <input type="number" id="learningRate" value="0.00002" min="0" step="0.000001">
+                            <small style="display: block; margin-top: 3px; color: #27ae60;">✓ 推奨値: 2e-5</small>
                         </div>
                     </div>
                     
@@ -963,6 +979,121 @@ async function loadContinualHistory() {
     } catch (error) {
         console.error('Error loading history:', error);
         document.getElementById('taskHistory').innerHTML = '<p>履歴の読み込みに失敗しました</p>';
+    }
+}
+
+// データセットファイルの品質チェック
+async function validateDatasetFile(fileInput) {
+    const validationDiv = document.getElementById('datasetValidation');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        validationDiv.innerHTML = '';
+        return;
+    }
+
+    // ローディング表示
+    validationDiv.innerHTML = '<div style="padding: 10px; background: #f0f8ff; border-left: 3px solid #3498db; border-radius: 4px;"><strong>🔍 データ品質チェック中...</strong></div>';
+
+    try {
+        // FileReaderでJSON内容を読み込み
+        const text = await file.text();
+
+        // JSON構文チェック
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            validationDiv.innerHTML = `
+                <div style="padding: 10px; background: #ffebee; border-left: 3px solid #f44336; border-radius: 4px;">
+                    <strong>❌ JSON構文エラー:</strong> ${e.message}
+                </div>
+            `;
+            return;
+        }
+
+        // データ形式チェック
+        let entries = [];
+        if (Array.isArray(data)) {
+            entries = data;
+        } else if (typeof data === 'object') {
+            validationDiv.innerHTML = `
+                <div style="padding: 10px; background: #fff3e0; border-left: 3px solid #ff9800; border-radius: 4px;">
+                    <strong>⚠️ 警告:</strong> JSON配列形式を推奨（現在は単一オブジェクト）
+                </div>
+            `;
+            return;
+        }
+
+        // エントリー数チェック
+        if (entries.length === 0) {
+            validationDiv.innerHTML = `
+                <div style="padding: 10px; background: #ffebee; border-left: 3px solid #f44336; border-radius: 4px;">
+                    <strong>❌ エラー:</strong> データが空です
+                </div>
+            `;
+            return;
+        }
+
+        // RARデータ形式の場合の詳細チェック
+        let issues = [];
+        let idDuplicates = new Map();
+        let missingFields = [];
+        let hasOracleField = false;
+
+        entries.forEach((entry, idx) => {
+            // ID重複チェック
+            if (entry.id) {
+                if (idDuplicates.has(entry.id)) {
+                    idDuplicates.set(entry.id, idDuplicates.get(entry.id) + 1);
+                } else {
+                    idDuplicates.set(entry.id, 1);
+                }
+            }
+
+            // Oracle文書フィールドチェック (RAR形式)
+            if (entry.documents && Array.isArray(entry.documents)) {
+                const hasOracle = entry.documents.some(doc => doc.is_oracle === true);
+                if (hasOracle) hasOracleField = true;
+            }
+
+            // 必須フィールドチェック（最初の10エントリーのみ）
+            if (idx < 10) {
+                if (!entry.instruction && !entry.text && !entry.input) {
+                    missingFields.push(`Entry ${idx + 1}: instruction/text/input フィールドなし`);
+                }
+            }
+        });
+
+        // ID重複の検出
+        const duplicateIds = Array.from(idDuplicates.entries()).filter(([id, count]) => count > 1);
+
+        // 結果表示
+        let html = '<div style="padding: 10px; background: #e8f5e9; border-left: 3px solid #4caf50; border-radius: 4px;">';
+        html += `<strong>✅ JSON構文: 正常</strong><br>`;
+        html += `<strong>📊 エントリー数: ${entries.length}件</strong><br>`;
+
+        if (hasOracleField) {
+            html += `<strong>📚 形式: RAR形式 (Retrieval-Augmented Reasoning)</strong><br>`;
+        }
+
+        if (duplicateIds.length > 0) {
+            html += `<br><div style="color: #ff9800;"><strong>⚠️ 警告:</strong> ID重複が ${duplicateIds.length} 件検出されました</div>`;
+        }
+
+        if (missingFields.length > 0 && missingFields.length < 10) {
+            html += `<br><div style="color: #ff9800;"><strong>⚠️ 注意:</strong> 一部エントリーで必須フィールド不足</div>`;
+        }
+
+        html += '</div>';
+        validationDiv.innerHTML = html;
+
+    } catch (error) {
+        validationDiv.innerHTML = `
+            <div style="padding: 10px; background: #ffebee; border-left: 3px solid #f44336; border-radius: 4px;">
+                <strong>❌ 検証エラー:</strong> ${error.message}
+            </div>
+        `;
     }
 }
 

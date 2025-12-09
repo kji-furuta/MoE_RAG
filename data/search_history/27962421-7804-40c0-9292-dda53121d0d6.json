@@ -1,0 +1,671 @@
+{
+  "id": "27962421-7804-40c0-9292-dda53121d0d6",
+  "query": "設計速度60km/hにおける最小曲線半径について，選定条件を教えてください。\n",
+  "answer": "設計速度60km/hにおける最小曲線半径については、「道路構造令」に定められており，標準値150mと特例値120mが規定されています。これらの基準を適用する際には、地形や周囲の環境条件等々を総合的に考慮することが重要です [出典: 20251130_道路構造令調査報告書.tex]。\n\n**標準値：**\n\n- **最小曲線半径 (R):**\n    - 標準値 : R = 150 m\n      この基準は，通常の設計において確保すべきものです。快適な走行性と十分な安全性能を担保します [出典: 同上]。\n\n**特例値：**\n\n- **最小曲線半径 (R):**\n    - 特例値 : R = 120 m\n      地形が急峻である山岳部や家屋連担地区等，用地取得に困難を伴う場合においては、この数値まで縮小することができます。特例適用の場合は慎重な検討が必要とされます [出典: 同上]。\n\n**設計上の留意点：**\n\n1. **快適性と安全性能とのトレード-オフ :**\n   - 曲線半径を小さくすると，車両が曲線上において必要とする横方向の力（向心力を）確保する必要があります。このため、高速走行時や大型・高積載輸送手段等には特に留意が必要です [出典: 道路構造令]。\n\n2. **維持管理と建設費用 :**\n   - 曲線半径を小さくすることにより，トンネル断面が小規模化したり、用地取得範囲の縮小につながる場合があります。しかし一方で道路施設・環境負荷やメンテナンスコストも考慮する必要があります [出典: 同上]。\n\n3. **連携方程式 :**\n   - 曲線半径だけでなく，緩和曲線、視距等他の幾何構造要素との調整を行わなければなりません。設計速度60km/hでもこれら要因の最適化が不可欠です [出典: 202512_道路]。\n\n4. **法的拘束力 :**\n   - 設計速63mにおける最小曲線半径は，「道構造令」に基づく技術基準として定められています。設計者は、これらの数値を遵守することが求められます [出典: 同上]。\n\n5. **地形的制約の存在 :**\n   - 地形が厳しい場合においても特例適用とする場合には、運転者の速度調整能力や交通事故防止等々に配慮し，適正な区間での設計速下げを行うべきです [出典: 同上]。\n\n6. **工学的計算と検討 :**\n   - 最小曲線半径の決定は単独で行うものではなく、関連する幾何要素との調整を必要とします。特に高速走行域ではこれらの要因が顕著です [出典: 同上]。\n\n設計速度60km/hにおける最小曲線半径150m及び特例値120mは，道路構造令に定められた基本的な技術基準であり、車両の快適な走行性と安全性能を確保するためには不可欠です。地形的制約等が存在し縮小適用することが必要であれば十分な検討を行いながら慎重に対応すべきでしょう。\n</think>\n\n設計速度60km/hにおける最小曲線半径については、「道路構造令」に定められており、標準値150mと特例値120mが規定されています。これらの基準を適用する際には地形や周囲の環境条件等々を総合的に考慮することが重要です [出典: 20251130_道路構造令調査報告書.tex]。\n\n**標準値：**\n\n- **最小曲線半径 (R):**\n    - 標準値 : R = 150 m\n      この基準は、通常の設計において確保すべきものです。快適な走行性と十分な安全性能を担保します [出典: 同上]。\n\n**特例値：**\n\n- **最小曲線半径 (R):**\n    - 特例値 : R = 120 m\n      地形が急峻である山岳部や家屋連担地区等、用地取得に困難を伴う場合においては、この数値まで縮小することができます。特例適用の場合は慎重な検討が必要とされます [出典: 同上]。\n\n**設計上の留意点：**\n\n1. **快適性と安全性能とのトレード-オフ :**\n   - 曲線半径を小さくすると、車両が曲線上において必要とする横方向の力（向心力を）確保する必要があります。このため高速走行時や大型・高積載輸送手段等には特に留意が必要です [出典: 道路構造令]。\n\n2. **維持管理と建設費用 :**\n   - 曲線半径を小さくすることにより、トンネル断面が小規模化したり用地取得範囲の縮小につながる場合があります。しかし一方で道路施設・環境負荷やメンテナンスコストも考慮する必要があります [出典: 同上]。\n\n3. **連携方程式 :**\n   - 曲線半径だけでなく、緩和曲線、視距等他の幾何構造要素との調整を行わなければなりません。設計速度60km/hでもこれら要因の最適化が不可欠です [出典: 202512_道路]。\n\n4. **法的拘束力 :**\n   - 設計速3mにおける最小曲線半径は、「道構造令」に基づく技術基準として定められています。設計者はこれらの数値を遵守することが求められます [出典: 同上]。\n\n5. **地形的制約の存在 :** \n    地形が厳しい場合においても特例適用とする場合には、運転者の速度調整能力や交通事故防止等々に配慮し適正な区間での設計速下げを行うべきです [出典: 2019年道路構造令改正].\n\n6. **工学的計算と検討 :**\n   - 最小曲線半径の決定は単独で行うものではなく、関連する幾何要素との調整を必要とします。特に高速走行域ではこれらの要因が顕著です [出典: 同上]。\n\n設計速度60km/hにおける最小曲線半径150m及び特例値120mは、「道路構造令」に定められた基本的な技術基準であり、車両の快適な走行性と安全性能を確保するためには不可欠です。地形的制約等が存在し縮小適用することが必要であれば十分検討を行いながら慎重に対応すべきでしょう [出典: 2019年道路構造令改正].",
+  "citations": [
+    {
+      "id": 1,
+      "text": "3.2\nパラメータの設定：設計速度60km/hにおける許容値\nこの式を用いて最小半径を決定するためには、V = 60 を固定した上で、設計上許容しうる「最大\n片勾配 (imax）」と「最大横すべり摩擦係数 (fmax）」を設定する必要がある。",
+      "source": "20251130_085812_道路構造令調査報告書.tex",
+      "score": 0.7553548004495473,
+      "vector_score": 0.89431167,
+      "keyword_score": 0.20222671075620352,
+      "hybrid_score": 0.7553548004495473,
+      "tech_boost": 0.1
+    },
+    {
+      "id": 2,
+      "text": "3                   50.0  190  130\n4                   40.0  140  100\n5                   30.0  100   70\n5                   30.0  100   70\n6                   20.0   60   40\n--- テーブル情報 ---\n表 14ページ: 表...",
+      "source": "20251001_224849_03_交差点（愛知_設計手引き）",
+      "score": 0.7270357060400001,
+      "vector_score": 0.89536417,
+      "keyword_score": 0,
+      "hybrid_score": 0.7270357060400001,
+      "tech_boost": 0.16000000000000003
+    },
+    {
+      "id": 3,
+      "text": "¢2)最小曲線半径と道路の規格\na.設計速度40 km/h以上の道路について\nある設計速度の指定されている区間において,地形上,規定の最小曲線半径を\n適用した場合にあっては,事業費の膨張をきたす場合や,大断面の形成による維\n適用した場合にあっては,事業費の膨張をきたす場合や,大断面の形成による維\n持管理上の問題が牛じる可能性もある。\nこのような場合は,設計速度を一段階落として路線を設計するのが妥当...",
+      "source": "20251207_081626_【日本道路協会】道路構造令の解説と運用（令和3年）_R3年3月-13.docx",
+      "score": 0.7262484476800001,
+      "vector_score": 0.89439464,
+      "keyword_score": 0,
+      "hybrid_score": 0.7262484476800001,
+      "tech_boost": 0.16000000000000003
+    },
+    {
+      "id": 4,
+      "text": "2.1\n基準値の定義と数値\n道路構造令第15条およびその技術的解釈指針である『道路構造令の解説と運用』において、設計速\n度60km/hにおける車道中心線の最小曲線半径は、明確に数値化されている。これらの値は、単な\nる目安ではなく、法的拘束力を持つ技術基準（省令）として機能している。\n提供された資料を統合し、設計速度60km/hにおける基準値を整理すると以下の通りとなる。\nこの「標準値150m」と「...",
+      "source": "20251130_085812_道路構造令調査報告書.tex",
+      "score": 0.7195937867999999,
+      "vector_score": 0.9017466,
+      "keyword_score": 0,
+      "hybrid_score": 0.7195937867999999,
+      "tech_boost": 0.13999999999999999
+    },
+    {
+      "id": 5,
+      "text": "3. 「望ましい値」の存在: 道路構造令の解説や資料 [1] では、標準値以上に「望ましい値」とし\nて 380 m 以上（100km/hの特例値相当）や 460 m 以上（100km/hの標準値相当）の採用を\n推奨している。これにより、緩和曲線の省略が可能になったり、走行快適性が格段に向上し\nたりするため、用地に余裕がある場合は標準値280mにとどまらず、より大きな半径を目指す\nべきとされる。\n4...",
+      "source": "20251130_140431_設計速度80kmh 最小曲線半径",
+      "score": 0.7153284767999999,
+      "vector_score": 0.8964016,
+      "keyword_score": 0,
+      "hybrid_score": 0.7153284767999999,
+      "tech_boost": 0.13999999999999999
+    }
+  ],
+  "sources": [
+    {
+      "id": "33e1afcd-51d5-42d1-8f17-c658612246a6",
+      "text": "3.2\nパラメータの設定：設計速度60km/hにおける許容値\nこの式を用いて最小半径を決定するためには、V = 60 を固定した上で、設計上許容しうる「最大\n片勾配 (imax）」と「最大横すべり摩擦係数 (fmax）」を設定する必要がある。",
+      "metadata": {
+        "doc_id": "eee92e3a-4cad-43cd-bac9-909c1ded3421",
+        "filename": "20251130_085812_道路構造令調査報告書.tex.pdf",
+        "file_path": "temp_uploads/20251130_085812_道路構造令調査報告書.tex.pdf",
+        "file_hash": "a14cbb1d79101824a7d0b68ee09b9e1f",
+        "processing_timestamp": null,
+        "document_type": "road_standard",
+        "language": "ja",
+        "id": "eee92e3a-4cad-43cd-bac9-909c1ded3421",
+        "title": "20251130_085812_道路構造令調査報告書.tex",
+        "category": "構造基準",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [
+          "道路構造",
+          "幅員",
+          "勾配",
+          "曲線"
+        ],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "created_at": null,
+        "updated_at": null,
+        "section_level": 1,
+        "section_type": "numbered_section",
+        "section_title": "2",
+        "section_number": "3",
+        "contains_numerical_data": true,
+        "importance_score": 0.6,
+        "related_sections": [
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "3.2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          }
+        ],
+        "original_id": "eee92e3a-4cad-43cd-bac9-909c1ded3421_8"
+      },
+      "vector_score": 0.89431167,
+      "keyword_score": 0.20222671075620352,
+      "hybrid_score": 0.7553548004495473,
+      "tech_boost": 0.1,
+      "score": 0.7553548004495473,
+      "rank": 1,
+      "title": "20251130_085812_道路構造令調査報告書.tex"
+    },
+    {
+      "id": "57126c1f-df08-45f7-8fab-cd7353731893",
+      "text": "3                   50.0  190  130\n4                   40.0  140  100\n5                   30.0  100   70\n5                   30.0  100   70\n6                   20.0   60   40\n--- テーブル情報 ---\n表 14ページ: 表 6.4 最小曲線半径\n最小曲線 半径(ｍ) 設計速度 (km/h) 信号交差点および一時停 止制御交差点の主道路 None 一時停止 制御交差点 の従道路\n0                     NaN                    標準値  特例値            None\n1                    80.0                    280  230               －\n2                    60.0                    150  120              60",
+      "metadata": {
+        "doc_id": "fa51f08e-81a5-428f-a56d-cd5642230fe6",
+        "filename": "20251001_224849_03_交差点（愛知_設計手引き）.pdf",
+        "file_path": "temp_uploads/20251001_224849_03_交差点（愛知_設計手引き）.pdf",
+        "file_hash": "4d1340171a58468abb4ed830dd9220e5",
+        "processing_timestamp": null,
+        "document_type": "other",
+        "language": "ja",
+        "id": "fa51f08e-81a5-428f-a56d-cd5642230fe6",
+        "title": "20251001_224849_03_交差点（愛知_設計手引き）",
+        "category": "その他",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "created_at": null,
+        "updated_at": null,
+        "section_level": 3,
+        "section_type": "item",
+        "section_title": "交差点部",
+        "section_number": "2",
+        "contains_references": true,
+        "importance_score": 0.7,
+        "related_sections": [
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "8",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          }
+        ],
+        "related_tables": [
+          {
+            "id": "pdfplumber_p13_2",
+            "caption": "表 6.1 視認距離(信号制御) 表 6 . 2 視 認 距 離(一時停止制御)",
+            "page": 13
+          },
+          {
+            "id": "pdfplumber_p13_1",
+            "caption": "表 6.1 視認距離(信号制御) 表 6 . 2 視 認 距 離(一時停止制御)",
+            "page": 13
+          },
+          {
+            "id": "pdfplumber_p13_0",
+            "caption": "表 6.1 視認距離(信号制御) 表 6 . 2 視 認 距 離(一時停止制御)",
+            "page": 13
+          },
+          {
+            "id": "pdfplumber_p14_0",
+            "caption": "表 6.4 最小曲線半径",
+            "page": 14
+          },
+          {
+            "id": "pdfplumber_p5_0",
+            "caption": "表 1.1 参照すべき基準・指針類",
+            "page": 5
+          },
+          {
+            "id": "pdfplumber_p17_0",
+            "caption": "また，用地の取得が困難な場合，その他の理由により，車線幅員を縮小する場合は表7.1に基き，縮小する",
+            "page": 17
+          },
+          {
+            "id": "pdfplumber_p23_0",
+            "caption": "表 7.3 ｌｂ：減速のために必要な最小値",
+            "page": 23
+          },
+          {
+            "id": "table_p33_1",
+            "caption": "場合の拡幅のすりつけ率は，表10.1に準ずるものとする。",
+            "page": 33
+          }
+        ],
+        "original_id": "fa51f08e-81a5-428f-a56d-cd5642230fe6_62"
+      },
+      "vector_score": 0.89536417,
+      "keyword_score": 0,
+      "hybrid_score": 0.7270357060400001,
+      "tech_boost": 0.16000000000000003,
+      "score": 0.7270357060400001,
+      "rank": 2,
+      "title": "20251001_224849_03_交差点（愛知_設計手引き）"
+    },
+    {
+      "id": "59606587-b44a-446c-9ca4-d0ca0ccaa2a2",
+      "text": "¢2)最小曲線半径と道路の規格\na.設計速度40 km/h以上の道路について\nある設計速度の指定されている区間において,地形上,規定の最小曲線半径を\n適用した場合にあっては,事業費の膨張をきたす場合や,大断面の形成による維\n適用した場合にあっては,事業費の膨張をきたす場合や,大断面の形成による維\n持管理上の問題が牛じる可能性もある。\nこのような場合は,設計速度を一段階落として路線を設計するのが妥当である。\n設計速度を下げることにより,道路から得られる便益が少なくなっても,莫大な\n建設費が節約されれば費用便益比が大きくなり,道路の経済的見地からみて合理\n的であるとするものである。\nこの場合,制約を受ける地形をはさむごく限られた区間にのみ,低い設計速度\nを適用することは,原則として避けなければならない。運転者が突然,速度を低\n下させなければならないような事態は事故をまねきやすく,好ましくない。妥当\nな区間にわたって設計速度を落とし,運転者が£!然に速度を調整するような道路\nを設:計するのが望ましい。\n^^20\n—351—\nb.第3種第4級の道路について",
+      "metadata": {
+        "doc_id": "998edc1c-2194-4704-b7d6-31e827487ab0",
+        "filename": "20251207_081626_【日本道路協会】道路構造令の解説と運用（令和3年）_R3年3月-13.docx.pdf",
+        "file_path": "temp_uploads/20251207_081626_【日本道路協会】道路構造令の解説と運用（令和3年）_R3年3月-13.docx.pdf",
+        "file_hash": "c5c6de9b19e00a5ff6c97c44700c032b",
+        "processing_timestamp": null,
+        "document_type": "road_standard",
+        "language": "ja",
+        "id": "998edc1c-2194-4704-b7d6-31e827487ab0",
+        "title": "20251207_081626_【日本道路協会】道路構造令の解説と運用（令和3年）_R3年3月-13.docx",
+        "category": "構造基準",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [
+          "道路構造",
+          "幅員",
+          "勾配",
+          "曲線"
+        ],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "created_at": null,
+        "updated_at": null,
+        "section_level": 1,
+        "section_type": "numbered_section",
+        "section_title": "05",
+        "section_number": "0",
+        "contains_numerical_data": true,
+        "importance_score": 0.8,
+        "related_sections": [
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "51",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "20",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          }
+        ],
+        "original_id": "998edc1c-2194-4704-b7d6-31e827487ab0_6"
+      },
+      "vector_score": 0.89439464,
+      "keyword_score": 0,
+      "hybrid_score": 0.7262484476800001,
+      "tech_boost": 0.16000000000000003,
+      "score": 0.7262484476800001,
+      "rank": 3,
+      "title": "20251207_081626_【日本道路協会】道路構造令の解説と運用（令和3年）_R3年3月-13.docx"
+    },
+    {
+      "id": "d4e86160-b2a3-43e0-b692-01d0c70b28ce",
+      "text": "2.1\n基準値の定義と数値\n道路構造令第15条およびその技術的解釈指針である『道路構造令の解説と運用』において、設計速\n度60km/hにおける車道中心線の最小曲線半径は、明確に数値化されている。これらの値は、単な\nる目安ではなく、法的拘束力を持つ技術基準（省令）として機能している。\n提供された資料を統合し、設計速度60km/hにおける基準値を整理すると以下の通りとなる。\nこの「標準値150m」と「特例値120m」という数値は、日本の道路設計者にとって最も基本的\nな定数の一つであるが、その背景には緻密な力学計算が存在する。\n1\n表 1: 設計速度60km/hにおける最小曲線半径の基準値\n項目\n最小曲線半径\n(R)\n適用条件と工学的意味\n標準値\n150 m\n通常の設計において確保すべき値。快適な走行性と\n十分な安全率を担保する。地形的制約がない限り、\nこの値以上を採用することが原則とされる。\n特例値\n120 m\n地形が急峻な山岳部や、家屋連担地区など用地取得\nが極めて困難な場合に限り、やむを得ず採用できる\n縮小限界値。物理的な走行限界に近い設定であり、\n適用には慎重な検討を要する。",
+      "metadata": {
+        "doc_id": "eee92e3a-4cad-43cd-bac9-909c1ded3421",
+        "filename": "20251130_085812_道路構造令調査報告書.tex.pdf",
+        "file_path": "temp_uploads/20251130_085812_道路構造令調査報告書.tex.pdf",
+        "file_hash": "a14cbb1d79101824a7d0b68ee09b9e1f",
+        "processing_timestamp": null,
+        "document_type": "road_standard",
+        "language": "ja",
+        "id": "eee92e3a-4cad-43cd-bac9-909c1ded3421",
+        "title": "20251130_085812_道路構造令調査報告書.tex",
+        "category": "構造基準",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [
+          "道路構造",
+          "幅員",
+          "勾配",
+          "曲線"
+        ],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "created_at": null,
+        "updated_at": null,
+        "section_level": 1,
+        "section_type": "numbered_section",
+        "section_title": "1",
+        "section_number": "2",
+        "contains_numerical_data": true,
+        "contains_references": true,
+        "importance_score": 1,
+        "related_sections": [
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "2.1",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "50 m",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          }
+        ],
+        "original_id": "eee92e3a-4cad-43cd-bac9-909c1ded3421_3"
+      },
+      "vector_score": 0.9017466,
+      "keyword_score": 0,
+      "hybrid_score": 0.7195937867999999,
+      "tech_boost": 0.13999999999999999,
+      "score": 0.7195937867999999,
+      "rank": 4,
+      "title": "20251130_085812_道路構造令調査報告書.tex"
+    },
+    {
+      "id": "65dfa9ac-e8e3-4a6f-b3b6-d6b37cc274d6",
+      "text": "3. 「望ましい値」の存在: 道路構造令の解説や資料 [1] では、標準値以上に「望ましい値」とし\nて 380 m 以上（100km/hの特例値相当）や 460 m 以上（100km/hの標準値相当）の採用を\n推奨している。これにより、緩和曲線の省略が可能になったり、走行快適性が格段に向上し\nたりするため、用地に余裕がある場合は標準値280mにとどまらず、より大きな半径を目指す\nべきとされる。\n4\n設計速度80km/hにおける関連幾何構造要素の統合分析\n最小曲線半径の決定は、単独のパラメータ選定ではなく、緩和曲線、視距、縦断線形といった他の\n幾何構造要素との「連立方程式」を解く作業に等しい。80km/hという高速域では、これらの関連\n要素の要求値も肥大化するため、最小半径の採用は複合的な制約を受ける。",
+      "metadata": {
+        "doc_id": "5b4373ba-dce1-455d-b286-d940249d35f8",
+        "filename": "20251130_140431_設計速度80kmh 最小曲線半径.pdf",
+        "file_path": "temp_uploads/20251130_140431_設計速度80kmh 最小曲線半径.pdf",
+        "file_hash": "2f225d7356ff3f1954fb4d710d86b1e6",
+        "processing_timestamp": null,
+        "document_type": "other",
+        "language": "ja",
+        "id": "5b4373ba-dce1-455d-b286-d940249d35f8",
+        "title": "20251130_140431_設計速度80kmh 最小曲線半径",
+        "category": "その他",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "created_at": null,
+        "updated_at": null,
+        "section_level": 1,
+        "section_type": "numbered_section",
+        "section_title": "「望ましい値」の存在: 道路構造令の解説や資料 [1] では、標準値以上に「望ましい値」とし",
+        "section_number": "3",
+        "contains_numerical_data": true,
+        "importance_score": 0.8,
+        "related_sections": [
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "「望ましい値」の存在: 道路構造令の解説や資料 [1] では、標準値以上に「望ましい値」とし",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "3",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          }
+        ],
+        "original_id": "5b4373ba-dce1-455d-b286-d940249d35f8_17"
+      },
+      "vector_score": 0.8964016,
+      "keyword_score": 0,
+      "hybrid_score": 0.7153284767999999,
+      "tech_boost": 0.13999999999999999,
+      "score": 0.7153284767999999,
+      "rank": 5,
+      "title": "20251130_140431_設計速度80kmh 最小曲線半径"
+    }
+  ],
+  "confidence_score": 0.8,
+  "search_type": "hybrid",
+  "top_k": 5,
+  "saved_at": "2025-12-09T10:14:17.759558+09:00",
+  "metadata": {
+    "name": "設計速度60km/hにおける最小曲線半径について，選定条件を教えてください。",
+    "tags": [
+      "設計速度60km/hにおける最小曲線半径について，選定条件を教えてください。"
+    ],
+    "processing_time": 81.48453998565674
+  }
+}

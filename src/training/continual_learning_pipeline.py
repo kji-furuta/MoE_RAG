@@ -841,17 +841,36 @@ class ContinualLearningPipeline:
         if progress_callback:
             progress_callback(70, "トレーニング完了")
 
-        # Fisher行列の計算と保存
-        logger.info("Computing Fisher matrix for current task...")
-        if progress_callback:
-            progress_callback(80, "Fisher行列を計算中...")
+        # Fisher行列の計算と保存（オプション）
+        # 32Bモデルの場合、メモリ不足を防ぐためFisher計算をスキップ可能
+        skip_fisher = False
+        if is_quantized or "32B" in str(getattr(self, 'base_model_path', '')):
+            logger.warning("Large quantized model detected - Fisher matrix computation may cause OOM")
+            logger.warning("Skipping Fisher matrix computation to prevent memory issues")
+            logger.warning("Note: EWC regularization will not be applied (using standard LoRA fine-tuning)")
+            skip_fisher = True
 
-        self._compute_and_save_fisher(
-            model=trainer.model,
-            tokenizer=tokenizer,
-            dataset_path=train_dataset_path,
-            task_name=task_name
-        )
+        if not skip_fisher:
+            logger.info("Computing Fisher matrix for current task...")
+            if progress_callback:
+                progress_callback(80, "Fisher行列を計算中...")
+
+            try:
+                self._compute_and_save_fisher(
+                    model=trainer.model,
+                    tokenizer=tokenizer,
+                    dataset_path=train_dataset_path,
+                    task_name=task_name
+                )
+            except RuntimeError as e:
+                if "out of memory" in str(e).lower():
+                    logger.error("OOM during Fisher computation - skipping Fisher matrix")
+                    skip_fisher = True
+                    torch.cuda.empty_cache()
+                else:
+                    raise
+        else:
+            logger.info("Fisher matrix computation skipped (memory optimization)")
         
         # モデルの保存（LoRAアダプターとして保存）
         logger.info(f"Saving LoRA adapter to: {output_dir}")

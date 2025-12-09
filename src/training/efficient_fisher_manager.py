@@ -142,19 +142,35 @@ class EfficientFisherManager:
         """特定のパラメータブロックのFisher行列を計算"""
         device = next(model.parameters()).device
         block_fisher = {}
-        
+
         # Fisher行列の初期化（CPU上で）
         for param_name, param in block_params:
             block_fisher[param_name] = torch.zeros_like(param, device='cpu')
-        
+
         # パラメータ名のセット（高速検索用）
         block_param_names = set(pn for pn, _ in block_params)
-        
+
+        # Gradient checkpointingを一時的に無効化（Fisher計算時のメモリ節約）
+        original_grad_checkpointing = None
+        if hasattr(model, 'gradient_checkpointing_disable'):
+            try:
+                if hasattr(model, 'is_gradient_checkpointing'):
+                    original_grad_checkpointing = model.is_gradient_checkpointing
+                model.gradient_checkpointing_disable()
+                logger.info("Disabled gradient checkpointing for Fisher computation")
+            except:
+                pass
+
         batch_count = 0
         for batch_idx, batch in enumerate(tqdm(dataloader, desc="Computing Fisher", total=max_batches)):
             if batch_idx >= max_batches:
                 break
-                
+
+            # バッチサイズを1に制限（OOM対策）
+            if len(batch['input_ids']) > 1:
+                batch = {k: v[:1] for k, v in batch.items()}
+                logger.warning(f"Reduced batch size to 1 for Fisher computation (OOM prevention)")
+
             # バッチをデバイスに転送
             batch = {k: v.to(device) for k, v in batch.items()}
             
@@ -176,12 +192,20 @@ class EfficientFisherManager:
             # 定期的なメモリクリア
             if batch_idx % 10 == 0:
                 torch.cuda.empty_cache()
-        
+
+        # Gradient checkpointingを元に戻す
+        if original_grad_checkpointing is not None and hasattr(model, 'gradient_checkpointing_enable'):
+            try:
+                model.gradient_checkpointing_enable()
+                logger.info("Re-enabled gradient checkpointing after Fisher computation")
+            except:
+                pass
+
         # 平均化
         if batch_count > 0:
             for param_name in block_fisher:
                 block_fisher[param_name] /= batch_count
-        
+
         return block_fisher
     
     def _save_fisher_block(

@@ -41,6 +41,7 @@ services:
     
     # Volume mounts
     volumes:
+      - ../README.md:/workspace/README.md
       - ../src:/workspace/src
       - ../config:/workspace/config
       - ../scripts:/workspace/scripts

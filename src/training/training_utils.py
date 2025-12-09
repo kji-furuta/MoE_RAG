@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset, IterableDataset
+from torch.utils.data import DataLoader, Dataset
 from transformers import get_linear_schedule_with_warmup
 from tqdm import tqdm
 
@@ -195,30 +195,74 @@ class TextDataset(Dataset):
         self.max_length = max_length
 
 
-class StreamingTextDataset(IterableDataset):
-    """大規模なテキストファイルを一行ずつ読み込むデータセット"""
+class StreamingTextDataset(Dataset):  # Changed from IterableDataset to Dataset
+    """大規模なテキストファイルを一行ずつ読み込むデータセット
+
+    Fisher行列計算のためにインデックスアクセスをサポート。
+    メモリ効率のため、データは遅延ロードされます。
+    """
     def __init__(self, file_path: str, tokenizer, max_length: int = 256):
         self.file_path = file_path
         self.tokenizer = tokenizer
         self.max_length = max_length
 
-    def __iter__(self):
-        with open(self.file_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
+        # データを事前にロード（Fisher行列計算のため）
+        self._samples = []
+        self._load_all_samples()
 
-                sample = None
+    def _load_all_samples(self) -> None:
+        """すべてのサンプルをメモリにロード"""
+        logger.info(f"Loading all samples from {self.file_path} for Fisher matrix computation...")
+
+        try:
+            with open(self.file_path, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+
+                # JSON配列形式の場合
                 try:
-                    record = json.loads(line)
+                    data = json.loads(content)
+                    if isinstance(data, list):
+                        for record in data:
+                            sample = self._prepare_sample(record)
+                            if sample is not None:
+                                self._samples.append(sample)
+                        logger.info(f"Loaded {len(self._samples)} samples from JSON array")
+                        return
                 except json.JSONDecodeError:
-                    record = {"text": line}
+                    pass
 
-                sample = self._prepare_sample(record)
-                if sample is None:
-                    continue
-                yield sample
+                # 行ごとのJSON形式の場合
+                f.seek(0)
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+
+                    try:
+                        record = json.loads(line)
+                    except json.JSONDecodeError:
+                        record = {"text": line}
+
+                    sample = self._prepare_sample(record)
+                    if sample is not None:
+                        self._samples.append(sample)
+
+                logger.info(f"Loaded {len(self._samples)} samples from JSONL format")
+
+        except Exception as e:
+            logger.error(f"Failed to load samples from {self.file_path}: {e}")
+            raise
+
+    def __len__(self):
+        """データセットの長さを返す（Fisher行列計算で必要）"""
+        return len(self._samples)
+
+    def __getitem__(self, idx):
+        """インデックスでサンプルを取得（Fisher行列計算で必要）"""
+        if idx >= len(self._samples):
+            raise IndexError(f"Index {idx} out of range for dataset with {len(self._samples)} samples")
+        return self._samples[idx]
+
 
     def set_max_length(self, max_length: int) -> None:
         """Update the truncation length for streaming samples."""
@@ -350,8 +394,11 @@ class StreamingTextDataset(IterableDataset):
         return labels
 
 
-class CombinedStreamingDataset(IterableDataset):
-    """複数のStreamingTextDatasetを結合し、指定された比率でデータを混合するデータセット"""
+class CombinedStreamingDataset(Dataset):
+    """複数のStreamingTextDatasetを結合し、指定された比率でデータを混合するデータセット
+
+    Fisher行列計算のためインデックスアクセスをサポート。
+    """
     def __init__(
         self,
         main_dataset: StreamingTextDataset,
@@ -362,25 +409,39 @@ class CombinedStreamingDataset(IterableDataset):
         self.replay_dataset = replay_dataset
         self.mix_ratio = mix_ratio
 
-    def __iter__(self):
-        main_iter = iter(self.main_dataset)
-        replay_iter = iter(self.replay_dataset)
+        # 結合データセットの構築
+        self._build_combined_dataset()
 
-        while True:
-            # メインデータから取得
-            try:
-                yield next(main_iter)
-            except StopIteration:
-                main_iter = iter(self.main_dataset) # メインデータが尽きたらリセット
-                yield next(main_iter) # リセット後、再度取得
+    def _build_combined_dataset(self) -> None:
+        """メインデータとリプレイデータを混合"""
+        self._samples = []
 
-            # リプレイデータから取得 (mix_ratioに基づいて)
-            if torch.rand(1).item() < self.mix_ratio:
-                try:
-                    yield next(replay_iter)
-                except StopIteration:
-                    replay_iter = iter(self.replay_dataset) # リプレイデータが尽きたらリセット
-                    yield next(replay_iter) # リセット後、再度取得
+        main_len = len(self.main_dataset)
+        replay_len = len(self.replay_dataset)
+
+        # メインデータを追加
+        for i in range(main_len):
+            self._samples.append(('main', i))
+
+            # mix_ratioに基づいてリプレイデータを挿入
+            if torch.rand(1).item() < self.mix_ratio and replay_len > 0:
+                replay_idx = torch.randint(0, replay_len, (1,)).item()
+                self._samples.append(('replay', replay_idx))
+
+        logger.info(f"Combined dataset: {len(self._samples)} samples (main: {main_len}, replay insertions: {len(self._samples) - main_len})")
+
+    def __len__(self):
+        return len(self._samples)
+
+    def __getitem__(self, idx):
+        if idx >= len(self._samples):
+            raise IndexError(f"Index {idx} out of range for combined dataset with {len(self._samples)} samples")
+
+        source, source_idx = self._samples[idx]
+        if source == 'main':
+            return self.main_dataset[source_idx]
+        else:
+            return self.replay_dataset[source_idx]
 
     def set_max_length(self, max_length: int) -> None:
         """Propagate sequence length updates to underlying datasets."""

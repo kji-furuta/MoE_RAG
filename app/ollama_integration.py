@@ -148,8 +148,63 @@ class HybridModelManager:
         else:
             return self._generate_with_hf(prompt, max_tokens, temperature, **kwargs)
     
-    def _generate_with_ollama(self, 
-                             prompt: str, 
+    def _clean_generated_text(self, text: str, original_prompt: str) -> str:
+        """生成されたテキストから重複やプロンプトタグをクリーンアップ"""
+        import re
+
+        if not text:
+            return text
+
+        # 1. プロンプトタグの除去（[INST], [/INST], <s>, </s>など）
+        text = re.sub(r'\[INST\].*?\[/INST\]', '', text, flags=re.DOTALL)
+        text = re.sub(r'<s>|</s>', '', text)
+        text = re.sub(r'<\|.*?\|>', '', text)  # 特殊トークン
+
+        # 2. 元のプロンプトテキストが含まれている場合は除去
+        if original_prompt and len(original_prompt) > 50:
+            prompt_snippet = original_prompt[:100]
+            if prompt_snippet in text:
+                text = text.split(prompt_snippet)[-1]
+
+        # 3. 重複した大きなテキストブロックの検出と除去
+        text_length = len(text)
+        if text_length > 200:
+            mid_point = text_length // 2
+            search_start = max(0, mid_point - 100)
+            search_end = min(text_length, mid_point + 100)
+
+            middle_section = text[search_start:search_end]
+            newline_positions = [i for i, c in enumerate(middle_section) if c == '\n']
+
+            if newline_positions:
+                closest_newline = min(newline_positions, key=lambda x: abs(x - (search_end - search_start) // 2))
+                split_point = search_start + closest_newline + 1
+
+                first_half = text[:split_point].strip()
+                second_half = text[split_point:].strip()
+
+                if first_half == second_half:
+                    logger.info("完全重複を検出、前半のみを使用")
+                    text = first_half
+                elif len(first_half) > 50 and len(second_half) > 50:
+                    comparison_length = 500
+                    first_sample = first_half[:comparison_length]
+                    second_sample = second_half[:comparison_length]
+
+                    matches = sum(1 for a, b in zip(first_sample, second_sample) if a == b)
+                    similarity = matches / max(len(first_sample), len(second_sample))
+
+                    if similarity > 0.9:
+                        logger.info(f"高類似度重複を検出 (類似度: {similarity:.2%})、前半のみを使用")
+                        text = first_half
+
+        # 4. 前後の空白をトリム
+        text = text.strip()
+
+        return text
+
+    def _generate_with_ollama(self,
+                             prompt: str,
                              max_tokens: int,
                              temperature: float) -> Optional[str]:
         """Ollamaでテキスト生成"""
@@ -168,16 +223,20 @@ class HybridModelManager:
                 },
                 timeout=120
             )
-            
+
             if response.status_code == 200:
                 result = response.json()
                 generated_text = result.get("response", "")
+
+                # 重複テキストとプロンプトタグのクリーンアップ
+                generated_text = self._clean_generated_text(generated_text, prompt)
+
                 logger.info(f"✅ Ollama生成完了: {len(generated_text)}文字")
                 return generated_text
             else:
                 logger.error(f"Ollama生成エラー: {response.status_code}")
                 return None
-                
+
         except Exception as e:
             logger.error(f"Ollama生成例外: {e}")
             return None

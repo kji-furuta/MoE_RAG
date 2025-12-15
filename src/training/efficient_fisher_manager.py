@@ -24,12 +24,13 @@ class EfficientFisherManager:
         self.block_info = {}  # ブロック情報を記録
         
     def compute_fisher_blockwise(
-        self, 
-        model: torch.nn.Module, 
+        self,
+        model: torch.nn.Module,
         dataloader: torch.utils.data.DataLoader,
         task_name: str,
         block_size: int = 1000000,
-        max_batches: int = 100
+        max_batches: int = 100,
+        save_reference_params: bool = True,
     ) -> Path:
         """ブロック単位でFisher行列を計算（メモリ効率化）"""
         logger.info(f"Computing Fisher matrix blockwise for task: {task_name}")
@@ -56,9 +57,23 @@ class EfficientFisherManager:
             block_fisher = self._compute_block_fisher(
                 model, dataloader, block_params, max_batches
             )
-            
+
+            reference_params = None
+            if save_reference_params:
+                reference_params = {}
+                for param_name, param in block_params:
+                    snap = param.detach().cpu()
+                    if snap.dtype in (
+                        torch.float16,
+                        torch.float32,
+                        torch.bfloat16,
+                        torch.float64,
+                    ):
+                        snap = snap.to(torch.float16)
+                    reference_params[param_name] = snap
+
             # HDF5形式で保存（圧縮）
-            self._save_fisher_block(task_path, block_idx, block_fisher)
+            self._save_fisher_block(task_path, block_idx, block_fisher, reference_params)
             
             # ブロック情報を記録
             self.block_info[f"block_{block_idx}"] = {
@@ -209,10 +224,11 @@ class EfficientFisherManager:
         return block_fisher
     
     def _save_fisher_block(
-        self, 
+        self,
         task_path: Path,
-        block_idx: int, 
-        fisher_data: Dict[str, torch.Tensor]
+        block_idx: int,
+        fisher_data: Dict[str, torch.Tensor],
+        reference_params: Optional[Dict[str, torch.Tensor]] = None,
     ):
         """Fisher行列ブロックをHDF5形式で保存"""
         filepath = task_path / f"fisher_block_{block_idx}.h5"
@@ -234,6 +250,21 @@ class EfficientFisherManager:
                 # メタデータの保存
                 f[safe_name].attrs['original_name'] = param_name
                 f[safe_name].attrs['shape'] = fisher_matrix.shape
+                f[safe_name].attrs['kind'] = 'fisher'
+
+                if reference_params is not None and param_name in reference_params:
+                    snapshot = reference_params[param_name]
+                    snap_name = f"param__{safe_name}"
+                    f.create_dataset(
+                        snap_name,
+                        data=snapshot.numpy(),
+                        compression='gzip',
+                        compression_opts=9,
+                    )
+                    f[snap_name].attrs['original_name'] = param_name
+                    f[snap_name].attrs['shape'] = snapshot.shape
+                    f[snap_name].attrs['kind'] = 'param'
+                    f[snap_name].attrs['dtype'] = str(snapshot.dtype)
         
         logger.info(f"Saved Fisher block to: {filepath}")
     
@@ -245,27 +276,32 @@ class EfficientFisherManager:
         with open(info_path, 'w') as f:
             json.dump(self.block_info, f, indent=2)
     
-    def load_fisher_matrices(self, task_names: List[str]) -> List[Dict[str, torch.Tensor]]:
-        """複数タスクのFisher行列を効率的にロード"""
+    def load_fisher_matrices(
+        self, task_names: List[str]
+    ) -> List[Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]]:
+        """複数タスクのFisher行列と参照パラメータを効率的にロード"""
         logger.info(f"Loading Fisher matrices for tasks: {task_names}")
-        fisher_matrices = []
+        fisher_matrices: List[Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]] = []
         
         for task_name in task_names:
-            task_fisher = self._load_task_fisher(task_name)
-            if task_fisher:
-                fisher_matrices.append(task_fisher)
+            loaded = self._load_task_fisher(task_name)
+            if loaded:
+                fisher_matrices.append(loaded)
         
         return fisher_matrices
     
-    def _load_task_fisher(self, task_name: str) -> Optional[Dict[str, torch.Tensor]]:
-        """特定タスクのFisher行列をロード"""
+    def _load_task_fisher(
+        self, task_name: str
+    ) -> Optional[Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]]:
+        """特定タスクのFisher行列と参照パラメータをロード"""
         task_path = self.storage_path / task_name
         
         if not task_path.exists():
             logger.warning(f"Fisher matrix not found for task: {task_name}")
             return None
         
-        task_fisher = {}
+        task_fisher: Dict[str, torch.Tensor] = {}
+        reference_params: Dict[str, torch.Tensor] = {}
         
         # すべてのHDF5ファイルを読み込み
         for h5_file in sorted(task_path.glob("fisher_block_*.h5")):
@@ -274,14 +310,27 @@ class EfficientFisherManager:
             with h5py.File(h5_file, 'r') as f:
                 for dataset_name in f.keys():
                     # 元のパラメータ名を復元
-                    original_name = f[dataset_name].attrs['original_name']
-                    
-                    # データをロード（必要に応じてGPUに転送）
-                    fisher_data = torch.from_numpy(f[dataset_name][:])
-                    task_fisher[original_name] = fisher_data
+                    original_name = f[dataset_name].attrs.get('original_name')
+                    if not original_name:
+                        continue
+
+                    tensor_data = torch.from_numpy(f[dataset_name][:])
+
+                    if dataset_name.startswith("param__") or f[dataset_name].attrs.get(
+                        "kind"
+                    ) == "param":
+                        reference_params[original_name] = tensor_data
+                    else:
+                        task_fisher[original_name] = tensor_data
         
         logger.info(f"Loaded {len(task_fisher)} parameters for task: {task_name}")
-        return task_fisher
+        if task_fisher and not reference_params:
+            logger.warning(
+                "Reference parameters not found for task %s; EWC loss will be skipped "
+                "for this task (older Fisher format).",
+                task_name,
+            )
+        return task_fisher, reference_params
     
     def compute_compressed_fisher(
         self,

@@ -719,5 +719,43 @@
       "継続学習が完了しました"
     ],
     "completed_at": "2025-12-09T09:43:48.909117+09:00"
+  },
+  "d2c8f371-16e2-4e1a-b34a-fe3cb9cbd905": {
+    "task_id": "d2c8f371-16e2-4e1a-b34a-fe3cb9cbd905",
+    "task_name": "task_104",
+    "started_at": "2025-12-11T09:39:47.042465+09:00",
+    "id": "d2c8f371-16e2-4e1a-b34a-fe3cb9cbd905",
+    "type": "continual_learning",
+    "created_at": "2025-12-11T09:39:47.042484+09:00",
+    "status": "completed",
+    "progress": 100,
+    "metrics": {
+      "forgetting_results": {
+        "task_103": {
+          "task_index": 5,
+          "current_performance": {
+            "error": "Expecting value: line 2 column 1 (char 2)"
+          },
+          "original_performance": {},
+          "forgetting_score": 0.0,
+          "timestamp": "2025-12-11T01:34:36.450491"
+        },
+        "task_104": {
+          "task_index": 6,
+          "current_performance": {
+            "error": "Expecting value: line 2 column 1 (char 2)"
+          },
+          "original_performance": {},
+          "forgetting_score": 0.0,
+          "timestamp": "2025-12-11T01:34:36.450650"
+        }
+      },
+      "report_path": "outputs/ewc_data/evaluation/forgetting_analysis_20251211_013436.png"
+    },
+    "messages": [
+      "評価を実行中...",
+      "継続学習が完了しました"
+    ],
+    "completed_at": "2025-12-11T10:34:36.964031+09:00"
   }
 }

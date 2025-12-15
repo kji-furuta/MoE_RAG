@@ -1,5 +1,5 @@
 # RAG System Configuration
-system_name: "Sï-RAG·¹Æà"
+system_name: "Road Design RAG System"
 version: "1.0.0"
 language: "ja"
 
@@ -55,7 +55,7 @@ llm:
 
 # Continual Learning Settings (NEW)
 continual_learning:
-  enabled: false  # Set to true to enable continual learning support
+  enabled: true  # Set to true to enable continual learning support
   model_base_path: "./outputs"  # Base path for continual learning models
   ewc_data_path: "./outputs/ewc_data"  # Path to EWC data and task history
   

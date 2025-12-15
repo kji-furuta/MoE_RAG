@@ -65,19 +65,43 @@ class ContinualLearningEvaluator:
     
     def _evaluate_task_performance(self, model, dataset_path: str) -> Dict:
         """タスクのパフォーマンスを評価
-        
+
         Args:
             model: 評価対象のモデル
             dataset_path: データセットのパス
-            
+
         Returns:
             評価メトリクス
         """
         try:
-            # データセットの読み込み
+            # データセットの読み込み (JSON配列形式とJSONL形式の両方に対応)
+            data = []
             with open(dataset_path, 'r', encoding='utf-8') as f:
-                data = [json.loads(line) for line in f]
-            
+                # ファイルの最初の文字を確認
+                first_char = f.read(1)
+                f.seek(0)  # ファイルポインタを先頭に戻す
+
+                if first_char == '[':
+                    # JSON配列形式 (例: [{"key": "value"}, {...}])
+                    try:
+                        data = json.load(f)
+                        logger.info(f"Loaded {len(data)} samples from JSON array format")
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Failed to parse JSON array: {e}")
+                        return {'error': f'Invalid JSON array format: {str(e)}'}
+                else:
+                    # JSONL形式 (各行が独立したJSONオブジェクト)
+                    for line_num, line in enumerate(f, 1):
+                        line = line.strip()
+                        if not line:  # 空行をスキップ
+                            continue
+                        try:
+                            data.append(json.loads(line))
+                        except json.JSONDecodeError as e:
+                            logger.warning(f"Skipping invalid JSON at line {line_num}: {e}")
+                            continue
+                    logger.info(f"Loaded {len(data)} samples from JSONL format")
+
             if not data:
                 return {'error': 'No data found'}
             

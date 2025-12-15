@@ -990,21 +990,28 @@ class ContinualLearningPipeline:
     
     def _load_previous_fisher_matrices(self) -> List[EWCHelper]:
         """過去のFisher行列をロード"""
-        ewc_helpers = []
-        
+        ewc_helpers: List[EWCHelper] = []
+
         if self.use_efficient_fisher:
             # 効率的なFisher行列のロード
-            task_names = [task['task_name'] for task in self.task_history]
-            fisher_matrices = self.fisher_manager.load_fisher_matrices(task_names)
-            
-            for fisher_matrix in fisher_matrices:
+            task_names = [task["task_name"] for task in self.task_history]
+            fisher_entries = self.fisher_manager.load_fisher_matrices(task_names)
+
+            pipeline_self = self
+            for fisher_matrix, reference_params in fisher_entries:
                 # EWCHelper互換のオブジェクトを作成
-                helper = type('EWCHelper', (), {
-                    'fisher_matrix': fisher_matrix,
-                    'params': {},  # 効率的な実装ではparamsは別管理
-                    'compute_ewc_loss': lambda self, model: self._compute_ewc_loss_efficient(model, fisher_matrix)
-                })()
-                
+                helper = type(
+                    "EWCHelper",
+                    (),
+                    {
+                        "fisher_matrix": fisher_matrix,
+                        "params": reference_params,
+                        "compute_ewc_loss": lambda _self, model, fm=fisher_matrix, rp=reference_params: pipeline_self._compute_ewc_loss_efficient(
+                            model, fm, rp
+                        ),
+                    },
+                )()
+
                 ewc_helpers.append(helper)
         else:
             # 従来のFisher行列のロード
@@ -1026,20 +1033,30 @@ class ContinualLearningPipeline:
         
         return ewc_helpers
     
-    def _compute_ewc_loss_efficient(self, model, fisher_matrix):
-        """効率的なEWC損失計算"""
-        ewc_loss = 0
+    def _compute_ewc_loss_efficient(
+        self,
+        model,
+        fisher_matrix: Dict[str, torch.Tensor],
+        reference_params: Optional[Dict[str, torch.Tensor]] = None,
+    ):
+        """効率的なEWC損失計算（LoRA等の学習対象パラメータのみ追跡）"""
         device = next(model.parameters()).device
-        
+        ewc_loss = torch.tensor(0.0, device=device)
+        reference_params = reference_params or {}
+
         for name, param in model.named_parameters():
-            if name in fisher_matrix:
-                # Fisher行列を必要に応じてGPUに転送
-                fisher = fisher_matrix[name].to(device)
-                # 現在のパラメータとの差分を計算
-                # 注: 効率的な実装では参照パラメータも別途管理が必要
-                diff = param  # ここは簡略化
-                ewc_loss += (fisher * diff.pow(2)).sum()
-        
+            if name not in fisher_matrix:
+                continue
+
+            ref = reference_params.get(name)
+            if ref is None:
+                continue
+
+            fisher = fisher_matrix[name].to(device)
+            ref = ref.to(device=device, dtype=param.dtype)
+            diff = param - ref
+            ewc_loss += (fisher * diff.pow(2)).sum()
+
         return ewc_loss
     
     def _save_task_history(self):

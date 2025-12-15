@@ -11,6 +11,7 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import PeftModel, PeftConfig
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +28,20 @@ class ContinualTaskInfo:
     learning_rate: float
     ewc_lambda: float
     perplexity_scores: Optional[Dict[str, float]] = None
-    
+    # 追加フィールド (後方互換性のため、すべてオプショナル)
+    model_type: Optional[str] = None
+    base_model: Optional[str] = None
+    lora_r: Optional[int] = None
+    lora_alpha: Optional[int] = None
+    quantized: Optional[bool] = None
+
     def to_dict(self):
         return asdict(self)
-    
+
     @classmethod
     def from_dict(cls, data: Dict):
+        # 必須フィールドのみを使用してインスタンス化
+        # 追加フィールドは自動的に処理される
         return cls(**data)
 
 
@@ -179,30 +188,64 @@ class ContinualModelManager:
             # デバイスの決定
             if device is None:
                 device = "cuda" if torch.cuda.is_available() else "cpu"
-            
+
             logger.info(f"Loading continual model from: {model_path}")
-            
+
+            # LoRAアダプターの設定を読み込んで、ベースモデルを特定
+            try:
+                peft_config = PeftConfig.from_pretrained(str(model_path))
+                base_model_name = peft_config.base_model_name_or_path
+                logger.info(f"Detected LoRA adapter with base model: {base_model_name}")
+                is_lora_adapter = True
+            except Exception as e:
+                logger.info(f"Not a PEFT model, loading as full model: {e}")
+                is_lora_adapter = False
+                base_model_name = None
+
             # トークナイザーの読み込み
-            tokenizer = AutoTokenizer.from_pretrained(str(model_path))
+            if is_lora_adapter and base_model_name:
+                # ベースモデルからトークナイザーを読み込む
+                tokenizer = AutoTokenizer.from_pretrained(base_model_name)
+            else:
+                # アダプターパスまたはフルモデルパスから読み込む
+                tokenizer = AutoTokenizer.from_pretrained(str(model_path))
+
             if tokenizer.pad_token is None:
                 tokenizer.pad_token = tokenizer.eos_token
-            
+
             # モデルの読み込み（メモリ最適化付き）
             model_kwargs = {
                 "torch_dtype": torch.float16 if device == "cuda" else torch.float32,
                 "low_cpu_mem_usage": True,
             }
-            
+
             if device == "cuda" and torch.cuda.device_count() > 1:
                 model_kwargs["device_map"] = "auto"
             else:
                 model_kwargs["device_map"] = device
-            
-            model = AutoModelForCausalLM.from_pretrained(
-                str(model_path),
-                **model_kwargs
-            )
-            
+
+            if is_lora_adapter and base_model_name:
+                # LoRAアダプターの場合: ベースモデル + アダプター
+                logger.info(f"Loading base model: {base_model_name}")
+                base_model = AutoModelForCausalLM.from_pretrained(
+                    base_model_name,
+                    **model_kwargs
+                )
+
+                logger.info(f"Attaching LoRA adapter from: {model_path}")
+                model = PeftModel.from_pretrained(
+                    base_model,
+                    str(model_path)
+                )
+                logger.info("LoRA adapter successfully attached to base model")
+            else:
+                # フルモデルの場合: 直接読み込み
+                logger.info("Loading full fine-tuned model")
+                model = AutoModelForCausalLM.from_pretrained(
+                    str(model_path),
+                    **model_kwargs
+                )
+
             logger.info(f"Successfully loaded continual model for task: {task_name}")
             
             # キャッシュに保存

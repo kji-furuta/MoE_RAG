@@ -2464,8 +2464,15 @@ async function loadVectorDBInfo() {
             document.getElementById('currentVectorDBCount').textContent = vectorDB.document_count || 0;
             document.getElementById('warningDocCount').textContent = vectorDB.document_count || 0;
 
-            if (vectorDB.collection_exists) {
-                document.getElementById('vectorDBStatus').style.display = 'block';
+            // コレクションがなくても設定されているモデルを表示
+            document.getElementById('vectorDBStatus').style.display = 'block';
+
+            // コレクションが存在しない場合は警告表示
+            if (!vectorDB.collection_exists && vectorDB.document_count === 0) {
+                const statusDiv = document.getElementById('vectorDBStatus');
+                statusDiv.className = 'alert alert-warning';
+                statusDiv.querySelector('h6').innerHTML = '<i class="fas fa-exclamation-triangle"></i> ベクトルデータベース未構築';
+                statusDiv.querySelector('p:last-child').innerHTML = '<strong>文書数:</strong> <span id="currentVectorDBCount">0</span>件（文書をアップロードしてください）';
             }
         }
     } catch (error) {

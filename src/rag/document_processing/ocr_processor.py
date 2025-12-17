@@ -200,37 +200,51 @@ class OCRProcessor:
     def _extract_with_easyocr(self, image: Image.Image) -> List[OCRResult]:
         """EasyOCRでテキスト抽出"""
         results = []
-        
+
         # EasyOCRを遅延初期化
         self._initialize_easyocr_if_needed()
-        
+
         if not self.easyocr_reader:
             logger.warning("EasyOCR reader not available, skipping EasyOCR extraction")
             return results
-        
+
         try:
             # PIL ImageをNumPy配列に変換
             img_array = np.array(image)
-            
-            # EasyOCRで検出
-            detections = self.easyocr_reader.readtext(
-                img_array,
-                detail=1,
-                paragraph=False
-            )
-            
+
+            # タイムアウト付きでEasyOCR実行
+            import signal
+
+            def timeout_handler(signum, frame):
+                raise TimeoutError("EasyOCR processing timed out")
+
+            # タイムアウトを30秒に設定
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(30)
+
+            try:
+                # EasyOCRで検出
+                detections = self.easyocr_reader.readtext(
+                    img_array,
+                    detail=1,
+                    paragraph=False
+                )
+            finally:
+                # タイムアウトをキャンセル
+                signal.alarm(0)
+
             for detection in detections:
                 bbox_points, text, confidence = detection
-                
+
                 if confidence < self.confidence_threshold:
                     continue
-                    
+
                 # バウンディングボックスを計算
                 x_coords = [point[0] for point in bbox_points]
                 y_coords = [point[1] for point in bbox_points]
                 x, y = int(min(x_coords)), int(min(y_coords))
                 w, h = int(max(x_coords) - x), int(max(y_coords) - y)
-                
+
                 result = OCRResult(
                     text=text.strip(),
                     confidence=confidence,
@@ -239,10 +253,12 @@ class OCRProcessor:
                     method='easyocr'
                 )
                 results.append(result)
-                
+
+        except TimeoutError as e:
+            logger.warning(f"EasyOCR processing timed out (30s limit). Skipping this image.")
         except Exception as e:
             logger.error(f"EasyOCR extraction failed: {e}")
-            
+
         return results
         
     def _extract_with_tesseract(self, image: Image.Image) -> List[OCRResult]:

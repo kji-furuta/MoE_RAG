@@ -21,7 +21,11 @@ embedding:
   device: cuda
   embedding_dim: 1024
   max_length: 512
-  model_name: intfloat/multilingual-e5-large
+  # Available models (1024-dim compatible with existing vector DB):
+  # - "intfloat/multilingual-e5-large" (1024-dim, multilingual)
+  # - "intfloat/multilingual-e5-large-instruct" (1024-dim, RAG-optimized, RECOMMENDED)
+  # - "cl-nagoya/sup-simcse-ja-large" (1024-dim, Japanese-specialized)
+  model_name: intfloat/multilingual-e5-large-instruct
   normalize_embeddings: true
 evaluation:
   metrics:

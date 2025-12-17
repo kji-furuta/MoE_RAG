@@ -208,6 +208,11 @@ class EmbeddingModelFactory:
             "model_name": "intfloat/multilingual-e5-large",
             "embedding_dim": 1024
         },
+        "multilingual-e5-large-instruct": {
+            "class": MultilingualE5EmbeddingModel,
+            "model_name": "intfloat/multilingual-e5-large-instruct",
+            "embedding_dim": 1024
+        },
         "multilingual-e5-base": {
             "class": MultilingualE5EmbeddingModel,
             "model_name": "intfloat/multilingual-e5-base",

@@ -244,6 +244,35 @@ def index_single_document(pdf_path: Path,
         return False
 
 
+def _map_model_name_to_type(model_name: str) -> str:
+    """
+    設定ファイルのモデル名をEmbeddingModelFactoryのmodel_typeに変換
+    query_engine.pyと同じマッピングロジック
+    """
+    # モデル名のマッピング辞書
+    model_mapping = {
+        "intfloat/multilingual-e5-large": "multilingual-e5-large",
+        "intfloat/multilingual-e5-large-instruct": "multilingual-e5-large-instruct",
+        "intfloat/multilingual-e5-base": "multilingual-e5-base",
+        "intfloat/multilingual-e5-small": "multilingual-e5-small",
+        "sentence-transformers/multilingual-e5-large": "multilingual-e5-large",
+        "sonoisa/sentence-bert-base-ja-mean-tokens-v2": "sentence-bert-ja",
+        "cl-nagoya/sup-simcse-ja-large": "sup-simcse-ja",
+    }
+
+    if model_name in model_mapping:
+        return model_mapping[model_name]
+
+    # すでに短縮名の場合はそのまま返す
+    if model_name in ["multilingual-e5-large", "multilingual-e5-large-instruct",
+                      "multilingual-e5-base", "multilingual-e5-small",
+                      "sentence-bert-ja", "sup-simcse-ja"]:
+        return model_name
+
+    logger.warning(f"Unknown model name: {model_name}, using default: multilingual-e5-large")
+    return "multilingual-e5-large"
+
+
 def get_shared_qdrant_client():
     """メインアプリケーションのQdrantクライアントを取得"""
     try:
@@ -251,10 +280,10 @@ def get_shared_qdrant_client():
         import sys
         import asyncio
         sys.path.insert(0, '/workspace')
-        
+
         # メインアプリケーションのRAGシステムをインポート
         from app.main_unified import rag_app
-        
+
         # RAGシステムが初期化されていない場合は初期化を試行
         if not rag_app.is_initialized:
             logger.info("RAG system not initialized, attempting to initialize...")
@@ -267,7 +296,7 @@ def get_shared_qdrant_client():
             except Exception as init_error:
                 logger.warning(f"Failed to initialize RAG system: {init_error}")
                 return None
-        
+
         if rag_app.is_initialized and rag_app.query_engine:
             logger.info("Using shared Qdrant client from initialized RAG system")
             return rag_app.query_engine.vector_store.client
@@ -281,7 +310,7 @@ def get_shared_qdrant_client():
 def index_documents(input_paths: List[str],
                    config_file: Optional[str] = None,
                    output_dir: str = "./outputs/rag_index",
-                   embedding_model_type: str = "multilingual-e5-large",
+                   embedding_model_type: Optional[str] = None,
                    vector_store_path: str = "./qdrant_data",
                    metadata_db_path: str = "./metadata/metadata.db",
                    batch_size: int = 10,
@@ -290,25 +319,42 @@ def index_documents(input_paths: List[str],
                    doc_id: Optional[str] = None,
                    no_ocr: bool = False) -> Dict[str, Any]:
     """複数文書をインデックス化"""
-    
+
     # 出力ディレクトリの作成
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # 設定読み込み
     config = load_document_config(config_file)
-    
+
+    # RAG設定から埋め込みモデルを読み込み（CLI引数が優先）
+    if embedding_model_type is None:
+        try:
+            rag_config = load_config()
+            embedding_model_name = rag_config.embedding.model_name
+            logger.info(f"Using embedding model from config: {embedding_model_name}")
+
+            # モデル名をマッピング
+            embedding_model_type = _map_model_name_to_type(embedding_model_name)
+            logger.info(f"Mapped to model type: {embedding_model_type}")
+        except Exception as e:
+            logger.warning(f"Failed to load embedding model from config: {e}")
+            embedding_model_type = "multilingual-e5-large"
+            logger.info(f"Using default embedding model: {embedding_model_type}")
+    else:
+        logger.info(f"Using embedding model from CLI argument: {embedding_model_type}")
+
     # コンポーネントの初期化
     logger.info("Initializing components...")
-    
+
     processor = RoadDesignDocumentProcessor(
         output_dir=str(output_dir / "processed_documents"),
         perform_ocr=not no_ocr  # no_ocrフラグの逆を渡す
     )
-    
+
     if no_ocr:
         logger.info("OCR processing is disabled")
-    
+
     embedding_model = EmbeddingModelFactory.create(embedding_model_type)
     embedding_dim = EmbeddingModelFactory.get_embedding_dim(embedding_model_type)
     
@@ -523,9 +569,8 @@ def main():
     parser.add_argument(
         '--embedding-model',
         type=str,
-        default='multilingual-e5-large',
-        choices=['multilingual-e5-large', 'multilingual-e5-base', 'sentence-bert-ja'],
-        help='使用する埋め込みモデル（デフォルト: multilingual-e5-large）'
+        default=None,
+        help='使用する埋め込みモデル（未指定時は設定ファイルから読み込み）'
     )
     
     parser.add_argument(

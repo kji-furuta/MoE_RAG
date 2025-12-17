@@ -2790,25 +2790,25 @@ async def rag_get_system_info():
             "collection_exists": False
         }
 
-        # Qdrantクライアントに直接接続して情報を取得
+        # QdrantのHTTP APIに直接リクエスト（Pydanticバリデーションエラー回避）
         try:
-            from qdrant_client import QdrantClient
+            import requests
 
-            # Qdrantクライアントを作成（Dockerコンテナ内のQdrantに接続）
-            qdrant_client = QdrantClient(host="ai-ft-qdrant", port=6333)
+            qdrant_url = "http://ai-ft-qdrant:6333/collections/road_design_docs"
+            response = requests.get(qdrant_url, timeout=5)
 
-            # コレクション情報を取得
-            try:
-                collection_info = qdrant_client.get_collection(collection_name="road_design_docs")
-                vector_db_info["collection_exists"] = True
-                vector_db_info["document_count"] = collection_info.points_count
-                logger.info(f"Vector DB info retrieved: {collection_info.points_count} documents")
-            except Exception as e:
-                logger.info(f"Collection not found or empty: {e}")
-                # コレクションが存在しない場合はデフォルト値のまま
+            if response.status_code == 200:
+                collection_data = response.json()
+                if collection_data.get("status") == "ok" and "result" in collection_data:
+                    points_count = collection_data["result"].get("points_count", 0)
+                    vector_db_info["collection_exists"] = True
+                    vector_db_info["document_count"] = points_count
+                    logger.info(f"Vector DB info retrieved via HTTP API: {points_count} documents")
+            else:
+                logger.info(f"Collection not found, status code: {response.status_code}")
 
         except Exception as e:
-            logging.warning(f"Failed to connect to Qdrant: {e}")
+            logging.warning(f"Failed to connect to Qdrant via HTTP API: {e}")
             # 接続失敗時は設定ファイルからモデル名のみ取得
 
         # システム情報を構築

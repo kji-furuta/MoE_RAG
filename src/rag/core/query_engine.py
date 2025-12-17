@@ -674,7 +674,40 @@ class RoadDesignQueryEngine:
         self.use_moe = False
         
         self.is_initialized = False
-        
+
+    def _map_model_name_to_type(self, model_name: str) -> str:
+        """
+        設定ファイルのモデル名をEmbeddingModelFactoryのmodel_typeに変換
+
+        Args:
+            model_name: 設定ファイルのモデル名（フルパスまたは短縮名）
+
+        Returns:
+            EmbeddingModelFactoryで使用できるmodel_type（短縮名）
+        """
+        # モデル名のマッピング辞書
+        model_mapping = {
+            "intfloat/multilingual-e5-large": "multilingual-e5-large",
+            "intfloat/multilingual-e5-base": "multilingual-e5-base",
+            "intfloat/multilingual-e5-small": "multilingual-e5-small",
+            "sentence-transformers/multilingual-e5-large": "multilingual-e5-large",
+            "sonoisa/sentence-bert-base-ja-mean-tokens-v2": "sentence-bert-ja",
+            "cl-nagoya/sup-simcse-ja-large": "sup-simcse-ja",
+        }
+
+        # マッピングに存在する場合は変換
+        if model_name in model_mapping:
+            return model_mapping[model_name]
+
+        # すでに短縮名の場合はそのまま返す
+        if model_name in ["multilingual-e5-large", "multilingual-e5-base", "multilingual-e5-small",
+                          "sentence-bert-ja", "sup-simcse-ja"]:
+            return model_name
+
+        # 未知のモデル名の場合は警告してデフォルトを返す
+        logger.warning(f"Unknown model name: {model_name}, using default: multilingual-e5-large")
+        return "multilingual-e5-large"
+
     def initialize(self):
         """エンジンを初期化（メモリ最適化）"""
         
@@ -695,14 +728,19 @@ class RoadDesignQueryEngine:
             # 1. 埋め込みモデル
             logger.info("Loading embedding model...")
             embedding_config = self.config.embedding
+
+            # 設定ファイルのモデル名を短縮名に変換
+            model_type = self._map_model_name_to_type(embedding_config.model_name)
+            logger.info(f"Using embedding model: {model_type} (from config: {embedding_config.model_name})")
+
             self.embedding_model = EmbeddingModelFactory.create(
-                model_type="multilingual-e5-large",  # 設定から取得する場合は修正
+                model_type=model_type,
                 device=embedding_config.device
             )
-            
+
             # 2. ベクトルストア
             logger.info("Loading vector store...")
-            embedding_dim = EmbeddingModelFactory.get_embedding_dim("multilingual-e5-large")
+            embedding_dim = EmbeddingModelFactory.get_embedding_dim(model_type)
             
             # URLが設定されている場合はサーバーモードを使用
             if hasattr(self.config.vector_store, 'url') and self.config.vector_store.url:
@@ -1384,9 +1422,16 @@ class RoadDesignQueryEngine:
                         top_k=top_k
                     )
                     
-                    # コンテキストテキストを構築
+                    # コンテキストテキストを構築 - ファイル名を明確に表示
                     for result in search_results:
-                        context_texts.append(f"[出典: {result.metadata.get('title', '不明')}]\n{result.text}")
+                        # ファイル名を優先的に取得
+                        source_name = (
+                            result.metadata.get('filename', '').replace('.pdf', '') or
+                            result.metadata.get('source', '').replace('.pdf', '') or
+                            result.metadata.get('title', '') or
+                            '不明'
+                        )
+                        context_texts.append(f"[出典: {source_name}]\n{result.text}")
                     
                     logger.info(f"ハイブリッド検索で{len(search_results)}件の関連文書を取得")
                     
@@ -1503,15 +1548,17 @@ class RoadDesignQueryEngine:
 2. **数値や基準値**は参考資料から正確に引用してください
 3. **実務での注意点やポイント**を含めてください
 4. **関連する法規や基準**があれば言及してください
-5. **1500-3000文字程度**の充実した回答をお願いします
-6. 参考資料の情報を根拠として、**[出典: …]という形で出典を明記**してください
-7. **日本語の漢字のみを使用**し、中国語の簡体字（例: 车、学、国）は使わないでください
+5. **1500-5000文字程度**の充実した回答をお願いします
+6. 参考資料から情報を引用した場合は、**[出典: ファイル名]** の形式で具体的な出典ファイル名を明記してください（例: [出典: 20251201_道路舗装主材料]）
+7. 回答の根拠は、日本の法令、基準、指針、要領、マニュアルの情報を活用することとし、中国の法令、基準、指針、要領、マニュアルの情報は使わないでください。
+7. **日本語の漢字のみを使用**し、中国語の簡体字（例: 车、时、间）は使わないでください。
+
 
 ## 回答"""
         else:
             prompt = f"""# 道路設計の専門家としての回答
 
-あなたは経験豊富な道路設計の専門家です。以下の質問に対して、一般的な知識を基に**詳細で実用的な回答**を提供してください。
+あなたは経験豊富な日本の道路設計の専門家です。以下の質問に対して、一般的な知識を基に**詳細で実用的な回答**を提供してください。
 
 **重要: 回答は必ず日本語のみを使用してください。中国語の簡体字や繁体字は使用しないでください。**
 
@@ -1522,9 +1569,9 @@ class RoadDesignQueryEngine:
 1. **具体的で詳細な説明**を提供してください
 2. **実務での注意点やポイント**を含めてください
 3. **関連する法規や基準**があれば言及してください
-4. **1500-3000文字程度**の充実した回答をお願いします
+4. **1500-5000文字程度**の充実した回答をお願いします
 5. 参考資料がないため、一般的な道路設計の知識を活用してください
-6. **日本語の漢字のみを使用**し、中国語の簡体字（例: 车、学、国）は使わないでください
+6. **日本語の漢字のみを使用**し、中国語の簡体字（例: 车、时、间）は使わないでください
 
 ## 回答"""
         

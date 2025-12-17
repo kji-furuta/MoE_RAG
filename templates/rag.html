@@ -196,10 +196,22 @@
                             <div class="mb-3">
                                 <label for="embeddingModel" class="form-label">埋め込みモデル</label>
                                 <select class="form-control" id="embeddingModel" name="embedding_model">
-                                    <option value="intfloat/multilingual-e5-large" selected>Multilingual-E5-Large (推奨)</option>
-                                    <option value="sentence-transformers/all-MiniLM-L6-v2">All-MiniLM-L6-v2 (高速)</option>
-                                    <option value="BAAI/bge-base-ja-v1.5">BGE-Base-JA (日本語特化)</option>
+                                    <optgroup label="1024次元モデル（既存ベクトルDB互換）">
+                                        <option value="intfloat/multilingual-e5-large" selected>Multilingual-E5-Large (多言語・デフォルト)</option>
+                                        <option value="cl-nagoya/sup-simcse-ja-large">Sup-SimCSE-JA-Large (日本語特化・高精度推奨)</option>
+                                    </optgroup>
+                                    <optgroup label="768次元モデル（ベクトルDB再作成が必要）">
+                                        <option value="intfloat/multilingual-e5-base">Multilingual-E5-Base (バランス型)</option>
+                                        <option value="sonoisa/sentence-bert-base-ja-mean-tokens-v2">Sentence-BERT-JA (日本語)</option>
+                                    </optgroup>
+                                    <optgroup label="384次元モデル（ベクトルDB再作成が必要）">
+                                        <option value="intfloat/multilingual-e5-small">Multilingual-E5-Small (軽量・高速)</option>
+                                    </optgroup>
                                 </select>
+                                <small class="form-text text-muted">
+                                    <strong>注意:</strong> 1024次元以外のモデルに変更する場合は、ベクトルデータベースの再作成が必要です。<br>
+                                    日本語文書の精度向上には「Sup-SimCSE-JA-Large」を推奨します。
+                                </small>
                             </div>
                             
                             <div class="mb-3">
@@ -1431,6 +1443,23 @@ async function loadCurrentSettings() {
             html += '</table>';
             settingsDiv.innerHTML = html;
             console.log('Settings loaded successfully');
+
+            // フォームにも現在の設定値を反映
+            const embeddingModelSelect = document.getElementById('embeddingModel');
+            if (embeddingModelSelect && config.embedding?.model_name) {
+                embeddingModelSelect.value = config.embedding.model_name;
+                console.log('Embedding model set to:', config.embedding.model_name);
+            }
+
+            const temperatureInput = document.getElementById('temperature');
+            const tempValueSpan = document.getElementById('tempValue');
+            if (temperatureInput && config.llm?.temperature !== undefined) {
+                temperatureInput.value = config.llm.temperature;
+                if (tempValueSpan) {
+                    tempValueSpan.textContent = config.llm.temperature;
+                }
+                console.log('Temperature set to:', config.llm.temperature);
+            }
         } else {
             console.error('Invalid response structure:', data);
             settingsDiv.innerHTML = '<div class="text-muted">設定データの構造が無効です</div>';

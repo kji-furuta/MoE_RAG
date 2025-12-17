@@ -2785,27 +2785,31 @@ async def rag_get_system_info():
 
         # ベクトルDBの現在のモデル情報を取得
         vector_db_info = {
-            "current_model": "不明",
+            "current_model": config_data.get('embedding', {}).get('model_name', 'multilingual-e5-large'),
             "document_count": 0,
             "collection_exists": False
         }
 
-        if rag_app.is_initialized and rag_app.query_engine and rag_app.query_engine.vector_store:
+        # Qdrantクライアントに直接接続して情報を取得
+        try:
+            from qdrant_client import QdrantClient
+
+            # Qdrantクライアントを作成（Dockerコンテナ内のQdrantに接続）
+            qdrant_client = QdrantClient(host="ai-ft-qdrant", port=6333)
+
+            # コレクション情報を取得
             try:
-                # コレクション情報を取得
-                collection_info = rag_app.query_engine.vector_store.client.get_collection(
-                    collection_name="road_design_docs"
-                )
+                collection_info = qdrant_client.get_collection(collection_name="road_design_docs")
                 vector_db_info["collection_exists"] = True
                 vector_db_info["document_count"] = collection_info.points_count
-
-                # メタデータからモデル名を推測（最初のポイントから）
-                # 実際には、コレクション作成時にモデル名をメタデータに保存すべき
-                # 現時点では設定ファイルのモデル名を使用
-                vector_db_info["current_model"] = config_data.get('embedding', {}).get('model_name', 'multilingual-e5-large')
+                logger.info(f"Vector DB info retrieved: {collection_info.points_count} documents")
             except Exception as e:
-                logging.warning(f"Failed to get vector DB info: {e}")
-                vector_db_info["current_model"] = config_data.get('embedding', {}).get('model_name', 'multilingual-e5-large')
+                logger.info(f"Collection not found or empty: {e}")
+                # コレクションが存在しない場合はデフォルト値のまま
+
+        except Exception as e:
+            logging.warning(f"Failed to connect to Qdrant: {e}")
+            # 接続失敗時は設定ファイルからモデル名のみ取得
 
         # システム情報を構築
         system_info = {

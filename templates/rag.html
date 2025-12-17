@@ -194,12 +194,23 @@
                             </div>
                             
                             <div class="mb-3">
+                                <!-- ベクトルDB現在の状態表示 -->
+                                <div class="alert alert-info" id="vectorDBStatus" style="display:none;">
+                                    <h6><i class="fas fa-database"></i> 現在のベクトルデータベース</h6>
+                                    <p class="mb-1">
+                                        <strong>埋め込みモデル:</strong> <span id="currentVectorDBModel">読み込み中...</span>
+                                    </p>
+                                    <p class="mb-0">
+                                        <strong>登録文書数:</strong> <span id="currentVectorDBCount">0</span>件
+                                    </p>
+                                </div>
+
                                 <label for="embeddingModel" class="form-label">埋め込みモデル</label>
-                                <select class="form-control" id="embeddingModel" name="embedding_model">
+                                <select class="form-control" id="embeddingModel" name="embedding_model" onchange="checkEmbeddingModelChange()">
                                     <optgroup label="1024次元モデル（既存ベクトルDB互換）">
-                                        <option value="intfloat/multilingual-e5-large" selected>Multilingual-E5-Large (多言語・デフォルト)</option>
-                                        <option value="intfloat/multilingual-e5-large-instruct">Multilingual-E5-Large-Instruct (RAG最適化・高性能推奨)</option>
-                                        <option value="cl-nagoya/sup-simcse-ja-large">Sup-SimCSE-JA-Large (日本語特化・高精度推奨)</option>
+                                        <option value="intfloat/multilingual-e5-large">Multilingual-E5-Large (多言語)</option>
+                                        <option value="intfloat/multilingual-e5-large-instruct" selected>Multilingual-E5-Large-Instruct (RAG最適化・推奨) ✓</option>
+                                        <option value="cl-nagoya/sup-simcse-ja-large">Sup-SimCSE-JA-Large (日本語特化)</option>
                                     </optgroup>
                                     <optgroup label="768次元モデル（ベクトルDB再作成が必要）">
                                         <option value="intfloat/multilingual-e5-base">Multilingual-E5-Base (バランス型)</option>
@@ -209,9 +220,30 @@
                                         <option value="intfloat/multilingual-e5-small">Multilingual-E5-Small (軽量・高速)</option>
                                     </optgroup>
                                 </select>
+
+                                <!-- モデル変更警告 -->
+                                <div class="alert alert-warning mt-2" id="modelChangeWarning" style="display:none;">
+                                    <h6><i class="fas fa-exclamation-triangle"></i> 埋め込みモデルを変更しますか？</h6>
+                                    <p>モデルを変更すると、以下の操作が必要になります：</p>
+                                    <ol class="mb-2">
+                                        <li>既存のベクトルデータベース（<span id="warningDocCount">0</span>件の文書）を削除</li>
+                                        <li>全文書を新しいモデルで再インデックス化</li>
+                                        <li>再インデックス完了までの間、検索機能は利用不可</li>
+                                    </ol>
+                                    <p class="mb-2"><strong>この操作は元に戻せません。</strong></p>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-danger" onclick="confirmModelChange()">
+                                            <i class="fas fa-check"></i> モデル変更を確定
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" onclick="cancelModelChange()">
+                                            <i class="fas fa-times"></i> キャンセル
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <small class="form-text text-muted">
                                     <strong>推奨:</strong> RAG検索の最適化には「Multilingual-E5-Large-Instruct」を推奨します（20-30%精度向上）。<br>
-                                    <strong>注意:</strong> 1024次元以外のモデルに変更する場合は、ベクトルデータベースの再作成が必要です。
+                                    <strong>注意:</strong> モデルを変更すると、既存のベクトルデータベースとの整合性が失われるため、全文書の再インデックス化が必要です。
                                 </small>
                             </div>
                             
@@ -2412,6 +2444,78 @@ document.addEventListener('DOMContentLoaded', () => {
     margin: 1.5em 0;
 }
 </style>
+
+<script>
+// ベクトルDB情報の読み込み
+let currentVectorDBModel = '';
+let originalEmbeddingModel = '';
+
+async function loadVectorDBInfo() {
+    try {
+        const response = await fetch('/rag/system-info');
+        const data = await response.json();
+
+        if (data.status === 'success' && data.system_info.vector_db) {
+            const vectorDB = data.system_info.vector_db;
+            currentVectorDBModel = vectorDB.current_model || '不明';
+            originalEmbeddingModel = currentVectorDBModel;
+
+            document.getElementById('currentVectorDBModel').textContent = getModelDisplayName(currentVectorDBModel);
+            document.getElementById('currentVectorDBCount').textContent = vectorDB.document_count || 0;
+            document.getElementById('warningDocCount').textContent = vectorDB.document_count || 0;
+
+            if (vectorDB.collection_exists) {
+                document.getElementById('vectorDBStatus').style.display = 'block';
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load vector DB info:', error);
+    }
+}
+
+function getModelDisplayName(modelName) {
+    const displayNames = {
+        'intfloat/multilingual-e5-large': 'Multilingual-E5-Large',
+        'intfloat/multilingual-e5-large-instruct': 'Multilingual-E5-Large-Instruct',
+        'cl-nagoya/sup-simcse-ja-large': 'Sup-SimCSE-JA-Large',
+        'intfloat/multilingual-e5-base': 'Multilingual-E5-Base',
+        'intfloat/multilingual-e5-small': 'Multilingual-E5-Small',
+        'sonoisa/sentence-bert-base-ja-mean-tokens-v2': 'Sentence-BERT-JA'
+    };
+    return displayNames[modelName] || modelName;
+}
+
+function checkEmbeddingModelChange() {
+    const selectedModel = document.getElementById('embeddingModel').value;
+    const warningDiv = document.getElementById('modelChangeWarning');
+
+    if (selectedModel !== currentVectorDBModel) {
+        // モデルが変更された
+        warningDiv.style.display = 'block';
+    } else {
+        // 元のモデルに戻した
+        warningDiv.style.display = 'none';
+    }
+}
+
+function confirmModelChange() {
+    // モデル変更を確定して設定保存フォームを送信
+    document.getElementById('modelChangeWarning').style.display = 'none';
+    alert('設定を保存してください。保存後、文書管理ページで全文書の再インデックス化を行う必要があります。');
+}
+
+function cancelModelChange() {
+    // 元のモデルに戻す
+    document.getElementById('embeddingModel').value = currentVectorDBModel;
+    document.getElementById('modelChangeWarning').style.display = 'none';
+}
+
+// ページ読み込み時にベクトルDB情報を取得
+document.addEventListener('DOMContentLoaded', function() {
+    loadVectorDBInfo();
+});
+</script>
+
 {% endblock %}
 
 {% endblock %}

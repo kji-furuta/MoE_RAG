@@ -2770,19 +2770,43 @@ async def rag_get_system_info():
         # 設定ファイルから直接読み込み
         config_path = Path("src/rag/config/rag_config.yaml")
         config_data = {}
-        
+
         if config_path.exists():
             import yaml
             with open(config_path, 'r', encoding='utf-8') as f:
                 config_data = yaml.safe_load(f)
-        
+
         # Phase 2メトリクスデータを読み込み
         metrics_data = {}
         metrics_json_path = Path("benchmarks/phase2/advanced_metrics_latest.json")
         if metrics_json_path.exists():
             with open(metrics_json_path, 'r', encoding='utf-8') as f:
                 metrics_data = json.load(f)
-        
+
+        # ベクトルDBの現在のモデル情報を取得
+        vector_db_info = {
+            "current_model": "不明",
+            "document_count": 0,
+            "collection_exists": False
+        }
+
+        if rag_app.is_initialized and rag_app.query_engine and rag_app.query_engine.vector_store:
+            try:
+                # コレクション情報を取得
+                collection_info = rag_app.query_engine.vector_store.client.get_collection(
+                    collection_name="road_design_docs"
+                )
+                vector_db_info["collection_exists"] = True
+                vector_db_info["document_count"] = collection_info.points_count
+
+                # メタデータからモデル名を推測（最初のポイントから）
+                # 実際には、コレクション作成時にモデル名をメタデータに保存すべき
+                # 現時点では設定ファイルのモデル名を使用
+                vector_db_info["current_model"] = config_data.get('embedding', {}).get('model_name', 'multilingual-e5-large')
+            except Exception as e:
+                logging.warning(f"Failed to get vector DB info: {e}")
+                vector_db_info["current_model"] = config_data.get('embedding', {}).get('model_name', 'multilingual-e5-large')
+
         # システム情報を構築
         system_info = {
             "config": {
@@ -2803,10 +2827,11 @@ async def rag_get_system_info():
                     "type": config_data.get('vector_store', {}).get('type', 'Qdrant')
                 }
             },
+            "vector_db": vector_db_info,
             "status": "initialized" if rag_app.is_initialized else "not_initialized",
             "metrics": metrics_data.get("metrics", {}) if metrics_data else None
         }
-        
+
         return SystemInfoResponse(
             status="success",
             system_info=system_info,

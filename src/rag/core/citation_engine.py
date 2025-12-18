@@ -464,16 +464,20 @@ class CitationQueryEngine:
 
             seen_texts.add(normalized_text)
 
-            # メタデータ情報を含めたコンテキスト
-            source_info = f"[出典{i}]"
-
-            # ファイル名を優先的に表示
+            # メタデータ情報を含めたコンテキスト - ファイル名を明確に表示
+            # ファイル名を取得（.pdfを除去）
+            source_name = ""
             if 'filename' in metadata and metadata['filename']:
-                # .pdfを除去してよりクリーンな表示に
-                clean_filename = str(metadata['filename']).replace('.pdf', '')
-                source_info += f" {clean_filename}"
+                source_name = str(metadata['filename']).replace('.pdf', '')
             elif 'source' in metadata and metadata['source']:
-                source_info += f" {metadata['source']}"
+                source_name = str(metadata['source']).replace('.pdf', '')
+            elif 'title' in metadata and metadata['title']:
+                source_name = str(metadata['title'])
+            else:
+                source_name = f"文書{i}"
+
+            # 出典形式を統一: [出典: ファイル名]
+            source_info = f"[出典: {source_name}]"
 
             # ページ番号があれば追加
             if 'page' in metadata and metadata['page']:

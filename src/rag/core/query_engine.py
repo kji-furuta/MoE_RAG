@@ -688,6 +688,7 @@ class RoadDesignQueryEngine:
         # モデル名のマッピング辞書
         model_mapping = {
             "intfloat/multilingual-e5-large": "multilingual-e5-large",
+            "intfloat/multilingual-e5-large-instruct": "multilingual-e5-large-instruct",
             "intfloat/multilingual-e5-base": "multilingual-e5-base",
             "intfloat/multilingual-e5-small": "multilingual-e5-small",
             "sentence-transformers/multilingual-e5-large": "multilingual-e5-large",
@@ -700,8 +701,8 @@ class RoadDesignQueryEngine:
             return model_mapping[model_name]
 
         # すでに短縮名の場合はそのまま返す
-        if model_name in ["multilingual-e5-large", "multilingual-e5-base", "multilingual-e5-small",
-                          "sentence-bert-ja", "sup-simcse-ja"]:
+        if model_name in ["multilingual-e5-large", "multilingual-e5-large-instruct", "multilingual-e5-base",
+                          "multilingual-e5-small", "sentence-bert-ja", "sup-simcse-ja"]:
             return model_name
 
         # 未知のモデル名の場合は警告してデフォルトを返す
@@ -1761,6 +1762,9 @@ class RoadDesignQueryEngine:
             '赞': '賛',
             '赛': '際',
             '赢': '勝',
+            '航走性': '走行性',
+            '舶上': '路上',
+            '舤': '路'
         }
 
         # 文字列を一文字ずつ変換

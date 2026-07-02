@@ -50,3 +50,5 @@ redis>=5.0.0
 python-dotenv>=1.0.0
 requests>=2.31.0
 ipykernel>=6.28.0
+# Proofreading (Claude API backend)
+anthropic>=0.40.0

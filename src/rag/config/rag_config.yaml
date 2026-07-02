@@ -50,7 +50,7 @@ llm:
     1: 36GB
   max_new_tokens: 1024
   model_name: ollama:1216_RAR_deepseek-32b-finetuned:latest
-  model_path: outputs/continual_task_108_20251215_002201
+  model_path: outputs/lora_20251127_171704
   moe_experts_per_token: 2
   moe_model_path: /workspace/outputs/moe_d63ec0db-4f34-48d2-89c1-35b485a819f1
   moe_num_experts: 2
@@ -148,6 +148,9 @@ llm:
     name: RAR1212_deepseek-32b-finetuned
     tag: latest
   - description: LoRA fine-tuned model
+    name: 1215_lora_deepseek-32b-finetuned
+    tag: latest
+  - description: LoRA fine-tuned model
     name: 1216_LoRA_deepseek-32b-finetuned
     tag: latest
   - description: LoRA fine-tuned model
@@ -159,7 +162,7 @@ llm:
     enabled: true
     method: q4_k_m
   repetition_penalty: 1.1
-  temperature: 0.1
+  temperature: 0.3
   top_p: 0.95
   torch_dtype: float16
   use_dynamic_lora: true

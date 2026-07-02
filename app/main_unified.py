@@ -6,6 +6,8 @@ AI Fine-tuning Toolkit Web API - Unified Implementation
 
 # PyTorchメモリ管理の最適化
 import os
+from dotenv import load_dotenv
+load_dotenv()  # .envファイルからANTHROPIC_API_KEY等を読み込み
 # Removed: Environment variable now managed by memory_manager
 os.environ["TOKENIZERS_PARALLELISM"] = "false"  # トークナイザーの警告を抑制
 
@@ -54,6 +56,21 @@ import io
 # ログ設定
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+# 校正専用モジュール
+try:
+    from src.proofreading import ProofreadingService, is_proofreading_request
+    PROOFREADING_AVAILABLE = True
+    logger.info("校正モジュールを読み込みました")
+except ImportError as e:
+    PROOFREADING_AVAILABLE = False
+    logger.warning(f"校正モジュールが利用できません: {e}")
+    # フォールバック: 簡易的な校正検出関数
+    def is_proofreading_request(text: str) -> bool:
+        if not text:
+            return False
+        keys = ["誤字", "脱字", "校正", "推敲", "表記ゆれ", "表記揺れ", "タイポ"]
+        t = text.lower()
+        return any(k in text for k in keys) or any(k in t for k in ["proofread", "proofreading", "typo"])
 
 # RAG system imports
 try:
@@ -944,6 +961,26 @@ async def generate_text(request: GenerationRequest):
     """実際のファインチューニング済みモデルを使用したテキスト生成"""
     try:
         logger.info(f"テキスト生成開始: モデル={request.model_path}, プロンプト={request.prompt[:50]}...")
+
+        # 校正モード検出: 校正リクエストの場合は専用モジュールに委譲
+        proofread_mode = is_proofreading_request(request.prompt)
+        if proofread_mode and PROOFREADING_AVAILABLE:
+            try:
+                service = ProofreadingService()
+                report = await service.proofread_document(request.prompt)
+                return {
+                    "prompt": request.prompt,
+                    "generated_text": json.dumps(report, ensure_ascii=False, indent=2),
+                    "model_path": request.model_path,
+                    "method": "proofreading_service",
+                    "proofreading_report": report
+                }
+            except Exception as e:
+                logger.error(f"校正サービスエラー: {e}")
+                # フォールバック: 従来のテキスト生成に進む
+
+        effective_prompt = request.prompt
+
         
         model_path = Path(request.model_path)
         
@@ -973,16 +1010,19 @@ async def generate_text(request: GenerationRequest):
                     ollama = OllamaIntegration()
                     result = ollama.generate_text(
                         model_name="llama3.2:3b",
-                        prompt=request.prompt,
+                        prompt=effective_prompt,
                         temperature=request.temperature,
                         top_p=request.top_p,
                         max_tokens=request.max_length
                     )
                     
                     if result.get("success", False):
+                        generated_text = result.get("generated_text", "")
+                        if proofread_mode:
+                            generated_text = _truncate_chars(generated_text, limit=5200)
                         return {
                             "prompt": request.prompt,
-                            "generated_text": result.get("generated_text", ""),
+                            "generated_text": generated_text,
                             "model_path": request.model_path,
                             "method": "ollama",
                             "note": "GPUメモリ不足のため、Ollamaモデルを使用しました"
@@ -1143,7 +1183,7 @@ async def generate_text(request: GenerationRequest):
                                     # Ollamaでテキスト生成
                                     result = ollama_integration.generate_text(
                                         model_name=ollama_model_name,
-                                        prompt=request.prompt,
+                                        prompt=effective_prompt,
                                         temperature=request.temperature,
                                         top_p=request.top_p,
                                         max_tokens=request.max_length
@@ -1151,9 +1191,12 @@ async def generate_text(request: GenerationRequest):
                                     
                                     if result.get("success", False):
                                         logger.info("Ollamaフォールバック成功")
+                                        generated_text = result.get("generated_text", "Ollama生成エラー")
+                                        if proofread_mode:
+                                            generated_text = _truncate_chars(generated_text, limit=5200)
                                         return {
                                             "prompt": request.prompt,
-                                            "generated_text": result.get("generated_text", "Ollama生成エラー"),
+                                            "generated_text": generated_text,
                                             "model_path": request.model_path,
                                             "fallback": "ollama",
                                             "method": "ollama",
@@ -1266,7 +1309,7 @@ async def generate_text(request: GenerationRequest):
                             # Ollamaでテキスト生成
                             result = ollama.generate_text(
                                 model_name=ollama_model_name,
-                                prompt=request.prompt,
+                                prompt=effective_prompt,
                                 temperature=request.temperature,
                                 top_p=request.top_p,
                                 max_tokens=request.max_length
@@ -1274,9 +1317,12 @@ async def generate_text(request: GenerationRequest):
                             
                             if result.get("success", False):
                                 logger.info("Ollamaでの生成が成功しました")
+                                generated_text = result.get("generated_text", "Ollama生成エラー")
+                                if proofread_mode:
+                                    generated_text = _truncate_chars(generated_text, limit=5200)
                                 return {
                                     "prompt": request.prompt,
-                                    "generated_text": result.get("generated_text", "Ollama生成エラー"),
+                                    "generated_text": generated_text,
                                     "model_path": request.model_path,
                                     "method": "ollama",
                                     "note": "GPUメモリ不足のため、Ollamaモデルで生成しました",
@@ -1325,13 +1371,16 @@ async def generate_text(request: GenerationRequest):
         # テキスト生成
         logger.info("テキスト生成を実行中...")
         
-        # プロンプトのトークナイズ
+        # プロンプトのトークナイズ（長文を切り詰めすぎない）
+        input_max_len = _tokenizer_input_max_len(
+            tokenizer, 4096 if proofread_mode else 2048
+        )
         inputs = tokenizer(
-            request.prompt,
+            effective_prompt,
             return_tensors="pt",
             padding=True,
             truncation=True,
-            max_length=512
+            max_length=input_max_len
         )
         
         # GPUに移動
@@ -1350,7 +1399,8 @@ async def generate_text(request: GenerationRequest):
                 generation_kwargs = {
                     'input_ids': inputs['input_ids'],
                     'attention_mask': inputs.get('attention_mask'),
-                    'max_new_tokens': request.max_length,
+                    # UIのmax_lengthは「生成する新規トークン数」として扱う
+                    'max_new_tokens': int(request.max_length),
                     'pad_token_id': tokenizer.eos_token_id,
                     'eos_token_id': tokenizer.eos_token_id,
                     'repetition_penalty': 1.2,  # 繰り返しペナルティを追加
@@ -1377,22 +1427,14 @@ async def generate_text(request: GenerationRequest):
                 input_length = len(inputs['input_ids'][0])  # 入力トークン数を記録
 
                 # 生成されたテキストをデコード
-                generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+                # 入力部分を除いた生成結果のみを取り出す
+                input_len = inputs["input_ids"].shape[1]
+                generated_text = tokenizer.decode(outputs[0][input_len:], skip_special_tokens=True)
                 logger.info(f"デコード完了: テキスト長={len(generated_text)}")
                 
-                # 元のプロンプトを除去して新しい部分だけを取得
-                if generated_text.startswith(request.prompt):
-                    new_text = generated_text[len(request.prompt):].strip()
-                    if new_text:
-                        # 「- 交通工学の問題です。」のような繰り返しパターンを検出して削除
-                        import re
-                        # 同じフレーズが3回以上繰り返される場合は、最初の1回だけ残す
-                        pattern = r'((?:^|\n)?(?:- )?[^\n]+?)(?:\n?\1){2,}'
-                        new_text = re.sub(pattern, r'\1', new_text)
-                        
-                        generated_text = request.prompt + "\n" + new_text
-                    else:
-                        generated_text = request.prompt + " [生成されたテキストが空でした]"
+                # 校正モードの場合は5000文字程度に寄せる（上限を超えたら切り詰め）
+                if proofread_mode:
+                    generated_text = _truncate_chars(generated_text, limit=5200)
                 
                 logger.info(f"テキスト生成完了: {len(generated_text)}文字")
                 
@@ -2375,10 +2417,22 @@ async def generate_text_stream(request: dict):
             max_length = request.get("max_length", 2048)
             temperature = request.get("temperature", 0.7)
             top_p = request.get("top_p", 0.9)
-            
-            if not model_name or not model_type or not prompt:
-                yield f"data: {json.dumps({'error': 'model_name, model_type, promptが必要です'})}\n\n"
-                return
+
+            # 校正モード検出（トップレベルのis_proofreading_requestを使用）
+            proofread_mode = is_proofreading_request(prompt)
+            if proofread_mode and PROOFREADING_AVAILABLE:
+                try:
+                    service = ProofreadingService()
+                    report = await service.proofread_document(prompt)
+                    result_text = json.dumps(report, ensure_ascii=False, indent=2)
+                    yield f"data: {json.dumps({'text': result_text, 'done': True})}\n\n"
+                    return
+                except Exception as e:
+                    logger.error(f"校正サービスエラー: {e}")
+
+            effective_prompt = prompt
+            char_limit = None
+
             
             logger.info(f"ストリーミング生成開始: {model_type}/{model_name}")
             
@@ -2393,12 +2447,14 @@ async def generate_text_stream(request: dict):
                 # ストリーミング用のOllamaリクエスト
                 ollama_params = {
                     "model": model_name,
-                    "prompt": prompt,
+                    "prompt": effective_prompt,
                     "stream": True,
                     "options": {
                         "temperature": temperature,
                         "top_p": top_p,
-                        "num_predict": max_length
+                        "num_predict": max_length,
+                        # 長文入力を優先（サーバ側でも4096固定だが、ここは明示）
+                        "num_ctx": 8192 if proofread_mode else 4096
                     }
                 }
                 
@@ -2411,11 +2467,22 @@ async def generate_text_stream(request: dict):
                     )
                     
                     if response.status_code == 200:
+                        emitted_chars = 0
                         for line in response.iter_lines():
                             if line:
                                 data = json.loads(line.decode('utf-8'))
                                 if 'response' in data:
-                                    yield f"data: {json.dumps({'text': data['response'], 'done': False})}\n\n"
+                                    chunk = data["response"]
+                                    if char_limit is not None:
+                                        remaining = char_limit - emitted_chars
+                                        if remaining <= 0:
+                                            yield f"data: {json.dumps({'text': '', 'done': True})}\n\n"
+                                            break
+                                        if len(chunk) > remaining:
+                                            chunk = chunk[:remaining]
+                                    emitted_chars += len(chunk)
+                                    if chunk:
+                                        yield f"data: {json.dumps({'text': chunk, 'done': False})}\n\n"
                                 if data.get('done', False):
                                     yield f"data: {json.dumps({'text': '', 'done': True})}\n\n"
                                     break
@@ -2468,7 +2535,18 @@ async def generate_text_stream(request: dict):
                     model = cached_model["model"]
                     
                     # ストリーミング生成
-                    inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
+                    # 長文入力を切り詰めすぎない（tokenizerの上限に合わせる）
+                    model_limit = getattr(tokenizer, "model_max_length", 2048)
+                    if not isinstance(model_limit, int) or model_limit <= 0 or model_limit > 100000:
+                        model_limit = 4096
+                    input_max_len = min(model_limit, 4096 if proofread_mode else 2048)
+                    inputs = tokenizer(
+                        effective_prompt,
+                        return_tensors="pt",
+                        padding=True,
+                        truncation=True,
+                        max_length=input_max_len
+                    )
                     
                     if torch.cuda.is_available():
                         inputs = {k: v.to(model.device) for k, v in inputs.items()}
@@ -2483,6 +2561,7 @@ async def generate_text_stream(request: dict):
                     generated_tokens = []
                     current_text = ""
                     token_buffer = []  # 文字化け防止用バッファ
+                    emitted_chars = 0
                     
                     with torch.no_grad():
                         for _ in range(max_length):
@@ -2530,7 +2609,17 @@ async def generate_text_stream(request: dict):
                                             has_invalid = any(char in new_text for char in invalid_chars)
                                             
                                             if not has_invalid:
-                                                yield f"data: {json.dumps({'text': new_text, 'done': False})}\n\n"
+                                                chunk = new_text
+                                                if char_limit is not None:
+                                                    remaining = char_limit - emitted_chars
+                                                    if remaining <= 0:
+                                                        yield f"data: {json.dumps({'text': '', 'done': True})}\n\n"
+                                                        break
+                                                    if len(chunk) > remaining:
+                                                        chunk = chunk[:remaining]
+                                                emitted_chars += len(chunk)
+                                                if chunk:
+                                                    yield f"data: {json.dumps({'text': chunk, 'done': False})}\n\n"
                                             else:
                                                 logger.warning(f"文字化け検出: {new_text}")
                                         else:
@@ -2568,6 +2657,8 @@ async def generate_text_stream(request: dict):
                             # EOSトークンが生成されたら停止
                             if new_token.item() == tokenizer.eos_token_id:
                                 break
+                            if char_limit is not None and emitted_chars >= char_limit:
+                                break
                     
                     yield f"data: {json.dumps({'text': '', 'done': True})}\n\n"
                     
@@ -2594,6 +2685,27 @@ async def generate_with_model_selection(request: dict):
         max_length = request.get("max_length", 2048)
         temperature = request.get("temperature", 0.7)
         top_p = request.get("top_p", 0.9)
+
+        # 校正モード検出（トップレベルのis_proofreading_requestを使用）
+        proofread_mode = is_proofreading_request(prompt)
+        if proofread_mode and PROOFREADING_AVAILABLE:
+            try:
+                service = ProofreadingService()
+                report = await service.proofread_document(prompt)
+                return {
+                    "success": True,
+                    "generated_text": json.dumps(report, ensure_ascii=False, indent=2),
+                    "model_name": model_name,
+                    "model_type": model_type,
+                    "method": "proofreading_service",
+                    "proofreading_report": report
+                }
+            except Exception as e:
+                logger.error(f"校正サービスエラー: {e}")
+
+        effective_prompt = prompt
+        effective_max_tokens = int(max_length)
+
         
         if not model_name or not model_type or not prompt:
             return {"success": False, "error": "model_name, model_type, promptが必要です"}
@@ -2608,16 +2720,21 @@ async def generate_with_model_selection(request: dict):
             ollama = OllamaIntegration()
             result = ollama.generate_text(
                 model_name=model_name,
-                prompt=prompt,
+                prompt=effective_prompt,
                 temperature=temperature,
                 top_p=top_p,
-                max_tokens=max_length
+                max_tokens=max_length,
+                # 長文の読み込み量（コンテキスト）を増やす
+                num_ctx=8192 if proofread_mode else 4096
             )
             
             if result["success"]:
+                generated_text = result["generated_text"]
+                if proofread_mode:
+                    generated_text = _truncate_chars(generated_text, limit=5200)
                 return {
                     "success": True,
-                    "generated_text": result["generated_text"],
+                    "generated_text": generated_text,
                     "model_name": model_name,
                     "model_type": "ollama",
                     "method": "ollama_api"
@@ -2649,16 +2766,20 @@ async def generate_with_model_selection(request: dict):
                     ollama = OllamaIntegration()
                     result = ollama.generate_text(
                         model_name=ollama_model_name,
-                        prompt=prompt,
+                        prompt=effective_prompt,
                         temperature=temperature,
                         top_p=top_p,
-                        max_tokens=max_length
+                        max_tokens=effective_max_tokens,
+                        num_ctx=8192 if proofread_mode else 4096
                     )
                     
                     if result["success"]:
+                        gen_txt = result["generated_text"]
+                        if proofread_mode:
+                            gen_txt = _truncate_chars(gen_txt, limit=5200)
                         return {
                             "success": True,
-                            "generated_text": result["generated_text"],
+                            "generated_text": gen_txt,
                             "model_name": f"{model_name} (Ollama fallback: {ollama_model_name})",
                             "model_type": "finetuned_ollama_fallback",
                             "method": "ollama_fallback"
@@ -2708,25 +2829,34 @@ async def generate_with_model_selection(request: dict):
                 tokenizer = cached_model["tokenizer"]
                 
                 # テキスト生成
-                inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True)
+                model_limit = getattr(tokenizer, "model_max_length", 2048)
+                if not isinstance(model_limit, int) or model_limit <= 0 or model_limit > 100000:
+                    model_limit = 4096
+                input_max_len = min(model_limit, 4096 if proofread_mode else 2048)
+                inputs = tokenizer(
+                    effective_prompt,
+                    return_tensors="pt",
+                    padding=True,
+                    truncation=True,
+                    max_length=input_max_len
+                )
                 
                 with torch.no_grad():
                     outputs = model.generate(
                         inputs.input_ids,
                         attention_mask=inputs.attention_mask,
-                        max_length=max_length,
+                        max_new_tokens=int(effective_max_tokens),
                         temperature=temperature,
                         top_p=top_p,
-                        do_sample=True,
+                        do_sample=(not proofread_mode) and (temperature is not None and float(temperature) > 0.0),
                         pad_token_id=tokenizer.pad_token_id,
                         eos_token_id=tokenizer.eos_token_id
                     )
                 
-                generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-                
-                # プロンプト部分を除去
-                if generated_text.startswith(prompt):
-                    generated_text = generated_text[len(prompt):].strip()
+                input_len = inputs.input_ids.shape[1]
+                generated_text = tokenizer.decode(outputs[0][input_len:], skip_special_tokens=True).strip()
+                if proofread_mode:
+                    generated_text = _truncate_chars(generated_text, limit=5200)
                 
                 logger.info(f"ファインチューニング済みモデルでの生成完了: {len(generated_text)}文字")
                 
@@ -4145,7 +4275,7 @@ async def export_search_results(
 
 # --- New: Extract PDF text to inject into prompt ---
 @app.post("/rag/extract-pdf-text")
-async def extract_pdf_text(file: UploadFile = File(...), max_chars: int = Form(20000)):
+async def extract_pdf_text(file: UploadFile = File(...), max_chars: int = Form(120000)):
     """Extract plain text from a PDF and return it for prompt injection.
     Does not index or persist content. Truncates to max_chars.
     """
@@ -4153,6 +4283,13 @@ async def extract_pdf_text(file: UploadFile = File(...), max_chars: int = Form(2
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
     try:
+        # 安全のため上限・下限をクランプ（過大入力による負荷を避ける）
+        try:
+            max_chars = int(max_chars)
+        except Exception:
+            max_chars = 120000
+        max_chars = max(1000, min(max_chars, 200000))
+
         tmp_dir = Path("./temp_uploads/prompt")
         tmp_dir.mkdir(parents=True, exist_ok=True)
         tmp_path = tmp_dir / f"{uuid.uuid4()}_{file.filename}"
@@ -4174,8 +4311,34 @@ async def extract_pdf_text(file: UploadFile = File(...), max_chars: int = Form(2
             raise HTTPException(status_code=500, detail="Failed to process PDF")
 
         # Join chunk texts as a single prompt text
-        full_text = "\n\n".join(c.text for c in processed.chunks)
+        if processed.chunks and len(processed.chunks) > 0:
+            full_text = "\n\n".join(c.text for c in processed.chunks if c.text and c.text.strip())
+            logger.info(f"Extracted text from {len(processed.chunks)} chunks, total length: {len(full_text)}")
+        else:
+            # チャンクが空の場合、PDFから直接テキストを抽出
+            logger.warning("No chunks found, attempting direct PDF text extraction")
+            try:
+                import fitz  # PyMuPDF
+                pdf_doc = fitz.open(str(tmp_path))
+                text_parts = []
+                for page_num in range(len(pdf_doc)):
+                    page = pdf_doc[page_num]
+                    page_text = page.get_text("text")
+                    if page_text.strip():
+                        text_parts.append(page_text)
+                pdf_doc.close()
+                full_text = "\n\n".join(text_parts)
+                logger.info(f"Direct PDF extraction: {len(full_text)} characters from {len(text_parts)} pages")
+            except Exception as e:
+                logger.error(f"Direct PDF extraction failed: {e}")
+                full_text = ""
+        
+        if not full_text or not full_text.strip():
+            raise HTTPException(status_code=500, detail="No text could be extracted from PDF. The PDF may be image-only or corrupted.")
+        
         truncated = (full_text[: max_chars] + "\n... (truncated)") if len(full_text) > max_chars else full_text
+        logger.info(f"Returning {len(truncated)} characters (truncated from {len(full_text)})")
+        
         return {
             "filename": file.filename,
             "doc_id": processed.id,
@@ -4773,6 +4936,202 @@ async def continual_learning_websocket(websocket: WebSocket):
         logger.error(f"WebSocketエラー: {str(e)}")
         await websocket.close()
 
+# =====================================================================
+# 校正専用エンドポイント
+# =====================================================================
+
+@app.post("/api/proofread")
+async def proofread_document_api(request: dict):
+    """校正専用エンドポイント（誤字・脱字 + 四則演算・表の整合性チェック）"""
+    if not PROOFREADING_AVAILABLE:
+        return {"success": False, "error": "校正モジュールが利用できません"}
+
+    text = request.get("text", "")
+    if not text:
+        return {"success": False, "error": "テキストが指定されていません"}
+
+    check_arithmetic = request.get("check_arithmetic", True)
+    backend_type = request.get("backend", "claude")
+
+    try:
+        service = ProofreadingService(
+            check_arithmetic=check_arithmetic,
+            backend_type=backend_type,
+        )
+        report = await service.proofread_document(text, check_arithmetic=check_arithmetic)
+        return {"success": True, **report}
+    except Exception as e:
+        logger.error(f"校正エラー: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def _find_page_from_map(char_pos: int, page_map: list) -> int:
+    """文字オフセットからページ番号を逆引きする"""
+    for page_num, start, end in page_map:
+        if start <= char_pos < end:
+            return page_num
+    return page_map[-1][0] if page_map else 1
+
+
+@app.post("/api/proofread-pdf")
+async def proofread_pdf_api(
+    file: UploadFile = File(...),
+    check_arithmetic: bool = Form(True),
+    backend: str = Form("claude"),
+):
+    """PDF直接校正エンドポイント — ページ番号付きSSEストリーミング
+
+    PDFファイルをサーバー側で直接テキスト抽出し校正する。
+    プロンプト欄にテキストを挿入しないため、大量テキストでも操作性を維持できる。
+    各指摘にはPDFのページ番号が付与される。
+    """
+    if not PROOFREADING_AVAILABLE:
+        async def error_stream():
+            yield f"data: {json.dumps({'event': 'error', 'message': '校正モジュールが利用できません'})}\n\n"
+        return StreamingResponse(error_stream(), media_type="text/event-stream")
+
+    if not file.filename.lower().endswith('.pdf'):
+        async def error_stream():
+            yield f"data: {json.dumps({'event': 'error', 'message': 'PDFファイルのみ対応しています'})}\n\n"
+        return StreamingResponse(error_stream(), media_type="text/event-stream")
+
+    # 1. PDF一時保存
+    tmp_dir = Path("./temp_uploads/proofread")
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    tmp_path = tmp_dir / f"{uuid.uuid4()}_{file.filename}"
+    try:
+        content = await file.read()
+        with open(tmp_path, 'wb') as f:
+            f.write(content)
+    except Exception as e:
+        async def error_stream():
+            yield f"data: {json.dumps({'event': 'error', 'message': f'ファイル保存エラー: {e}'})}\n\n"
+        return StreamingResponse(error_stream(), media_type="text/event-stream")
+
+    # 2. ページ単位テキスト抽出 + page_map 構築
+    try:
+        import fitz  # PyMuPDF
+        doc = fitz.open(str(tmp_path))
+        full_text = ""
+        page_map = []  # [(page_num_1based, start_char, end_char), ...]
+        for page_idx in range(len(doc)):
+            # span座標ベースの行結合で数式を1行に保持する
+            page = doc[page_idx]
+            page_dict = page.get_text("dict")
+            lines_by_y = {}  # y座標(生値) → [(x座標, テキスト), ...]
+            for block in page_dict.get("blocks", []):
+                for line in block.get("lines", []):
+                    if not line.get("spans"):
+                        continue
+                    y_raw = round(line["bbox"][1], 1)
+                    if y_raw not in lines_by_y:
+                        lines_by_y[y_raw] = []
+                    for span in line["spans"]:
+                        span_text = span["text"].strip()
+                        if span_text:
+                            lines_by_y[y_raw].append((span["bbox"][0], span_text))
+            # 近接y座標を統合（±3pt以内は同一行とみなす）
+            merged_lines = {}
+            for y in sorted(lines_by_y.keys()):
+                merged_to = None
+                for my in sorted(merged_lines.keys()):
+                    if abs(y - my) <= 3.0:
+                        merged_to = my
+                        break
+                if merged_to is not None:
+                    merged_lines[merged_to].extend(lines_by_y[y])
+                else:
+                    merged_lines[y] = list(lines_by_y[y])
+            # y座標順にソートし、各行のspanをx座標順に結合
+            page_text_lines = []
+            for y_key in sorted(merged_lines.keys()):
+                spans = sorted(merged_lines[y_key], key=lambda s: s[0])
+                line_text = " ".join(t for _, t in spans)
+                page_text_lines.append(line_text)
+            page_text = "\n".join(page_text_lines)
+            if page_text.strip():
+                start = len(full_text)
+                full_text += page_text + "\n"
+                end = len(full_text)
+                page_map.append((page_idx + 1, start, end))
+        doc.close()
+        logger.info(f"PDF校正: {file.filename} → {len(page_map)}ページ, {len(full_text)}文字")
+    except Exception as e:
+        async def error_stream():
+            yield f"data: {json.dumps({'event': 'error', 'message': f'PDF解析エラー: {e}'})}\n\n"
+        return StreamingResponse(error_stream(), media_type="text/event-stream")
+    finally:
+        try:
+            if tmp_path.exists():
+                tmp_path.unlink()
+        except Exception:
+            pass
+
+    if not full_text.strip():
+        async def error_stream():
+            yield f"data: {json.dumps({'event': 'error', 'message': 'PDFからテキストを抽出できませんでした。画像のみのPDFの可能性があります。'})}\n\n"
+        return StreamingResponse(error_stream(), media_type="text/event-stream")
+
+    # 3. 校正実行（SSEストリーミング）— findingsにページ番号を付与
+    async def generate():
+        try:
+            service = ProofreadingService(
+                check_arithmetic=check_arithmetic,
+                backend_type=backend,
+            )
+            async for event in service.proofread_document_stream(full_text, check_arithmetic=check_arithmetic):
+                # finding / arithmetic イベントにページ番号を付与
+                if event.get("event") in ("finding", "arithmetic"):
+                    data = event.get("data")
+                    if isinstance(data, dict):
+                        pos = data.get("position", 0)
+                        data["page"] = _find_page_from_map(pos, page_map)
+
+                # complete イベントの report 内の全 findings にもページ番号を付与
+                if event.get("event") == "complete":
+                    report = event.get("report", {})
+                    for f_item in report.get("findings", []):
+                        if isinstance(f_item, dict) and "page" not in f_item:
+                            f_item["page"] = _find_page_from_map(f_item.get("position", 0), page_map)
+                    report["total_pages"] = len(page_map)
+                    report["filename"] = file.filename
+
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            logger.error(f"PDF校正ストリーミングエラー: {e}")
+            yield f"data: {json.dumps({'event': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@app.post("/api/proofread-stream")
+async def proofread_document_stream_api(request: dict):
+    """校正ストリーミングエンドポイント（進捗をSSEでリアルタイム送信）"""
+    if not PROOFREADING_AVAILABLE:
+        async def error_stream():
+            yield f"data: {json.dumps({'event': 'error', 'message': '校正モジュールが利用できません'})}\n\n"
+        return StreamingResponse(error_stream(), media_type="text/event-stream")
+
+    text = request.get("text", "")
+    check_arithmetic = request.get("check_arithmetic", True)
+    backend_type = request.get("backend", "claude")
+
+    async def generate():
+        try:
+            service = ProofreadingService(
+                check_arithmetic=check_arithmetic,
+                backend_type=backend_type,
+            )
+            async for event in service.proofread_document_stream(text, check_arithmetic=check_arithmetic):
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            logger.error(f"校正ストリーミングエラー: {e}")
+            yield f"data: {json.dumps({'event': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8050, log_level="info")
+

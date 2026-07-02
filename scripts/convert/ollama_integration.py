@@ -207,8 +207,15 @@ class OllamaIntegration:
             else:
                 ollama_params["options"]["presence_penalty"] = 0.6
 
-            # コンテキストウィンドウを拡大（文脈維持）
-            ollama_params["options"]["num_ctx"] = 4096
+            # コンテキストウィンドウ（文脈維持）
+            # 呼び出し側で指定があればそれを優先
+            if "num_ctx" in kwargs:
+                try:
+                    ollama_params["options"]["num_ctx"] = int(kwargs["num_ctx"])
+                except Exception:
+                    ollama_params["options"]["num_ctx"] = 4096
+            else:
+                ollama_params["options"]["num_ctx"] = 4096
 
             # 最小生成トークン数を設定（途中切断防止）
             ollama_params["options"]["min_p"] = 0.05

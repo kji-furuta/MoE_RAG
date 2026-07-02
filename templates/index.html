@@ -213,13 +213,57 @@
                 
                 <div class="form-group">
                     <label for="prompt">Prompt:</label>
-                    <textarea id="prompt" name="prompt" placeholder="Enter your question or instruction..." required></textarea>
+                    <textarea id="prompt" name="prompt" placeholder="例: 誤字、脱字のチェックをお願いします。&#10;（本文を続けて入力）" required></textarea>
                 </div>
                 
+                <div class="form-group">
+                    <label for="pdfAsPromptGen">PDF校正・取り込み</label>
+                    <input type="file" class="form-control" id="pdfAsPromptGen" accept=".pdf">
+                    <small class="text-muted">「PDF校正」= PDFを直接サーバーで校正（ページ番号付き）。「取り込む」= プロンプト欄にテキスト挿入。</small>
+                    <div class="mt-2">
+                        <button type="button" class="btn btn-outline-primary" id="btnProofreadPdf" title="PDFを直接校正します（プロンプト欄には挿入しません。ページ番号付き）">PDF校正</button>
+                        <button type="button" class="btn btn-outline-secondary" id="btnImportPdfToPromptGen">PDFを取り込む</button>
+                        <span id="pdfImportStatusGen" class="text-muted ms-2"></span>
+                    </div>
+                </div>
+                
+                <!-- 校正モード専用オプション（プロンプトに校正キーワードがある場合に表示） -->
+                <div id="proofreadingOptions" style="display: none; background: #f0f7ff; border: 1px solid #b3d4fc; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                    <h4 style="margin-top:0; color: #1a5276;">校正モード（自動検出）</h4>
+                    <p style="font-size: 0.9em; color: #555; margin-bottom: 10px;">
+                        誤字・脱字の校正と四則演算チェックに特化したモードです。校正バックエンドを使用して高精度な校正を行います。
+                    </p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label for="proofBackend">校正バックエンド:</label>
+                            <select id="proofBackend">
+                                <option value="claude">校正バックエンド_ON</option>
+                                <option value="ollama">Ollama（ローカル）</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px; margin-top: 28px;">
+                                <input type="checkbox" id="checkArithmetic" checked style="margin: 0;">
+                                <span>四則演算・表の整合性チェック</span>
+                            </label>
+                        </div>
+                    </div>
+                    <!-- 校正プログレスバー -->
+                    <div id="proofreadProgress" style="display: none; margin-top: 10px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.85em; color: #555;">
+                            <span id="proofreadProgressText">処理中...</span>
+                            <span id="proofreadProgressPercent">0%</span>
+                        </div>
+                        <div style="background: #ddd; border-radius: 4px; height: 8px; margin-top: 4px;">
+                            <div id="proofreadProgressBar" style="background: #2980b9; height: 100%; border-radius: 4px; width: 0%; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                     <div class="form-group">
-                        <label for="max_length">Max Length:</label>
-                        <input type="number" id="max_length" name="max_length" value="2048" min="100" max="4096">
+                        <label for="max_length">Max Length (トークン数):</label>
+                        <input type="number" id="max_length" name="max_length" value="2048" min="100" max="8192" title="誤字・脱字チェック時は自動で約5000文字出力に調整されます">
                     </div>
                     <div class="form-group">
                         <label for="temperature">Temperature:</label>
@@ -246,6 +290,32 @@
             </div>
             
             <div id="generateResult"></div>
+
+            <!-- 校正結果テーブル（校正モード時に表示） -->
+            <div id="proofreadResult" style="display: none;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <h3 style="margin: 0;">校正結果</h3>
+                    <div id="proofreadExportBtns" style="display: none;">
+                        <button onclick="exportProofreadCSV()" class="btn btn-sm btn-outline-success" style="margin-right: 4px;">CSV保存</button>
+                        <button onclick="exportProofreadJSON()" class="btn btn-sm btn-outline-info">JSON保存</button>
+                    </div>
+                </div>
+                <div id="proofreadSummary" style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 10px;"></div>
+                <div style="overflow-x: auto;">
+                    <table id="proofreadTable" style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                        <thead>
+                            <tr style="background: #2c3e50; color: white;">
+                                <th style="padding: 8px; text-align: center; width: 60px;">ページ</th>
+                                <th style="padding: 8px; text-align: left;">種類</th>
+                                <th style="padding: 8px; text-align: left;">原文</th>
+                                <th style="padding: 8px; text-align: left;">修正案</th>
+                                <th style="padding: 8px; text-align: center;">重要度</th>
+                            </tr>
+                        </thead>
+                        <tbody id="proofreadTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
             </div>
         </div>
         
@@ -492,6 +562,139 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 定期的なタスク更新
     setInterval(loadContinualTasks, 5000);
+    
+    // PDF → プロンプト取り込み（テキスト生成用）
+    const btnImportPdfGen = document.getElementById('btnImportPdfToPromptGen');
+    if (btnImportPdfGen) {
+        btnImportPdfGen.addEventListener('click', async () => {
+            const fileInput = document.getElementById('pdfAsPromptGen');
+            const status = document.getElementById('pdfImportStatusGen');
+            const promptBox = document.getElementById('prompt');
+            
+            if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                if (status) status.textContent = 'PDFが選択されていません';
+                return;
+            }
+            
+            if (status) status.textContent = '抽出中…';
+            
+            try {
+                const fd = new FormData();
+                fd.append('file', fileInput.files[0]);
+                fd.append('max_chars', '120000');
+                const res = await fetch('/rag/extract-pdf-text', { method: 'POST', body: fd });
+                const data = await res.json();
+                
+                console.log('PDF抽出レスポンス:', data);
+                
+                if (!res.ok) {
+                    throw new Error(data.detail || '抽出に失敗しました');
+                }
+                
+                // テキストが空でないことを確認
+                if (!data.text || !data.text.trim()) {
+                    throw new Error('PDFからテキストが抽出できませんでした。PDFが画像のみの可能性があります。');
+                }
+                
+                if (promptBox) {
+                    const prefix = '\n\n【PDF取り込みテキスト】\n';
+                    const currentValue = promptBox.value || '';
+                    promptBox.value = currentValue + (currentValue ? prefix : '') + data.text;
+                    console.log('プロンプト欄に追加しました。文字数:', data.text.length);
+                } else {
+                    console.error('promptBox要素が見つかりません');
+                }
+                
+                if (status) {
+                    status.textContent = `取り込み完了（${data.returned_chars}/${data.chars}文字）`;
+                    status.style.color = '#28a745';
+                }
+            } catch (err) {
+                console.error('PDF取り込みエラー:', err);
+                if (status) {
+                    status.textContent = `エラー: ${err.message}`;
+                    status.style.color = '#dc3545';
+                }
+            }
+        });
+    }
+
+    // PDF直接校正ボタン（プロンプト欄に挿入せずサーバーで直接校正）
+    const btnProofPdf = document.getElementById('btnProofreadPdf');
+    if (btnProofPdf) {
+        btnProofPdf.addEventListener('click', async () => {
+            const fileInput = document.getElementById('pdfAsPromptGen');
+            const status = document.getElementById('pdfImportStatusGen');
+
+            if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                showAlert('generateResult', 'PDFファイルを選択してください', 'warning');
+                return;
+            }
+
+            // 校正オプションパネルを表示
+            const proofPanel = document.getElementById('proofreadingOptions');
+            if (proofPanel) proofPanel.style.display = 'block';
+
+            const backend = document.getElementById('proofBackend').value;
+            const checkArithmetic = document.getElementById('checkArithmetic').checked;
+
+            // UI初期化
+            document.getElementById('proofreadProgress').style.display = 'block';
+            document.getElementById('proofreadResult').style.display = 'none';
+            document.getElementById('generateResult').innerHTML = '';
+            document.getElementById('proofreadProgressBar').style.width = '0%';
+            document.getElementById('proofreadProgressPercent').textContent = '0%';
+            document.getElementById('proofreadProgressText').textContent = 'PDF解析・校正処理を開始中...';
+            document.getElementById('generateLoading').style.display = 'block';
+            document.getElementById('generateBtn').disabled = true;
+            if (status) { status.textContent = '校正中...'; status.style.color = '#2980b9'; }
+
+            const allFindings = [];
+
+            try {
+                const fd = new FormData();
+                fd.append('file', fileInput.files[0]);
+                fd.append('check_arithmetic', checkArithmetic);
+                fd.append('backend', backend);
+
+                const response = await fetch('/api/proofread-pdf', {
+                    method: 'POST',
+                    body: fd
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        try {
+                            const event = JSON.parse(line.slice(6));
+                            handleProofreadEvent(event, allFindings);
+                        } catch (e) {
+                            // JSON parse error, skip
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('PDF proofreading error:', error);
+                showAlert('generateResult', 'PDF校正中にエラーが発生しました: ' + error.message, 'danger');
+            } finally {
+                document.getElementById('proofreadProgress').style.display = 'none';
+                document.getElementById('generateLoading').style.display = 'none';
+                document.getElementById('generateBtn').disabled = false;
+                if (status) { status.textContent = '校正完了'; status.style.color = '#28a745'; }
+            }
+        });
+    }
 });
 
 // 利用可能なモデル一覧を取得
@@ -573,6 +776,12 @@ document.getElementById('generateForm').addEventListener('submit', async functio
     document.getElementById('generateBtn').disabled = true;
     
     try {
+        // 校正モード: 専用APIに委譲
+        if (isProofreadingRequest(prompt)) {
+            await runProofreading(prompt);
+            return;
+        }
+
         if (useStreaming) {
             // ストリーミング生成
             await generateTextStream(modelType, modelName, prompt, maxLength, temperature, topP);
@@ -715,6 +924,217 @@ function displayGenerationResult(result) {
     
     html += '</div>';
     resultDiv.innerHTML = html;
+}
+
+// =====================================================================
+// 校正モード関連
+// =====================================================================
+
+// 校正キーワード検出
+const PROOFREAD_KEYWORDS = ['誤字', '脱字', '校正', '推敲', '表記ゆれ', '表記揺れ', 'タイポ', 'proofread', 'typo'];
+
+function isProofreadingRequest(text) {
+    if (!text) return false;
+    const lower = text.toLowerCase();
+    return PROOFREAD_KEYWORDS.some(k => text.includes(k) || lower.includes(k));
+}
+
+// プロンプト入力時に校正モード自動検出
+document.getElementById('prompt').addEventListener('input', function() {
+    const panel = document.getElementById('proofreadingOptions');
+    if (isProofreadingRequest(this.value)) {
+        panel.style.display = 'block';
+    } else {
+        panel.style.display = 'none';
+    }
+});
+
+// 校正専用API呼び出し（SSEストリーミング）
+async function runProofreading(text) {
+    const backend = document.getElementById('proofBackend').value;
+    const checkArithmetic = document.getElementById('checkArithmetic').checked;
+
+    // UI初期化
+    document.getElementById('proofreadProgress').style.display = 'block';
+    document.getElementById('proofreadResult').style.display = 'none';
+    document.getElementById('generateResult').innerHTML = '';
+    document.getElementById('proofreadProgressBar').style.width = '0%';
+    document.getElementById('proofreadProgressPercent').textContent = '0%';
+    document.getElementById('proofreadProgressText').textContent = '校正処理を開始中...';
+
+    const allFindings = [];
+
+    try {
+        const response = await fetch('/api/proofread-stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: text,
+                check_arithmetic: checkArithmetic,
+                backend: backend
+            })
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                try {
+                    const event = JSON.parse(line.slice(6));
+                    handleProofreadEvent(event, allFindings);
+                } catch (e) {
+                    // JSON parse error, skip
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Proofreading error:', error);
+        showAlert('generateResult', '校正処理中にエラーが発生しました: ' + error.message, 'danger');
+    } finally {
+        document.getElementById('proofreadProgress').style.display = 'none';
+        document.getElementById('generateLoading').style.display = 'none';
+        document.getElementById('generateBtn').disabled = false;
+    }
+}
+
+function handleProofreadEvent(event, allFindings) {
+    switch (event.event) {
+        case 'start':
+            document.getElementById('proofreadProgressText').textContent =
+                `校正開始: ${event.total_chunks} チャンク (${event.backend})`;
+            break;
+
+        case 'progress':
+            const pct = event.percent || 0;
+            document.getElementById('proofreadProgressBar').style.width = pct + '%';
+            document.getElementById('proofreadProgressPercent').textContent = pct.toFixed(1) + '%';
+            document.getElementById('proofreadProgressText').textContent =
+                `${event.completed}/${event.total} チャンク処理中...`;
+            break;
+
+        case 'finding':
+            if (event.data) allFindings.push(event.data);
+            break;
+
+        case 'arithmetic':
+            if (event.data) allFindings.push({...event.data, type: event.data.finding_type || 'arithmetic'});
+            break;
+
+        case 'complete':
+            displayProofreadResult(event.report || { findings: allFindings, summary: {} });
+            break;
+
+        case 'error':
+            showAlert('generateResult', '校正エラー: ' + (event.message || '不明'), 'danger');
+            break;
+    }
+}
+
+let _lastProofreadReport = null;
+
+function displayProofreadResult(report) {
+    _lastProofreadReport = report;
+    document.getElementById('proofreadExportBtns').style.display = 'block';
+
+    const resultDiv = document.getElementById('proofreadResult');
+    const summaryDiv = document.getElementById('proofreadSummary');
+    const tbody = document.getElementById('proofreadTableBody');
+
+    const summary = report.summary || {};
+    const findings = report.findings || [];
+
+    // サマリー
+    let summaryHtml = '<strong>校正結果サマリー:</strong> ';
+    if (report.filename) summaryHtml += `ファイル: ${escapeHtml(report.filename)} / `;
+    if (report.total_pages) summaryHtml += `ページ数: ${report.total_pages} / `;
+    summaryHtml += `文字数: ${(report.total_chars || 0).toLocaleString()} / `;
+    summaryHtml += `チャンク数: ${report.total_chunks || 0} / `;
+    summaryHtml += `バックエンド: ${report.backend || '-'}<br>`;
+    summaryHtml += `<strong>指摘件数:</strong> 校正=${summary.total_proofreading_findings || 0}, `;
+    summaryHtml += `四則演算=${summary.total_arithmetic_findings || 0}, `;
+    summaryHtml += `<strong>合計=${summary.total_findings || findings.length}</strong>`;
+    summaryDiv.innerHTML = summaryHtml;
+
+    // テーブル行
+    tbody.innerHTML = '';
+    if (findings.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="padding: 12px; text-align: center; color: #27ae60;">指摘事項なし</td></tr>';
+    } else {
+        findings.forEach(f => {
+            const severityColors = { error: '#e74c3c', warning: '#f39c12', info: '#3498db' };
+            const severity = f.severity || 'info';
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid #eee';
+            tr.innerHTML = `
+                <td style="padding: 8px; text-align: center;">${f.page || '-'}</td>
+                <td style="padding: 8px;">${f.type || '-'}</td>
+                <td style="padding: 8px;">${escapeHtml(f.original || f.message || '-')}</td>
+                <td style="padding: 8px;">${escapeHtml(f.suggested || '-')}</td>
+                <td style="padding: 8px; text-align: center;">
+                    <span style="background: ${severityColors[severity] || '#999'}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.8em;">${severity}</span>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    resultDiv.style.display = 'block';
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function exportProofreadCSV() {
+    if (!_lastProofreadReport) return;
+    var findings = _lastProofreadReport.findings || [];
+    var csv = '\uFEFF' + 'ページ,種類,原文,修正案,重要度\n';
+    findings.forEach(function(f) {
+        var cols = [
+            f.page || '',
+            f.type || '',
+            (f.original || f.message || '').replace(/"/g, '""'),
+            (f.suggested || '').replace(/"/g, '""'),
+            f.severity || ''
+        ].map(function(v) { return '"' + v + '"'; }).join(',');
+        csv += cols + '\n';
+    });
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var ts = new Date().toISOString().slice(0,19).replace(/[T:]/g, '');
+    a.href = url;
+    a.download = 'proofreading_' + ts + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function exportProofreadJSON() {
+    if (!_lastProofreadReport) return;
+    var json = JSON.stringify(_lastProofreadReport, null, 2);
+    var blob = new Blob([json], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var ts = new Date().toISOString().slice(0,19).replace(/[T:]/g, '');
+    a.href = url;
+    a.download = 'proofreading_' + ts + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 // アラート表示

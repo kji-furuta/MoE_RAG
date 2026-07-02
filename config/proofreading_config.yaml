@@ -1,0 +1,36 @@
+# 校正機能設定
+proofreading:
+  # LLMバックエンド ("claude" or "ollama")
+  # Claude APIが利用可能な場合は優先使用。ANTHROPIC_API_KEY未設定時はOllamaにフォールバック。
+  backend: "claude"
+
+  # Claude API設定
+  claude:
+    model: "claude-sonnet-4-6"
+    max_tokens: 4096
+    temperature: 0.1
+
+  # Ollama フォールバック設定
+  ollama:
+    # 利用可能な最大モデルを自動検出。指定する場合はここに記載
+    # model: "qwen2.5:14b"
+    num_ctx: 8192
+    num_predict: 4096
+    temperature: 0.1
+
+  # チャンク分割設定
+  chunking:
+    chunk_size: 2000       # チャンクサイズ（文字数）
+    overlap: 200           # オーバーラップ（文字数）
+
+  # 並列処理
+  max_concurrency: 5       # 最大並列チャンク数
+
+  # 四則演算チェック
+  arithmetic:
+    enabled: true          # 四則演算チェックを有効にする
+    check_table_sums: true # 表の合計行の整合性チェック
+    tolerance: 0.01        # 浮動小数点誤差の許容範囲
+
+  # 最大文字数制限
+  max_input_chars: 100000  # 10万文字

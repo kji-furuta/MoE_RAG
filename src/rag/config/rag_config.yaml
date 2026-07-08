@@ -21,10 +21,6 @@ embedding:
   device: cuda
   embedding_dim: 1024
   max_length: 512
-  # Available models (1024-dim compatible with existing vector DB):
-  # - "intfloat/multilingual-e5-large" (1024-dim, multilingual)
-  # - "intfloat/multilingual-e5-large-instruct" (1024-dim, RAG-optimized, RECOMMENDED)
-  # - "cl-nagoya/sup-simcse-ja-large" (1024-dim, Japanese-specialized)
   model_name: intfloat/multilingual-e5-large-instruct
   normalize_embeddings: true
 evaluation:
@@ -41,6 +37,7 @@ llm:
   - gpt-neox:20b
   - llama3.2:3b
   - deepseek-r1:32b
+  - finetuned:/workspace/outputs/openagentrl_road_design_optimized
   base_model: gpt-neox-20b-dynamic-lora
   device_map: auto
   finetuned_model_path: null

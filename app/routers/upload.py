@@ -36,8 +36,17 @@ async def upload_training_data(file: UploadFile = File(...)) -> dict:
         if file.size and file.size > 100 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="ファイルサイズが大きすぎます (最大100MB)")
 
+        # パストラバーサル対策: ファイル名からディレクトリ成分を除去
+        import os as _os
+        safe_filename = _os.path.basename(file.filename)
+        if not safe_filename or safe_filename.startswith("."):
+            raise HTTPException(status_code=400, detail="ファイル名が不正です")
+
         UPLOADED_DIR.mkdir(parents=True, exist_ok=True)
-        file_path = UPLOADED_DIR / file.filename
+        file_path = UPLOADED_DIR / safe_filename
+        # シンボリックリンク等による脱出を検証
+        if not file_path.resolve().is_relative_to(UPLOADED_DIR.resolve()):
+            raise HTTPException(status_code=400, detail="ファイル名が不正です")
 
         content = await file.read()
         logger.info("ファイル保存: %s, サイズ: %s bytes", file_path, len(content))

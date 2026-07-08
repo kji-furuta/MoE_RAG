@@ -1225,6 +1225,8 @@ async function loadFinetunedModels() {
                     displayName = `[フル] ${model.name}`;
                 } else if (model.type === 'LoRA' || model.type === 'QLoRA (4bit)') {
                     displayName = `[${model.type}] ${model.name}`;
+                } else if (model.type === '強化学習 (RL)') {
+                    displayName = `[強化学習] ${model.name}`;
                 }
                 
                 option.textContent = `${displayName} (${model.base_model || 'Unknown'}) - ${model.created_at || ''}`;

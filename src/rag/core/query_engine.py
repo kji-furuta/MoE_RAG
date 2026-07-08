@@ -90,7 +90,10 @@ class LLMGenerator:
                 )
                 self.use_continual = True
                 logger.info(f"Continual learning enabled with {len(self.continual_manager.get_available_tasks())} tasks")
-            except Exception as e:
+            except (ImportError, ModuleNotFoundError) as e:
+                logger.warning(f"Continual learning module not available: {e}")
+                self.use_continual = False
+            except (OSError, RuntimeError) as e:
                 logger.warning(f"Failed to initialize continual learning manager: {e}")
                 self.use_continual = False
         
@@ -103,7 +106,9 @@ class LLMGenerator:
                 self.dynamic_lora_engine = DynamicLoRAQueryEngine(config.llm.__dict__)
                 self.use_dynamic_lora = True
                 logger.info("Dynamic LoRA application enabled for GPT-NeoX-20B")
-            except Exception as e:
+            except (ImportError, ModuleNotFoundError) as e:
+                logger.warning(f"Dynamic LoRA module not available: {e}")
+            except (OSError, RuntimeError) as e:
                 logger.warning(f"Failed to initialize dynamic LoRA: {e}")
                 
         # 設定に基づいてOllamaモードを初期化
@@ -125,18 +130,52 @@ class LLMGenerator:
         """モデルロードのための十分なメモリがあるかチェック"""
         if not torch.cuda.is_available():
             return False
-            
+
         # 全GPUのメモリをチェック
         gpu_count = torch.cuda.device_count()
         max_free_memory = 0
-        
+        total_free_memory = 0
+
         for i in range(gpu_count):
             free_memory = torch.cuda.mem_get_info(i)[0] / (1024**3)
             max_free_memory = max(max_free_memory, free_memory)
-        
-        # 22Bモデルには最低30GBが必要
-        required_memory = 30
-        return max_free_memory >= required_memory
+            total_free_memory += free_memory
+
+        # モデルサイズに基づいてメモリ要件を判定
+        model_name = ''
+        if hasattr(self.config.llm, 'model_name'):
+            model_name = str(self.config.llm.model_name).lower()
+
+        # モデルサイズを推定（config.jsonから判定も試みる）
+        required_memory = 8  # デフォルト: 7B/8Bモデル用（4bit量子化前提）
+        if any(s in model_name for s in ['32b', '22b']):
+            required_memory = 20
+        elif any(s in model_name for s in ['13b', '14b']):
+            required_memory = 12
+        else:
+            # config.jsonからモデルサイズを推定
+            model_dir = Path(model_name) if model_name else None
+            if model_dir and model_dir.exists():
+                config_file = model_dir / 'config.json'
+                if config_file.exists():
+                    try:
+                        import json
+                        with open(config_file, 'r') as f:
+                            mc = json.load(f)
+                        num_layers = mc.get('num_hidden_layers', 0)
+                        hidden_size = mc.get('hidden_size', 0)
+                        # 大まかなサイズ推定
+                        if num_layers >= 60 or hidden_size >= 6144:
+                            required_memory = 20  # 22B+
+                        elif num_layers >= 40 or hidden_size >= 5120:
+                            required_memory = 12  # 13B+
+                        else:
+                            required_memory = 8   # 7B以下
+                    except Exception:
+                        pass
+
+        # device_map='auto'により複数GPUを使用可能なため、合計メモリで判定
+        return total_free_memory >= required_memory
     
     def _load_model(self):
         """モデルを読み込み（メモリ最適化）"""
@@ -230,10 +269,11 @@ class LLMGenerator:
                         model_path,
                         **model_kwargs
                     )
-                except Exception as gpu_error:
-                    if "GPU" in str(gpu_error) or "CUDA" in str(gpu_error):
+                except (torch.cuda.OutOfMemoryError, RuntimeError) as gpu_error:
+                    if isinstance(gpu_error, torch.cuda.OutOfMemoryError) or "CUDA" in str(gpu_error) or "GPU" in str(gpu_error):
                         logger.warning(f"GPU読み込み失敗: {gpu_error}")
                         logger.info("CPUモードで再試行します")
+                        torch.cuda.empty_cache()
                         # CPUモードで再試行
                         model_kwargs['device_map'] = None
                         model_kwargs['torch_dtype'] = torch.float32
@@ -251,9 +291,17 @@ class LLMGenerator:
             
             logger.info(f"Model loaded successfully on {self.device}")
             
+        except torch.cuda.OutOfMemoryError as e:
+            logger.error(f"GPU OOM loading model: {e}")
+            torch.cuda.empty_cache()
+            logger.warning("GPUメモリ不足。Ollamaフォールバックを有効化します")
+            self._enable_ollama_fallback()
+        except (OSError, ValueError) as e:
+            logger.error(f"Failed to load model (IO/config): {e}")
+            logger.warning("モデルロード失敗。Ollamaフォールバックを有効化します")
+            self._enable_ollama_fallback()
         except Exception as e:
-            logger.error(f"Failed to load model: {e}")
-            # モデルロード失敗時はOllamaフォールバックを試行
+            logger.error(f"Unexpected model load error: {e}", exc_info=True)
             logger.warning("モデルロード失敗。Ollamaフォールバックを有効化します")
             self._enable_ollama_fallback()
     
@@ -313,6 +361,7 @@ class LLMGenerator:
             
             # Qwen2ForCausalLM以外のモデルの場合のみoffload_dirを追加
             try:
+                is_qwen = False
                 # モデル名をチェックしてQwen2ForCausalLMかどうかを判定
                 if hasattr(llm_config, 'model_name'):
                     model_name = str(llm_config.model_name).lower()
@@ -320,8 +369,25 @@ class LLMGenerator:
                     model_name = str(llm_config.base_model).lower()
                 else:
                     model_name = ''
-                    
-                if 'qwen' not in model_name:
+
+                if 'qwen' in model_name:
+                    is_qwen = True
+                else:
+                    # モデル名にqwenが含まれない場合、config.jsonで判定
+                    model_dir = Path(model_name) if model_name else None
+                    if model_dir and model_dir.exists():
+                        config_file = model_dir / 'config.json'
+                        if config_file.exists():
+                            import json
+                            with open(config_file, 'r') as f:
+                                model_config = json.load(f)
+                            arch = model_config.get('architectures', [])
+                            model_type = model_config.get('model_type', '')
+                            if any('qwen' in a.lower() for a in arch) or 'qwen' in model_type.lower():
+                                is_qwen = True
+                                logger.info(f"config.jsonからQwenモデルを検出: {arch}")
+
+                if not is_qwen:
                     model_kwargs.update({
                         'offload_folder': offload_dir,  # オフロードディレクトリを追加
                         'offload_state_dict': True   # 状態辞書のオフロードを有効化
@@ -329,7 +395,7 @@ class LLMGenerator:
                     logger.info("offload_folderを有効化しました")
                 else:
                     logger.info("Qwen2ForCausalLMのため、offload_folderを無効化しました")
-            except Exception as e:
+            except (AttributeError, TypeError) as e:
                 logger.warning(f"モデルタイプ判定エラー: {e}。offload_folderを無効化します")
         else:
             # CPUモード
@@ -386,9 +452,13 @@ class LLMGenerator:
                         self.model = original_model
                         self.tokenizer = original_tokenizer
                         return result
-                    except Exception as e:
+                    except torch.cuda.OutOfMemoryError as e:
+                        logger.error(f"GPU OOM with continual model: {e}")
+                        torch.cuda.empty_cache()
+                        self.model = original_model
+                        self.tokenizer = original_tokenizer
+                    except (RuntimeError, ValueError) as e:
                         logger.error(f"Failed to generate with continual model: {e}")
-                        # エラー時は元のモデルに戻す
                         self.model = original_model
                         self.tokenizer = original_tokenizer
         
@@ -404,9 +474,10 @@ class LLMGenerator:
             logger.info("Model not loaded, attempting on-demand loading...")
             try:
                 self._load_model()
-            except Exception as e:
+            except (torch.cuda.OutOfMemoryError, OSError, ValueError, RuntimeError) as e:
                 logger.error(f"Failed to load model on-demand: {e}")
-                # ロード失敗時はOllamaフォールバックに切り替え
+                if isinstance(e, torch.cuda.OutOfMemoryError):
+                    torch.cuda.empty_cache()
                 self._enable_ollama_fallback()
         
         if not self.model or not self.tokenizer or self.use_ollama_fallback:
@@ -465,7 +536,11 @@ class LLMGenerator:
             
             return generated_text.strip()
             
-        except Exception as e:
+        except torch.cuda.OutOfMemoryError as e:
+            logger.error(f"GPU OOM during generation: {e}")
+            torch.cuda.empty_cache()
+            return self._ollama_generation(prompt, context)
+        except (RuntimeError, ValueError) as e:
             logger.error(f"Generation failed: {e}")
             return self._ollama_generation(prompt, context)
 
@@ -524,7 +599,11 @@ class LLMGenerator:
             
             return generated_text.strip()
             
-        except Exception as e:
+        except torch.cuda.OutOfMemoryError as e:
+            logger.error(f"GPU OOM in _generate_with_model: {e}")
+            torch.cuda.empty_cache()
+            return self._fallback_generation(prompt, context)
+        except (RuntimeError, ValueError) as e:
             logger.error(f"Generation error: {e}")
             return self._fallback_generation(prompt, context)
 
@@ -595,8 +674,14 @@ class LLMGenerator:
                 logger.error(f"Ollama生成エラー: {error_msg}")
                 return f"エラー: Ollama生成に失敗しました - {error_msg}{memory_warning}"
                 
+        except ConnectionError as e:
+            logger.error(f"Ollama接続エラー: {e}")
+            return f"エラー: Ollamaサーバーに接続できません - {str(e)}{memory_warning}"
+        except (TimeoutError, OSError) as e:
+            logger.error(f"Ollamaタイムアウト/IOエラー: {e}")
+            return f"エラー: Ollama生成がタイムアウトしました - {str(e)}{memory_warning}"
         except Exception as e:
-            logger.error(f"Ollamaフォールバックエラー: {e}")
+            logger.error(f"Ollamaフォールバックエラー: {e}", exc_info=True)
             return f"エラー: 生成に失敗しました - {str(e)}{memory_warning}"
 
     def _build_prompt(self, query: str, context: str) -> str:
@@ -817,12 +902,27 @@ class RoadDesignQueryEngine:
             self.is_initialized = True
             logger.info("RoadDesignQueryEngine initialization completed")
             
-        except Exception as e:
-            logger.error(f"Failed to initialize RoadDesignQueryEngine: {e}")
-            # 初期化失敗時は軽量モードでリトライ
+        except VectorStoreConnectionError as e:
+            logger.error("ベクトルストア接続失敗: %s", e, exc_info=True)
             logger.warning("標準初期化失敗。軽量モードでリトライします")
             self._initialize_lightweight_mode()
-    
+        except (ModelLoadError, LLMMemoryError) as e:
+            logger.error("モデルロード失敗: %s", e, exc_info=True)
+            logger.warning("モデルロード失敗。軽量モードでリトライします")
+            self._initialize_lightweight_mode()
+        except torch.cuda.OutOfMemoryError as e:
+            logger.error("GPU OOM during initialization: %s", e)
+            torch.cuda.empty_cache()
+            logger.warning("GPUメモリ不足。軽量モードでリトライします")
+            self._initialize_lightweight_mode()
+        except (ImportError, ModuleNotFoundError) as e:
+            logger.error("依存モジュールが見つかりません: %s", e, exc_info=True)
+            self._initialize_lightweight_mode()
+        except Exception as e:
+            logger.error("予期しない初期化エラー: %s", e, exc_info=True)
+            logger.warning("標準初期化失敗。軽量モードでリトライします")
+            self._initialize_lightweight_mode()
+
     def _initialize_lightweight_mode(self):
         """メモリ不足時の軽量モード初期化"""
         
@@ -901,9 +1001,11 @@ class RoadDesignQueryEngine:
             self.is_initialized = True
             logger.info("軽量モードでの初期化が完了しました")
             
-        except Exception as e:
+        except (ImportError, ModuleNotFoundError) as e:
+            logger.error(f"軽量モード依存モジュール不足: {e}")
+            self._initialize_minimal_mode()
+        except (OSError, RuntimeError, ValueError) as e:
             logger.error(f"軽量モード初期化も失敗: {e}")
-            # 最低限の機能で初期化
             self._initialize_minimal_mode()
     
     def _initialize_minimal_mode(self):
@@ -927,9 +1029,9 @@ class RoadDesignQueryEngine:
             self.is_initialized = True
             logger.info("最低限モードでの初期化が完了しました")
             
-        except Exception as e:
+        except (ImportError, OSError, RuntimeError, ValueError) as e:
             logger.error(f"最低限モード初期化も失敗: {e}")
-            raise RuntimeError("すべての初期化が失敗しました")
+            raise RuntimeError("すべての初期化が失敗しました") from e
             
     def _initialize_search_corpus(self):
         """検索用コーパスを初期化"""
@@ -1099,7 +1201,10 @@ class RoadDesignQueryEngine:
             self.use_moe = True
             logger.info("MoE-RAG integration initialized successfully")
             
-        except Exception as e:
+        except (ImportError, ModuleNotFoundError) as e:
+            logger.warning(f"MoE module not available: {e}")
+            self.use_moe = False
+        except (RuntimeError, ValueError, OSError) as e:
             logger.warning(f"Failed to initialize MoE integration: {e}")
             self.use_moe = False
     
@@ -1764,7 +1869,9 @@ class RoadDesignQueryEngine:
             '赢': '勝',
             '航走性': '走行性',
             '舶上': '路上',
-            '舤': '路'
+            '舤': '路',
+            '阿斯法尔ト': 'アスファルト',
+            '航走性': '走行性'
         }
 
         # 文字列を一文字ずつ変換

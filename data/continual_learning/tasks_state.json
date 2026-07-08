@@ -757,5 +757,109 @@
       "継続学習が完了しました"
     ],
     "completed_at": "2025-12-11T10:34:36.964031+09:00"
+  },
+  "c2eb2c8e-301b-4a1a-be95-b465af29f7df": {
+    "task_id": "c2eb2c8e-301b-4a1a-be95-b465af29f7df",
+    "task_name": "task_109",
+    "started_at": "2025-12-16T23:27:46.866661+09:00",
+    "id": "c2eb2c8e-301b-4a1a-be95-b465af29f7df",
+    "type": "continual_learning",
+    "created_at": "2025-12-16T23:27:46.866676+09:00",
+    "status": "completed",
+    "progress": 100,
+    "metrics": {
+      "forgetting_results": {
+        "task_103": {
+          "task_index": 5,
+          "current_performance": {
+            "average_loss": 1.2435299973457419,
+            "accuracy": 0.71,
+            "perplexity": 3.4678333264717125,
+            "num_samples": 100
+          },
+          "original_performance": {},
+          "forgetting_score": 0.0,
+          "timestamp": "2025-12-16T15:20:47.850074"
+        },
+        "task_104": {
+          "task_index": 6,
+          "current_performance": {
+            "average_loss": 1.3449246417858447,
+            "accuracy": 0.65,
+            "perplexity": 3.8378973126146394,
+            "num_samples": 100
+          },
+          "original_performance": {},
+          "forgetting_score": 0.0,
+          "timestamp": "2025-12-16T15:20:47.865999"
+        },
+        "task_105": {
+          "task_index": 7,
+          "current_performance": {
+            "average_loss": 1.249777371280228,
+            "accuracy": 0.7,
+            "perplexity": 3.4895659933681262,
+            "num_samples": 100
+          },
+          "original_performance": {},
+          "forgetting_score": 0.0,
+          "timestamp": "2025-12-16T15:20:47.878559"
+        },
+        "task_106": {
+          "task_index": 8,
+          "current_performance": {
+            "average_loss": 1.2610070599961554,
+            "accuracy": 0.7,
+            "perplexity": 3.528973586603214,
+            "num_samples": 100
+          },
+          "original_performance": {},
+          "forgetting_score": 0.0,
+          "timestamp": "2025-12-16T15:20:47.890270"
+        },
+        "task_107": {
+          "task_index": 9,
+          "current_performance": {
+            "average_loss": 1.2835216725098706,
+            "accuracy": 0.67,
+            "perplexity": 3.609328242104898,
+            "num_samples": 100
+          },
+          "original_performance": {},
+          "forgetting_score": 0.0,
+          "timestamp": "2025-12-16T15:20:47.904022"
+        },
+        "task_108": {
+          "task_index": 10,
+          "current_performance": {
+            "average_loss": 1.2923651909663565,
+            "accuracy": 0.72,
+            "perplexity": 3.641388958849979,
+            "num_samples": 100
+          },
+          "original_performance": {},
+          "forgetting_score": 0.0,
+          "timestamp": "2025-12-16T15:20:47.917883"
+        },
+        "task_109": {
+          "task_index": 11,
+          "current_performance": {
+            "average_loss": 1.299239808024478,
+            "accuracy": 0.65,
+            "perplexity": 3.6665083576964035,
+            "num_samples": 100
+          },
+          "original_performance": {},
+          "forgetting_score": 0.0,
+          "timestamp": "2025-12-16T15:20:47.930020"
+        }
+      },
+      "report_path": "outputs/ewc_data/evaluation/forgetting_analysis_20251216_152047.png"
+    },
+    "messages": [
+      "評価を実行中...",
+      "継続学習が完了しました"
+    ],
+    "completed_at": "2025-12-17T00:20:48.535716+09:00"
   }
 }

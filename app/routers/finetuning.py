@@ -8,9 +8,8 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
-from ..dependencies import PROJECT_ROOT, logger, training_tasks
+from ..dependencies import PROJECT_ROOT, logger, training_tasks, available_models, get_saved_models
 from ..training.models import TrainingRequest
-from .. import main_unified
 
 JST = timezone(timedelta(hours=9))
 
@@ -20,15 +19,13 @@ router = APIRouter(prefix="/api", tags=["finetuning"])
 @router.get("/models")
 async def get_models():
     """利用可能なモデル一覧を取得"""
-    available = getattr(main_unified, "available_models", [])
+    available = available_models
 
     saved_models = []
-    get_saved = getattr(main_unified, "get_saved_models", None)
-    if callable(get_saved):
-        try:
-            saved_models = get_saved()
-        except Exception as exc:  # pragma: no cover - defensive logging
-            logger.error(f"保存済みモデルの取得に失敗: {exc}")
+    try:
+        saved_models = get_saved_models()
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.error(f"保存済みモデルの取得に失敗: {exc}")
 
     return {
         "available_models": available,

@@ -1,0 +1,850 @@
+{% extends "base.html" %}
+
+{% block title %}RLAnything (GRPO) - AI Fine-tuning & Text Generation System{% endblock %}
+
+{% block extra_styles %}
+.nav {
+    background: #f8f9fa;
+    padding: 15px 30px;
+    border-bottom: 1px solid #e0e0e0;
+}
+.nav a {
+    color: #667eea;
+    text-decoration: none;
+    margin-right: 20px;
+    font-weight: 500;
+}
+.nav a:hover { text-decoration: underline; }
+.section {
+    background: #f8f9ff;
+    border-left: 4px solid #667eea;
+}
+.section h2 { margin-bottom: 20px; }
+.section-group {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: rgba(255,255,255,0.7);
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+.section-group h3 {
+    margin: 0 0 15px 0;
+    font-size: 1.1em;
+    color: #667eea;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 8px;
+}
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+.grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 15px;
+}
+.param-hint {
+    font-size: 0.8em;
+    color: #888;
+    margin-top: 3px;
+}
+.progress-bar {
+    width: 100%;
+    height: 24px;
+    background-color: #e0e0e0;
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 10px 0;
+}
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    transition: width 0.5s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.85em;
+    font-weight: bold;
+    min-width: 0;
+}
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+.status-queued { background: #ffeaa7; color: #856404; }
+.status-running { background: #81ecec; color: #0c5460; animation: pulse 1.5s infinite; }
+.status-completed { background: #55efc4; color: #155724; }
+.status-failed { background: #fab1a0; color: #721c24; }
+.status-stopping { background: #ffeaa7; color: #856404; }
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    margin: 15px 0;
+}
+.metric-card {
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    border-top: 3px solid #667eea;
+}
+.metric-card .metric-value {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #333;
+}
+.metric-card .metric-label {
+    font-size: 0.85em;
+    color: #888;
+    margin-top: 5px;
+}
+.task-list-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.task-list-item:hover { background: #f0f0f8; }
+.task-list-item .task-info { flex: 1; }
+.task-list-item .task-model { font-weight: bold; color: #333; }
+.task-list-item .task-time { font-size: 0.85em; color: #888; }
+.btn-danger {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+}
+.btn-secondary {
+    background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+}
+.btn-sm {
+    padding: 8px 16px;
+    font-size: 0.9em;
+}
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+}
+.toggle-switch input { display: none; }
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 26px;
+}
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+input:checked + .toggle-slider {
+    background-color: #667eea;
+}
+input:checked + .toggle-slider:before {
+    transform: translateX(24px);
+}
+.hidden { display: none !important; }
+#statusSection { display: none; }
+#taskHistory { display: none; }
+.log-area {
+    background: #1e1e2e;
+    color: #a6e3a1;
+    font-family: 'Consolas', 'Monaco', monospace;
+    padding: 15px;
+    border-radius: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    font-size: 0.85em;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+{% endblock %}
+
+{% block main_title %}
+<h1>
+    <img src="/static/logo_teikoku.png" alt="Logo" class="title-logo">
+    🎯 RLAnything - GRPO Training
+</h1>
+<p>Closed-loop Reinforcement Learning with Group Relative Policy Optimization</p>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="nav">
+        <a href="/">🏠 Home</a>
+        <a href="/finetune">📚 Fine-tuning</a>
+        <a href="/dpo">🎯 DPO</a>
+        <a href="/rlanything">🔄 RLAnything</a>
+    </div>
+
+    <div class="content">
+        <!-- ============ Configuration Section ============ -->
+        <div class="section" id="configSection">
+            <h2>⚙️ GRPO Training Configuration</h2>
+            <form id="rlTrainingForm">
+
+                <!-- Model & Dataset -->
+                <div class="section-group">
+                    <h3>🤖 Model & Dataset</h3>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label for="modelName">Base Model:</label>
+                            <select id="modelName" name="modelName" required>
+                                <option value="">Select a base model...</option>
+                                <optgroup label="Small Models (Testing / Fast)">
+                                    <option value="gpt2">GPT-2 (124M) - Testing</option>
+                                    <option value="rinna/japanese-gpt2-medium">Rinna GPT2 Medium (Japanese)</option>
+                                </optgroup>
+                                <optgroup label="Medium Models (Recommended)">
+                                    <option value="stabilityai/japanese-stablelm-3b-4e1t-instruct">Japanese StableLM 3B Instruct</option>
+                                    <option value="elyza/ELYZA-japanese-Llama-2-7b-instruct">ELYZA Japanese Llama-2 7B</option>
+                                    <option value="meta-llama/Llama-3.1-8B-Instruct">Meta Llama 3.1 8B Instruct</option>
+                                </optgroup>
+                                <optgroup label="Large Models (High Performance)">
+                                    <option value="Qwen/Qwen2.5-14B-Instruct">Qwen 2.5 14B Instruct</option>
+                                    <option value="cyberagent/calm3-22b-chat" selected>CyberAgent CALM3 22B Chat</option>
+                                    <option value="Qwen/Qwen2.5-32B-Instruct">Qwen 2.5 32B Instruct</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="datasetPath">Dataset Path:</label>
+                            <select id="datasetPath" name="datasetPath">
+                                <option value="">Select dataset...</option>
+                                <option value="/workspace/RARdata.json">RARdata.json (149 records)</option>
+                                <option value="/workspace/RARdata_2.json">RARdata_2.json (299 records)</option>
+                            </select>
+                            <div class="param-hint">Or enter a custom path below</div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="customDatasetPath">Custom Dataset Path (optional):</label>
+                        <input type="text" id="customDatasetPath" placeholder="/workspace/your_dataset.jsonl">
+                        <div class="param-hint">JSONL or JSON format. Fields: prompt, instruction, or text</div>
+                    </div>
+                </div>
+
+                <!-- GRPO Parameters -->
+                <div class="section-group">
+                    <h3>🔄 GRPO Parameters</h3>
+                    <div class="grid-3">
+                        <div class="form-group">
+                            <label for="grpoNumGenerations">Generations per prompt (G):</label>
+                            <input type="number" id="grpoNumGenerations" value="8" min="2" max="64">
+                            <div class="param-hint">2-64. More = better advantage estimate</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="grpoTemperature">Sampling Temperature:</label>
+                            <input type="number" id="grpoTemperature" value="1.0" min="0.1" max="2.0" step="0.1">
+                            <div class="param-hint">0.1-2.0. Higher = more diverse samples</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="grpoBeta">KL Penalty (beta):</label>
+                            <input type="number" id="grpoBeta" value="0.04" min="0" max="1.0" step="0.01">
+                            <div class="param-hint">0-1.0. Regularization strength</div>
+                        </div>
+                    </div>
+                    <div class="grid-3">
+                        <div class="form-group">
+                            <label for="policyLearningRate">Learning Rate:</label>
+                            <input type="number" id="policyLearningRate" value="1e-6" step="1e-7">
+                            <div class="param-hint">Typical: 1e-6 to 5e-5</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="policyMaxSteps">Max Steps per Iteration:</label>
+                            <input type="number" id="policyMaxSteps" value="500" min="1" max="10000">
+                            <div class="param-hint">GRPO training steps</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="trajectoriesPerIter">Trajectories per Iteration:</label>
+                            <input type="number" id="trajectoriesPerIter" value="64" min="1" max="1000">
+                            <div class="param-hint">Prompts sampled each iter</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LoRA Configuration -->
+                <div class="section-group">
+                    <h3>🧬 LoRA Configuration</h3>
+                    <div class="grid-3">
+                        <div class="form-group">
+                            <label>Use LoRA:</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="useLora" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="form-group" id="loraRGroup">
+                            <label for="loraR">LoRA Rank (r):</label>
+                            <input type="number" id="loraR" value="64" min="4" max="256">
+                            <div class="param-hint">4-256. Higher = more params</div>
+                        </div>
+                        <div class="form-group" id="loraAlphaGroup">
+                            <label for="loraAlpha">LoRA Alpha:</label>
+                            <input type="number" id="loraAlpha" value="128" min="4" max="512">
+                            <div class="param-hint">Typically 2x rank</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reward Configuration -->
+                <div class="section-group">
+                    <h3>🏆 Reward Configuration</h3>
+                    <div class="grid-3">
+                        <div class="form-group">
+                            <label for="rewardOutcomeWeight">Outcome Weight (lambda):</label>
+                            <input type="range" id="rewardOutcomeWeight" min="0" max="1" step="0.05" value="0.6"
+                                   oninput="document.getElementById('outcomeWeightVal').textContent = this.value; document.getElementById('processWeightVal').textContent = (1 - this.value).toFixed(2);">
+                            <div class="param-hint">
+                                Outcome: <strong id="outcomeWeightVal">0.6</strong> /
+                                Process: <strong id="processWeightVal">0.4</strong>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="rewardSelfConsistencyK">Self-Consistency K:</label>
+                            <input type="number" id="rewardSelfConsistencyK" value="5" min="1" max="20">
+                            <div class="param-hint">Majority vote sample count</div>
+                        </div>
+                        <div class="form-group">&nbsp;</div>
+                    </div>
+                </div>
+
+                <!-- Environment Configuration -->
+                <div class="section-group">
+                    <h3>🌍 Environment (Adaptive Difficulty)</h3>
+                    <div class="grid-3">
+                        <div class="form-group">
+                            <label for="envSuccessRateLow">Success Rate Low Threshold:</label>
+                            <input type="number" id="envSuccessRateLow" value="0.2" min="0" max="1" step="0.05">
+                            <div class="param-hint">Below this: decrease difficulty</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="envSuccessRateHigh">Success Rate High Threshold:</label>
+                            <input type="number" id="envSuccessRateHigh" value="0.8" min="0" max="1" step="0.05">
+                            <div class="param-hint">Above this: increase difficulty</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="envMaxDifficulty">Max Difficulty Level:</label>
+                            <input type="number" id="envMaxDifficulty" value="5" min="1" max="10">
+                            <div class="param-hint">1-10</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Orchestration -->
+                <div class="section-group">
+                    <h3>🔧 Orchestration & Memory</h3>
+                    <div class="grid-3">
+                        <div class="form-group">
+                            <label for="numIterations">Total Iterations:</label>
+                            <input type="number" id="numIterations" value="10" min="1" max="100">
+                            <div class="param-hint">Closed-loop cycles</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="earlyStoppingPatience">Early Stopping Patience:</label>
+                            <input type="number" id="earlyStoppingPatience" value="3" min="1" max="20">
+                            <div class="param-hint">Iters without improvement</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="quantizationBits">Quantization Bits:</label>
+                            <select id="quantizationBits">
+                                <option value="4" selected>4-bit (Recommended)</option>
+                                <option value="8">8-bit</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid-3">
+                        <div class="form-group">
+                            <label>Use Quantization:</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="useQuantization" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>Gradient Checkpointing:</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="gradientCheckpointing" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>BF16 (Mixed Precision):</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="bf16" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Buttons -->
+                <div style="display: flex; gap: 15px; align-items: center; margin-top: 20px;">
+                    <button type="submit" class="btn" id="startTrainingBtn">
+                        🚀 Start GRPO Training
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="validateConfigBtn">
+                        ✅ Validate Config
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="loadDefaultsBtn">
+                        🔄 Reset to Defaults
+                    </button>
+                </div>
+            </form>
+            <div id="configResult" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- ============ Status Section ============ -->
+        <div class="section" id="statusSection">
+            <h2>📊 Training Progress</h2>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div>
+                    <strong>Task ID:</strong> <code id="currentTaskId">-</code>
+                    <span class="status-badge" id="statusBadge">-</span>
+                </div>
+                <button class="btn btn-danger btn-sm" id="stopTrainingBtn" style="display:none;">
+                    ⏹ Stop Training
+                </button>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%;">0%</div>
+            </div>
+            <div id="progressMessage" style="color:#888; font-size:0.9em; margin-bottom:15px;">Waiting...</div>
+
+            <!-- Metrics Cards -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-value" id="metricIteration">0/0</div>
+                    <div class="metric-label">Iteration</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="metricReward">0.0000</div>
+                    <div class="metric-label">Mean Reward</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="metricSuccessRate">0.00%</div>
+                    <div class="metric-label">Success Rate</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="metricDifficulty">1</div>
+                    <div class="metric-label">Difficulty</div>
+                </div>
+            </div>
+
+            <!-- Logs -->
+            <div class="log-area" id="trainingLog">RLAnything GRPO Training - Waiting for start...</div>
+
+            <!-- Result Section -->
+            <div id="resultSection" class="hidden" style="margin-top: 20px;">
+                <h3>🎉 Training Complete</h3>
+                <div id="resultContent"></div>
+            </div>
+        </div>
+
+        <!-- ============ Task History ============ -->
+        <div class="section" id="taskHistory">
+            <h2>📋 Training History</h2>
+            <button class="btn btn-secondary btn-sm" id="refreshHistoryBtn" style="margin-bottom:15px;">
+                🔄 Refresh
+            </button>
+            <div id="taskListContainer">
+                <div style="color:#888; text-align:center; padding:20px;">Loading history...</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+(function() {
+    'use strict';
+
+    // ── State ──
+    let currentTaskId = null;
+    let pollingInterval = null;
+
+    // ── DOM refs ──
+    const form = document.getElementById('rlTrainingForm');
+    const startBtn = document.getElementById('startTrainingBtn');
+    const stopBtn = document.getElementById('stopTrainingBtn');
+    const statusSection = document.getElementById('statusSection');
+    const taskHistory = document.getElementById('taskHistory');
+    const logArea = document.getElementById('trainingLog');
+    const configResult = document.getElementById('configResult');
+
+    // ── Helpers ──
+    function log(msg) {
+        const ts = new Date().toLocaleTimeString('ja-JP');
+        logArea.textContent += '\n[' + ts + '] ' + msg;
+        logArea.scrollTop = logArea.scrollHeight;
+    }
+
+    function showResult(el, msg, isError) {
+        el.innerHTML = '<div class="result ' + (isError ? 'error' : '') + '">' + msg + '</div>';
+    }
+
+    function getDatasetPath() {
+        const custom = document.getElementById('customDatasetPath').value.trim();
+        if (custom) return custom;
+        return document.getElementById('datasetPath').value || null;
+    }
+
+    // ── LoRA toggle ──
+    document.getElementById('useLora').addEventListener('change', function() {
+        const show = this.checked;
+        document.getElementById('loraRGroup').style.opacity = show ? '1' : '0.4';
+        document.getElementById('loraAlphaGroup').style.opacity = show ? '1' : '0.4';
+        document.getElementById('loraR').disabled = !show;
+        document.getElementById('loraAlpha').disabled = !show;
+    });
+
+    // ── Build request payload ──
+    function buildPayload() {
+        return {
+            model_name: document.getElementById('modelName').value,
+            dataset_path: getDatasetPath(),
+            grpo_num_generations: parseInt(document.getElementById('grpoNumGenerations').value),
+            grpo_temperature: parseFloat(document.getElementById('grpoTemperature').value),
+            grpo_beta: parseFloat(document.getElementById('grpoBeta').value),
+            policy_learning_rate: parseFloat(document.getElementById('policyLearningRate').value),
+            policy_max_steps: parseInt(document.getElementById('policyMaxSteps').value),
+            trajectories_per_iteration: parseInt(document.getElementById('trajectoriesPerIter').value),
+            use_lora: document.getElementById('useLora').checked,
+            lora_r: parseInt(document.getElementById('loraR').value),
+            lora_alpha: parseInt(document.getElementById('loraAlpha').value),
+            reward_outcome_weight: parseFloat(document.getElementById('rewardOutcomeWeight').value),
+            reward_self_consistency_k: parseInt(document.getElementById('rewardSelfConsistencyK').value),
+            env_success_rate_low: parseFloat(document.getElementById('envSuccessRateLow').value),
+            env_success_rate_high: parseFloat(document.getElementById('envSuccessRateHigh').value),
+            env_max_difficulty: parseInt(document.getElementById('envMaxDifficulty').value),
+            num_iterations: parseInt(document.getElementById('numIterations').value),
+            early_stopping_patience: parseInt(document.getElementById('earlyStoppingPatience').value),
+            use_quantization: document.getElementById('useQuantization').checked,
+            quantization_bits: parseInt(document.getElementById('quantizationBits').value),
+            gradient_checkpointing: document.getElementById('gradientCheckpointing').checked,
+            bf16: document.getElementById('bf16').checked,
+        };
+    }
+
+    // ── Start Training ──
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        if (!document.getElementById('modelName').value) {
+            alert('Please select a base model.');
+            return;
+        }
+
+        startBtn.disabled = true;
+        startBtn.textContent = '⏳ Starting...';
+        configResult.innerHTML = '';
+
+        try {
+            const payload = buildPayload();
+            log('Starting GRPO training: model=' + payload.model_name + ', iters=' + payload.num_iterations);
+
+            const resp = await fetch('/api/rl/train', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            if (!resp.ok) {
+                const err = await resp.json();
+                throw new Error(err.detail || 'Training start failed');
+            }
+
+            const data = await resp.json();
+            currentTaskId = data.task_id;
+            log('Training started: task_id=' + currentTaskId);
+
+            // Show status section
+            statusSection.style.display = 'block';
+            document.getElementById('currentTaskId').textContent = currentTaskId;
+            stopBtn.style.display = 'inline-block';
+
+            // Reset metrics
+            updateMetrics(null);
+
+            // Start polling
+            startPolling();
+
+        } catch (err) {
+            log('ERROR: ' + err.message);
+            showResult(configResult, '❌ ' + err.message, true);
+        } finally {
+            startBtn.disabled = false;
+            startBtn.textContent = '🚀 Start GRPO Training';
+        }
+    });
+
+    // ── Stop Training ──
+    stopBtn.addEventListener('click', async function() {
+        if (!currentTaskId) return;
+        if (!confirm('Stop training task ' + currentTaskId + '?')) return;
+
+        try {
+            const resp = await fetch('/api/rl/stop/' + currentTaskId, { method: 'POST' });
+            const data = await resp.json();
+            log('Stop requested: ' + JSON.stringify(data));
+        } catch (err) {
+            log('Stop error: ' + err.message);
+        }
+    });
+
+    // ── Status Polling ──
+    function startPolling() {
+        if (pollingInterval) clearInterval(pollingInterval);
+        pollingInterval = setInterval(pollStatus, 2000);
+    }
+
+    function stopPolling() {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+        }
+    }
+
+    async function pollStatus() {
+        if (!currentTaskId) return;
+
+        try {
+            const resp = await fetch('/api/rl/status/' + currentTaskId);
+            if (!resp.ok) return;
+            const data = await resp.json();
+
+            // Update badge
+            const badge = document.getElementById('statusBadge');
+            badge.textContent = data.status;
+            badge.className = 'status-badge status-' + data.status;
+
+            // Update progress message
+            if (data.progress_message) {
+                document.getElementById('progressMessage').textContent = data.progress_message;
+            }
+
+            // Update progress bar & metrics
+            if (data.progress) {
+                const p = data.progress;
+                const totalIter = data.num_iterations || 10;
+                const curIter = p.current_iteration || 0;
+                const pct = Math.round((curIter / totalIter) * 100);
+
+                document.getElementById('progressFill').style.width = pct + '%';
+                document.getElementById('progressFill').textContent = pct + '%';
+
+                document.getElementById('metricIteration').textContent = curIter + '/' + totalIter;
+                document.getElementById('metricReward').textContent = (p.mean_reward || 0).toFixed(4);
+                document.getElementById('metricSuccessRate').textContent = ((p.success_rate || 0) * 100).toFixed(1) + '%';
+                document.getElementById('metricDifficulty').textContent = p.difficulty || 1;
+
+                log('Iter ' + curIter + '/' + totalIter +
+                    ': reward=' + (p.mean_reward || 0).toFixed(4) +
+                    ', success=' + ((p.success_rate || 0) * 100).toFixed(1) + '%' +
+                    ', difficulty=' + (p.difficulty || 1));
+            }
+
+            // Handle terminal states
+            if (data.status === 'completed') {
+                stopPolling();
+                log('Training completed!');
+                stopBtn.style.display = 'none';
+
+                document.getElementById('progressFill').style.width = '100%';
+                document.getElementById('progressFill').textContent = '100%';
+
+                if (data.result) {
+                    const r = data.result;
+                    document.getElementById('resultSection').classList.remove('hidden');
+                    document.getElementById('resultContent').innerHTML =
+                        '<div class="result">' +
+                        '<p><strong>Adapter Path:</strong> <code>' + (r.adapter_path || '-') + '</code></p>' +
+                        '<p><strong>Final Mean Reward:</strong> ' + (r.final_mean_reward || 0).toFixed(4) + '</p>' +
+                        '<p><strong>Final Success Rate:</strong> ' + ((r.final_success_rate || 0) * 100).toFixed(1) + '%</p>' +
+                        '<p><strong>Iterations Completed:</strong> ' + (r.iterations_completed || 0) + '</p>' +
+                        '<p><strong>Elapsed Time:</strong> ' + (r.elapsed_time || 0).toFixed(1) + 's</p>' +
+                        '</div>';
+                }
+                loadTaskHistory();
+
+            } else if (data.status === 'failed') {
+                stopPolling();
+                log('Training FAILED: ' + (data.error || 'unknown'));
+                stopBtn.style.display = 'none';
+                showResult(configResult, '❌ Training failed: ' + (data.error || 'unknown'), true);
+                loadTaskHistory();
+            }
+
+        } catch (err) {
+            // Silently retry on network error
+        }
+    }
+
+    function updateMetrics(progress) {
+        if (!progress) {
+            document.getElementById('metricIteration').textContent = '0/0';
+            document.getElementById('metricReward').textContent = '0.0000';
+            document.getElementById('metricSuccessRate').textContent = '0.00%';
+            document.getElementById('metricDifficulty').textContent = '1';
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressFill').textContent = '0%';
+            document.getElementById('resultSection').classList.add('hidden');
+        }
+    }
+
+    // ── Validate Config ──
+    document.getElementById('validateConfigBtn').addEventListener('click', async function() {
+        try {
+            const payload = buildPayload();
+            const resp = await fetch('/api/rl/validate-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await resp.json();
+
+            if (data.valid) {
+                showResult(configResult, '✅ Configuration is valid!', false);
+            } else {
+                const warns = (data.warnings || []).map(function(w) { return '- ' + w; }).join('<br>');
+                showResult(configResult, '⚠️ Validation warnings:<br>' + warns, true);
+            }
+        } catch (err) {
+            showResult(configResult, '❌ Validation error: ' + err.message, true);
+        }
+    });
+
+    // ── Load Defaults ──
+    document.getElementById('loadDefaultsBtn').addEventListener('click', async function() {
+        try {
+            const resp = await fetch('/api/rl/config/default');
+            const cfg = await resp.json();
+
+            if (cfg.grpo_num_generations) document.getElementById('grpoNumGenerations').value = cfg.grpo_num_generations;
+            if (cfg.grpo_temperature) document.getElementById('grpoTemperature').value = cfg.grpo_temperature;
+            if (cfg.grpo_beta) document.getElementById('grpoBeta').value = cfg.grpo_beta;
+            if (cfg.policy_learning_rate) document.getElementById('policyLearningRate').value = cfg.policy_learning_rate;
+            if (cfg.policy_max_steps) document.getElementById('policyMaxSteps').value = cfg.policy_max_steps;
+            if (cfg.trajectories_per_iteration) document.getElementById('trajectoriesPerIter').value = cfg.trajectories_per_iteration;
+            if (cfg.lora_r) document.getElementById('loraR').value = cfg.lora_r;
+            if (cfg.lora_alpha) document.getElementById('loraAlpha').value = cfg.lora_alpha;
+            if (cfg.reward_outcome_weight !== undefined) {
+                document.getElementById('rewardOutcomeWeight').value = cfg.reward_outcome_weight;
+                document.getElementById('outcomeWeightVal').textContent = cfg.reward_outcome_weight;
+                document.getElementById('processWeightVal').textContent = (1 - cfg.reward_outcome_weight).toFixed(2);
+            }
+            if (cfg.reward_self_consistency_k) document.getElementById('rewardSelfConsistencyK').value = cfg.reward_self_consistency_k;
+            if (cfg.num_iterations) document.getElementById('numIterations').value = cfg.num_iterations;
+            if (cfg.early_stopping_patience) document.getElementById('earlyStoppingPatience').value = cfg.early_stopping_patience;
+
+            showResult(configResult, '✅ Defaults loaded', false);
+        } catch (err) {
+            showResult(configResult, '❌ Failed to load defaults: ' + err.message, true);
+        }
+    });
+
+    // ── Task History ──
+    async function loadTaskHistory() {
+        taskHistory.style.display = 'block';
+
+        try {
+            const resp = await fetch('/api/rl/tasks');
+            const data = await resp.json();
+            const container = document.getElementById('taskListContainer');
+
+            if (!data.tasks || Object.keys(data.tasks).length === 0) {
+                container.innerHTML = '<div style="color:#888; text-align:center; padding:20px;">No training tasks yet.</div>';
+                return;
+            }
+
+            // Sort by created_at desc
+            const sorted = Object.values(data.tasks).sort(function(a, b) {
+                return (b.created_at || '').localeCompare(a.created_at || '');
+            });
+
+            let html = '';
+            sorted.forEach(function(task) {
+                const statusClass = 'status-' + task.status;
+                const result = task.result || {};
+                const reward = result.final_mean_reward ? result.final_mean_reward.toFixed(4) : '-';
+                const iters = result.iterations_completed || '-';
+                const elapsed = result.elapsed_time ? result.elapsed_time.toFixed(1) + 's' : '-';
+
+                html += '<div class="task-list-item" onclick="selectTask(\'' + task.task_id + '\')">' +
+                    '<div class="task-info">' +
+                    '<div class="task-model">' + (task.model_name || '-') + '</div>' +
+                    '<div class="task-time">' +
+                    'ID: ' + task.task_id +
+                    ' | Created: ' + (task.created_at || '-') +
+                    ' | Iters: ' + iters +
+                    ' | Reward: ' + reward +
+                    ' | Time: ' + elapsed +
+                    '</div>' +
+                    '</div>' +
+                    '<span class="status-badge ' + statusClass + '">' + task.status + '</span>' +
+                    '</div>';
+            });
+            container.innerHTML = html;
+        } catch (err) {
+            document.getElementById('taskListContainer').innerHTML =
+                '<div style="color:red; padding:20px;">Failed to load: ' + err.message + '</div>';
+        }
+    }
+
+    // Global function for task selection
+    window.selectTask = function(taskId) {
+        currentTaskId = taskId;
+        statusSection.style.display = 'block';
+        document.getElementById('currentTaskId').textContent = taskId;
+        logArea.textContent = 'Loading status for task ' + taskId + '...';
+
+        // Check if running
+        fetch('/api/rl/status/' + taskId)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.status === 'running') {
+                    stopBtn.style.display = 'inline-block';
+                    startPolling();
+                } else {
+                    stopBtn.style.display = 'none';
+                    stopPolling();
+                }
+                // Trigger one poll immediately
+                pollStatus();
+            });
+    };
+
+    document.getElementById('refreshHistoryBtn').addEventListener('click', loadTaskHistory);
+
+    // ── Init ──
+    loadTaskHistory();
+
+})();
+{% endblock %}

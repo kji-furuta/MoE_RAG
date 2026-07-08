@@ -1,568 +1,843 @@
-"""
-モデル管理関連のAPIルーター
-"""
+"""Model management API router: convert, list, delete, stream, generate."""
 
-import os
+from __future__ import annotations
+
 import json
-import shutil
 import subprocess
-from pathlib import Path
+import sys
+import uuid
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 
-# 日本時間（JST）の設定
+import torch
+import yaml
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi.responses import JSONResponse, StreamingResponse
+from transformers import AutoModelForCausalLM
+
+from ..dependencies import logger, model_cache, training_tasks
+from ..model_utils import load_tokenizer, create_quantization_config
+import app.dependencies as _deps
+
 JST = timezone(timedelta(hours=9))
-from typing import Dict, Any, List
-
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
-
-from ..training.models import GenerationRequest
-from ..dependencies import logger, PROJECT_ROOT, OUTPUTS_DIR, model_cache
 
 router = APIRouter(prefix="/api", tags=["models"])
 
-# Ollama統合の可用性
-OLLAMA_AVAILABLE = False
 
-try:
-    from src.integrations.ollama_integration import OllamaIntegration
-    OLLAMA_AVAILABLE = True
-    logger.info("Ollama統合が利用可能です")
-except ImportError:
-    logger.warning("Ollama統合が利用できません")
+# ---------------------------------------------------------------------------
+# Lazy Ollama helper
+# ---------------------------------------------------------------------------
+
+def _get_ollama():
+    """Return (OllamaIntegration_instance, True) or (None, False)."""
+    if not _deps.OLLAMA_AVAILABLE:
+        return None, False
+    try:
+        scripts_convert_path = Path(__file__).parent.parent.parent / "scripts" / "convert"
+        if str(scripts_convert_path) not in sys.path:
+            sys.path.insert(0, str(scripts_convert_path))
+        from ollama_integration import OllamaIntegration
+        return OllamaIntegration(), True
+    except ImportError:
+        return None, False
 
 
-def get_saved_models() -> List[Dict[str, Any]]:
-    """保存されたモデル一覧を取得"""
-    models = []
-    
-    if OUTPUTS_DIR.exists():
-        for model_dir in OUTPUTS_DIR.iterdir():
-            if model_dir.is_dir():
+# ---------------------------------------------------------------------------
+# Convert endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/convert-to-ollama")
+async def convert_finetuned_to_ollama(request: dict):
+    """ファインチューニング済みモデルをOllama形式に変換"""
+    try:
+        model_path = request.get("model_path")
+        model_name = request.get("model_name", "road-engineering-expert")
+
+        if not model_path:
+            return {"success": False, "error": "model_pathが指定されていません"}
+
+        logger.info(f"ファインチューニング済みモデルのOllama変換開始: {model_path}")
+
+        script_path = Path("convert_finetuned_to_ollama.py")
+        if not script_path.exists():
+            return {"success": False, "error": "変換スクリプトが見つかりません"}
+
+        cmd = [sys.executable, str(script_path)]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=7200)
+
+        if result.returncode == 0:
+            logger.info("ファインチューニング済みモデルのOllama変換が完了しました")
+            return {
+                "success": True,
+                "model_name": model_name,
+                "message": "ファインチューニング済みモデルがOllamaで使用可能になりました",
+                "usage": f"ollama run {model_name}",
+            }
+        else:
+            logger.error(f"変換エラー: {result.stderr}")
+            return {"success": False, "error": result.stderr}
+
+    except subprocess.TimeoutExpired:
+        logger.error("変換がタイムアウトしました")
+        return {"success": False, "error": "Conversion timeout"}
+    except Exception as e:
+        logger.error(f"変換エラー: {str(e)}")
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/apply-lora-to-ollama")
+async def apply_lora_to_ollama(request: dict, background_tasks: BackgroundTasks):
+    """LoRAアダプターをGGUFベースモデルに適用してOllamaに登録"""
+    try:
+        base_model_url = request.get("base_model_url")
+        base_model_name = request.get("base_model_name", "DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf")
+        lora_adapter_path = request.get("lora_adapter_path")
+        output_model_name = request.get("output_model_name", "deepseek-32b-finetuned")
+        use_improved_version = request.get("use_improved_version", True)
+
+        task_id = str(uuid.uuid4())
+
+        async def run_conversion():
+            try:
+                dynamic_script_path = "/workspace/scripts/apply_lora_gpt_neox_dynamic.py"
+                auto_script_path = "/workspace/scripts/apply_lora_to_gguf_auto.py"
+
+                if Path(dynamic_script_path).exists() and "gpt-neox" in base_model_name.lower():
+                    script_path = dynamic_script_path
+                    logger.info("動的適用版LoRAスクリプトを使用（GPT-NeoX ワークフローB）")
+                elif Path(auto_script_path).exists():
+                    script_path = auto_script_path
+                    logger.info("自動判定版LoRA適用スクリプトを使用")
+                elif use_improved_version:
+                    script_path = "/workspace/scripts/apply_lora_to_gguf_improved.py"
+                else:
+                    script_path = "/workspace/scripts/apply_lora_to_gguf.py"
+
+                cmd = ["python", script_path]
+
+                if "dynamic" in script_path:
+                    cmd.extend([
+                        "--base-gguf", f"/workspace/models/{base_model_name}",
+                        "--lora-adapter", lora_adapter_path if lora_adapter_path else "/workspace/outputs/lora_latest",
+                        "--output-dir", f"/workspace/outputs/workflow_b_{output_model_name}",
+                        "--ollama-create", output_model_name,
+                    ])
+                else:
+                    if base_model_url:
+                        cmd.extend(["--base-model-url", base_model_url])
+                    cmd.extend(["--base-model-name", base_model_name, "--output-name", output_model_name])
+                    if lora_adapter_path:
+                        cmd.extend(["--lora-adapter", lora_adapter_path])
+
+                logger.info(f"LoRA to Ollama変換開始: {' '.join(cmd)}")
+                result = subprocess.run(cmd, capture_output=True, text=True)
+
+                if result.returncode == 0:
+                    if task_id in training_tasks:
+                        training_tasks[task_id]["status"] = "completed"
+                        training_tasks[task_id]["message"] = f"Model {output_model_name} created successfully"
+                        training_tasks[task_id]["model_name"] = output_model_name
+                        logger.info(f"LoRA to Ollama変換成功: {output_model_name}")
+                else:
+                    if task_id in training_tasks:
+                        training_tasks[task_id]["status"] = "error"
+                        training_tasks[task_id]["message"] = result.stderr
+                        logger.error(f"LoRA to Ollama変換失敗: {result.stderr}")
+
+            except Exception as e:
+                if task_id in training_tasks:
+                    training_tasks[task_id]["status"] = "error"
+                    training_tasks[task_id]["message"] = str(e)
+                logger.error(f"LoRA to Ollama変換エラー: {str(e)}")
+
+        training_tasks[task_id] = {
+            "status": "running",
+            "message": "Converting LoRA adapter to Ollama format...",
+            "progress": 0,
+            "task_id": task_id,
+        }
+
+        background_tasks.add_task(run_conversion)
+
+        return {"status": "started", "task_id": task_id, "message": "LoRA to Ollama conversion started"}
+
+    except Exception as e:
+        logger.error(f"LoRA to Ollama conversion error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/convert-to-ollama-wsl")
+async def convert_finetuned_to_ollama_wsl(request: dict):
+    """WSL環境用：ファインチューニング済みモデルをOllama形式に変換"""
+    try:
+        model_path = request.get("model_path")
+        model_name = request.get("model_name", "road-engineering-expert")
+
+        if not model_path:
+            return {"success": False, "error": "model_pathが指定されていません"}
+
+        logger.info(f"WSL環境でファインチューニング済みモデルのOllama変換開始: {model_path}")
+
+        script_path = Path("setup_wsl_ollama.py")
+        if not script_path.exists():
+            return {"success": False, "error": "WSL変換スクリプトが見つかりません"}
+
+        cmd = [sys.executable, str(script_path)]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=7200)
+
+        if result.returncode == 0:
+            logger.info("WSL環境でのファインチューニング済みモデルのOllama変換が完了しました")
+            return {
+                "success": True,
+                "model_name": model_name,
+                "message": "WSL環境でファインチューニング済みモデルがOllamaで使用可能になりました",
+                "usage": f"ollama run {model_name}",
+            }
+        else:
+            logger.error(f"WSL変換エラー: {result.stderr}")
+            return {"success": False, "error": result.stderr}
+
+    except subprocess.TimeoutExpired:
+        logger.error("WSL変換がタイムアウトしました")
+        return {"success": False, "error": "Conversion timeout"}
+    except Exception as e:
+        logger.error(f"WSL変換エラー: {str(e)}")
+        return {"success": False, "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# List / query endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/finetuned-lora-models")
+async def get_finetuned_lora_models():
+    """ファインチューニング済みのLoRAアダプターモデルを取得"""
+    try:
+        models = []
+        outputs_dir = Path("/workspace/outputs")
+
+        if outputs_dir.exists():
+            # safetensors
+            for path in outputs_dir.rglob("adapter_model.safetensors"):
+                model_dir = path.parent
+                config_path = model_dir / "adapter_config.json"
+
                 model_info = {
-                    "name": model_dir.name,
                     "path": str(model_dir),
-                    # JSTのISO形式で作成日時を提供
-                    "created_at": datetime.fromtimestamp(model_dir.stat().st_mtime, tz=JST).isoformat()
+                    "name": model_dir.name,
+                    "type": "lora",
+                    "format": "safetensors",
                 }
-                
-                # training_info.jsonがあれば読み込む
-                training_info_file = model_dir / "training_info.json"
-                if training_info_file.exists():
+
+                if config_path.exists():
                     try:
-                        with open(training_info_file, 'r', encoding='utf-8') as f:
-                            training_info = json.load(f)
-                            model_info.update({
-                                "base_model": training_info.get("base_model", "unknown"),
-                                "training_method": training_info.get("training_method", "unknown"),
-                                "epochs": training_info.get("epochs", 0)
-                            })
-                    except Exception as e:
-                        logger.warning(f"training_info.json読み込みエラー: {e}")
-                
-                # model_info.jsonがあれば読み込む（継続学習モデル用）
-                model_info_file = model_dir / "model_info.json"
-                if model_info_file.exists():
-                    try:
-                        with open(model_info_file, 'r', encoding='utf-8') as f:
-                            saved_info = json.load(f)
-                            model_info.update(saved_info)
-                    except Exception as e:
-                        logger.warning(f"model_info.json読み込みエラー: {e}")
-                
+                        with open(config_path, "r") as f:
+                            config = json.load(f)
+                            model_info["base_model"] = config.get("base_model_name_or_path", "unknown")
+                            model_info["r"] = config.get("r", "unknown")
+                            model_info["alpha"] = config.get("lora_alpha", "unknown")
+                    except Exception:
+                        pass
+
+                try:
+                    jst = timezone(timedelta(hours=9), name="JST")
+                    created_dt = datetime.fromtimestamp(model_dir.stat().st_mtime, tz=jst)
+                    model_info["created"] = created_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                except Exception:
+                    model_info["created"] = datetime.fromtimestamp(
+                        model_dir.stat().st_mtime
+                    ).strftime("%Y-%m-%d %H:%M:%S")
+
                 models.append(model_info)
-    
-    return models
 
+            # bin format
+            for path in outputs_dir.rglob("adapter_model.bin"):
+                model_dir = path.parent
+                if any(m["path"] == str(model_dir) for m in models):
+                    continue
+                config_path = model_dir / "adapter_config.json"
 
-@router.get("/system-info")
-async def get_system_info():
-    """システム情報を取得"""
-    try:
-        import torch
-        import psutil
-        
-        system_info = {
-            "pytorch_version": torch.__version__,
-            "cuda_available": torch.cuda.is_available(),
-            "cuda_version": torch.version.cuda if torch.cuda.is_available() else None,
-            "gpu_count": torch.cuda.device_count() if torch.cuda.is_available() else 0,
-            "cpu_count": psutil.cpu_count(),
-            "memory_total": f"{psutil.virtual_memory().total / (1024**3):.2f} GB",
-            "memory_available": f"{psutil.virtual_memory().available / (1024**3):.2f} GB",
-            "memory_percent": psutil.virtual_memory().percent,
-        }
-        
-        if torch.cuda.is_available():
-            for i in range(torch.cuda.device_count()):
-                gpu_name = torch.cuda.get_device_name(i)
-                gpu_memory = torch.cuda.get_device_properties(i).total_memory / (1024**3)
-                system_info[f"gpu_{i}_name"] = gpu_name
-                system_info[f"gpu_{i}_memory"] = f"{gpu_memory:.2f} GB"
-        
-        return system_info
-        
+                model_info = {
+                    "path": str(model_dir),
+                    "name": model_dir.name,
+                    "type": "lora",
+                    "format": "bin",
+                }
+
+                if config_path.exists():
+                    try:
+                        with open(config_path, "r") as f:
+                            config = json.load(f)
+                            model_info["base_model"] = config.get("base_model_name_or_path", "unknown")
+                            model_info["r"] = config.get("r", "unknown")
+                            model_info["alpha"] = config.get("lora_alpha", "unknown")
+                    except Exception:
+                        pass
+
+                try:
+                    jst = timezone(timedelta(hours=9), name="JST")
+                    created_dt = datetime.fromtimestamp(model_dir.stat().st_mtime, tz=jst)
+                    model_info["created"] = created_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                except Exception:
+                    model_info["created"] = datetime.fromtimestamp(
+                        model_dir.stat().st_mtime
+                    ).strftime("%Y-%m-%d %H:%M:%S")
+
+                models.append(model_info)
+
+        models.sort(key=lambda x: x["created"], reverse=True)
+        return {"success": True, "models": models, "count": len(models)}
+
     except Exception as e:
-        logger.error(f"システム情報取得エラー: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/clear-cache")
-async def clear_model_cache():
-    """モデルキャッシュをクリア"""
-    try:
-        import torch
-        import gc
-        
-        # キャッシュをクリア
-        model_cache.clear()
-        
-        # GPUメモリを解放
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        
-        # ガベージコレクション
-        gc.collect()
-        
-        logger.info("モデルキャッシュとGPUメモリをクリアしました")
-        
-        return {
-            "status": "success",
-            "message": "Model cache and GPU memory cleared successfully"
-        }
-        
-    except Exception as e:
-        logger.error(f"キャッシュクリアエラー: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error getting finetuned LoRA models: {e}")
+        return {"success": False, "error": str(e), "models": []}
 
 
 @router.get("/available-models")
 async def get_available_models():
     """利用可能なファインチューニング済みモデルとOllamaモデルを取得"""
     try:
-        models = {
-            "finetuned_models": [],
-            "ollama_models": []
-        }
-        
+        models: dict = {"finetuned_models": [], "ollama_models": []}
+
         # ファインチューニング済みモデルの検索
-        if OUTPUTS_DIR.exists():
-            for model_dir in OUTPUTS_DIR.iterdir():
-                if model_dir.is_dir():
-                    # モデルファイルの存在確認
-                    has_model_files = (
-                        (model_dir / "pytorch_model.bin").exists() or
-                        (model_dir / "adapter_model.safetensors").exists() or
-                        (model_dir / "adapter_config.json").exists() or
-                        (model_dir / "config.json").exists()
-                    )
-                    
-                    if has_model_files:
-                        # モデル情報を取得
-                        config_path = model_dir / "config.json"
-                        training_info_path = model_dir / "training_info.json"
-                        
-                        model_info = {
-                            "name": model_dir.name,
-                            "path": str(model_dir),
-                            "type": "finetuned",
-                            "size": "Unknown",
-                            "created": "Unknown"
-                        }
-                        
-                        # 設定ファイルから情報を読み取り
-                        if config_path.exists():
+        outputs_dir = Path("outputs")
+        if outputs_dir.exists():
+            for model_dir in outputs_dir.iterdir():
+                if not model_dir.is_dir():
+                    continue
+                has_model_files = (
+                    (model_dir / "pytorch_model.bin").exists()
+                    or (model_dir / "adapter_model.safetensors").exists()
+                    or (model_dir / "adapter_config.json").exists()
+                    or (model_dir / "config.json").exists()
+                )
+                if not has_model_files:
+                    continue
+
+                config_path = model_dir / "config.json"
+                training_info_path = model_dir / "training_info.json"
+
+                model_info: dict = {
+                    "name": model_dir.name,
+                    "path": str(model_dir),
+                    "type": "finetuned",
+                    "size": "Unknown",
+                    "created": "Unknown",
+                }
+
+                if config_path.exists():
+                    try:
+                        with open(config_path, "r", encoding="utf-8") as f:
+                            config = json.load(f)
+                            model_info["base_model"] = config.get("_name_or_path", "Unknown")
+                            model_info["model_type"] = config.get("model_type", "Unknown")
+                    except Exception:
+                        pass
+
+                if training_info_path.exists():
+                    try:
+                        with open(training_info_path, "r", encoding="utf-8") as f:
+                            training_info = json.load(f)
+                            model_info["training_method"] = training_info.get("training_method", "unknown")
+                            created_str = training_info.get("created_at") or training_info.get("timestamp")
+                            formatted_created = None
                             try:
-                                with open(config_path, 'r', encoding='utf-8') as f:
-                                    config = json.load(f)
-                                    model_info["base_model"] = config.get("_name_or_path", "Unknown")
-                                    model_info["model_type"] = config.get("model_type", "Unknown")
-                            except:
-                                pass
-                        
-                        # 訓練情報から詳細を取得
-                        if training_info_path.exists():
-                            try:
-                                with open(training_info_path, 'r', encoding='utf-8') as f:
-                                    training_info = json.load(f)
-                                    model_info["training_method"] = training_info.get("training_method", "unknown")
-                                    # JST表記の作成日時に正規化
-                                    created_str = training_info.get("created_at") or training_info.get("timestamp")
-                                    formatted_created = None
-                                    try:
-                                        if isinstance(created_str, str):
-                                            if 'T' in created_str:
-                                                iso = created_str.replace('Z', '+00:00')
-                                                dt = datetime.fromisoformat(iso)
-                                                formatted_created = dt.astimezone(JST).strftime('%Y-%m-%d %H:%M:%S JST')
-                                            elif '_' in created_str and len(created_str) >= 15:
-                                                dt2 = datetime.strptime(created_str[:15], '%Y%m%d_%H%M%S').replace(tzinfo=JST)
-                                                formatted_created = dt2.strftime('%Y-%m-%d %H:%M:%S JST')
-                                    except Exception:
-                                        formatted_created = None
-                                    if not formatted_created:
-                                        formatted_created = datetime.fromtimestamp(model_dir.stat().st_mtime, tz=JST).strftime('%Y-%m-%d %H:%M:%S JST')
-                                    model_info["created"] = formatted_created
-                            except:
-                                pass
-                        
-                        # モデルタイプの判定
-                        if "qlora" in model_dir.name.lower() or "4bit" in model_dir.name.lower():
-                            model_info["training_method"] = "qlora"
-                            model_info["size"] = "~1.0MB"
-                        elif "lora" in model_dir.name.lower():
-                            model_info["training_method"] = "lora"
-                            model_info["size"] = "~1.6MB"
-                        elif "フルファインチューニング" in model_dir.name:
-                            model_info["training_method"] = "full"
-                            model_info["size"] = "~500MB+"
-                        
-                        models["finetuned_models"].append(model_info)
-                        logger.info(f"ファインチューニング済みモデルを検出: {model_dir.name}")
-        
+                                if isinstance(created_str, str):
+                                    if "T" in created_str:
+                                        iso = created_str.replace("Z", "+00:00")
+                                        dt = datetime.fromisoformat(iso)
+                                        formatted_created = dt.astimezone(JST).strftime("%Y-%m-%d %H:%M:%S JST")
+                                    elif "_" in created_str and len(created_str) >= 15:
+                                        try:
+                                            dt2 = datetime.strptime(created_str[:15], "%Y%m%d_%H%M%S").replace(tzinfo=JST)
+                                            formatted_created = dt2.strftime("%Y-%m-%d %H:%M:%S JST")
+                                        except Exception:
+                                            formatted_created = None
+                            except Exception:
+                                formatted_created = None
+                            if not formatted_created:
+                                formatted_created = datetime.fromtimestamp(
+                                    model_dir.stat().st_mtime, tz=JST
+                                ).strftime("%Y-%m-%d %H:%M:%S JST")
+                            model_info["created"] = formatted_created
+                            model_info["created_at"] = formatted_created
+                            model_info["base_model"] = training_info.get(
+                                "base_model", model_info.get("base_model", "Unknown")
+                            )
+                    except Exception:
+                        pass
+
+                # モデルタイプの判定
+                if "continual_task" in model_dir.name.lower():
+                    model_info["training_method"] = "continual"
+                    model_info["type"] = "継続学習 (EWC)"
+                    model_info["size"] = "~500MB+"
+                elif "qlora" in model_dir.name.lower() or "4bit" in model_dir.name.lower():
+                    model_info["training_method"] = "qlora"
+                    model_info["type"] = "QLoRA (4bit)"
+                    model_info["size"] = "~1.0MB"
+                elif "lora" in model_dir.name.lower():
+                    model_info["training_method"] = "lora"
+                    model_info["type"] = "LoRA"
+                    model_info["size"] = "~1.6MB"
+                elif "フルファインチューニング" in model_dir.name:
+                    model_info["training_method"] = "full"
+                    model_info["type"] = "フルファインチューニング"
+                    model_info["size"] = "~500MB+"
+                elif "openagentrl" in model_dir.name.lower() or "_rl_" in model_dir.name.lower():
+                    model_info["training_method"] = "rl"
+                    model_info["type"] = "強化学習 (RL)"
+                    model_info["size"] = "~15GB"
+
+                models["finetuned_models"].append(model_info)
+                logger.info(f"ファインチューニング済みモデルを検出: {model_dir.name}")
+
         # Ollamaモデルの検索
-        if OLLAMA_AVAILABLE:
+        ollama, available = _get_ollama()
+        if available and ollama is not None:
             try:
-                ollama = OllamaIntegration()
                 ollama_models = ollama.list_models()
                 logger.debug(f"Ollamaモデル取得結果: {ollama_models}")
-                
+
                 if ollama_models.get("success", False):
                     for model in ollama_models.get("models", []):
                         modified_raw = model.get("modified", "Unknown")
                         modified_jst = modified_raw
                         if isinstance(modified_raw, str):
                             try:
-                                iso = modified_raw.replace('Z', '+00:00')
+                                iso = modified_raw.replace("Z", "+00:00")
                                 dtm = datetime.fromisoformat(iso)
-                                modified_jst = dtm.astimezone(JST).strftime('%Y-%m-%d %H:%M:%S JST')
+                                modified_jst = dtm.astimezone(JST).strftime("%Y-%m-%d %H:%M:%S JST")
                             except Exception:
                                 pass
                         models["ollama_models"].append({
                             "name": model.get("name", "Unknown"),
                             "type": "ollama",
                             "size": model.get("size", "Unknown"),
-                            "modified": modified_jst
+                            "modified": modified_jst,
                         })
                 else:
                     logger.warning(f"Ollamaモデル取得失敗: {ollama_models.get('error', 'Unknown error')}")
             except Exception as e:
                 logger.warning(f"Ollamaモデル取得エラー: {e}")
+                import traceback as _tb
+                logger.error(f"詳細エラー: {_tb.format_exc()}")
                 models["ollama_models"] = []
-        
+
+        # RAG設定ファイルから利用可能なモデルを追加
+        try:
+            rag_config_path = Path("src/rag/config/rag_config.yaml")
+            if rag_config_path.exists():
+                with open(rag_config_path, "r", encoding="utf-8") as f:
+                    rag_config = yaml.safe_load(f)
+                cfg_models = rag_config.get("llm", {}).get("available_models", [])
+                for model_name in cfg_models:
+                    if model_name.startswith("finetuned:"):
+                        # finetuned: プレフィックス付きモデルはファインチューニング済みモデルとして追加
+                        ft_path = model_name.replace("finetuned:", "")
+                        ft_dir_name = Path(ft_path).name
+                        if not any(m["name"] == ft_dir_name for m in models["finetuned_models"]):
+                            ft_info = {
+                                "name": ft_dir_name,
+                                "path": ft_path,
+                                "type": "finetuned",
+                                "size": "Unknown",
+                                "created": "From config",
+                            }
+                            # config.json があればモデル情報を読み取る
+                            ft_config_path = Path(ft_path) / "config.json"
+                            if ft_config_path.exists():
+                                try:
+                                    with open(ft_config_path, "r", encoding="utf-8") as cf:
+                                        ft_config = json.load(cf)
+                                        ft_info["base_model"] = ft_config.get("_name_or_path", "Unknown")
+                                        ft_info["model_type"] = ft_config.get("model_type", "Unknown")
+                                        archs = ft_config.get("architectures", [])
+                                        if any("qwen" in a.lower() for a in archs):
+                                            ft_info["type"] = "強化学習 (RL)"
+                                except Exception:
+                                    pass
+                            if "openagentrl" in ft_dir_name.lower() or "_rl_" in ft_dir_name.lower():
+                                ft_info["type"] = "強化学習 (RL)"
+                                ft_info["size"] = "~15GB"
+                            models["finetuned_models"].append(ft_info)
+                            logger.info(f"RAG設定からファインチューニングモデルを追加: {ft_dir_name}")
+                    elif not any(m["name"] == model_name for m in models["ollama_models"]):
+                        models["ollama_models"].append({
+                            "name": model_name,
+                            "type": "ollama",
+                            "size": "Configured",
+                            "modified": "From config",
+                        })
+                        logger.info(f"RAG設定からモデルを追加: {model_name}")
+        except Exception as e:
+            logger.warning(f"RAG設定ファイル読み込みエラー: {e}")
+
         return models
-        
+
     except Exception as e:
         logger.error(f"モデル一覧取得エラー: {str(e)}")
         return {"finetuned_models": [], "ollama_models": [], "error": str(e)}
 
 
-@router.post("/convert-to-ollama")
-async def convert_finetuned_to_ollama(model_path: str, model_name: str):
-    """ファインチューニング済みモデルをOllama形式に変換"""
-    if not OLLAMA_AVAILABLE:
-        raise HTTPException(
-            status_code=503,
-            detail="Ollama integration is not available"
-        )
-    
+# ---------------------------------------------------------------------------
+# Delete endpoints
+# ---------------------------------------------------------------------------
+
+@router.delete("/models/{model_name}")
+async def delete_model(model_name: str):
+    """ファインチューニング済みモデルを削除"""
+    import shutil
+
     try:
-        logger.info(f"Ollama形式への変換開始: {model_path} -> {model_name}")
-        
-        # モデルパスの検証
-        model_dir = Path(model_path)
-        if not model_dir.exists():
-            raise HTTPException(status_code=404, detail="Model path not found")
-        
-        # Ollamaモデルファイルを作成
-        modelfile_content = f"""FROM {model_path}
-PARAMETER temperature 0.7
-PARAMETER top_p 0.9
-SYSTEM "あなたは日本語に堪能なAIアシスタントです。"
-"""
-        
-        # Modelfileを一時的に保存
-        modelfile_path = model_dir / "Modelfile"
-        with open(modelfile_path, "w", encoding="utf-8") as f:
-            f.write(modelfile_content)
-        
-        # Ollamaコマンドを実行
-        try:
-            result = subprocess.run(
-                ["ollama", "create", model_name, "-f", str(modelfile_path)],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            
-            logger.info(f"Ollama変換成功: {result.stdout}")
-            
-            return {
-                "status": "success",
-                "message": f"Model converted to Ollama format: {model_name}",
-                "output": result.stdout
-            }
-            
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Ollama変換エラー: {e.stderr}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Ollama conversion failed: {e.stderr}"
-            )
-        finally:
-            # 一時ファイルを削除
-            if modelfile_path.exists():
-                modelfile_path.unlink()
-        
-    except HTTPException:
-        raise
+        if ".." in model_name or "/" in model_name or "\\" in model_name or "%2F" in model_name or "%2f" in model_name:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Invalid model name"})
+
+        model_path = Path("outputs") / model_name
+        if not model_path.exists():
+            return JSONResponse(status_code=404, content={"success": False, "error": f"Model '{model_name}' not found"})
+        if not model_path.is_dir():
+            return JSONResponse(status_code=400, content={"success": False, "error": "Invalid model path"})
+
+        outputs_dir = Path("outputs").resolve()
+        model_path_resolved = model_path.resolve()
+        if not str(model_path_resolved).startswith(str(outputs_dir)):
+            return JSONResponse(status_code=400, content={"success": False, "error": "Invalid model location"})
+
+        logger.info(f"Deleting model: {model_name}")
+        shutil.rmtree(model_path)
+        logger.info(f"Model '{model_name}' deleted successfully")
+        return {"success": True, "message": f"Model '{model_name}' deleted successfully"}
+
+    except PermissionError:
+        logger.error(f"Permission denied when deleting model: {model_name}")
+        return JSONResponse(status_code=403, content={"success": False, "error": "Permission denied"})
     except Exception as e:
-        logger.error(f"変換エラー: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error deleting model '{model_name}': {str(e)}")
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 
-@router.post("/convert-to-ollama-wsl")
-async def convert_finetuned_to_ollama_wsl(request: dict):
-    """WSL環境でファインチューニング済みモデルをOllama形式に変換"""
-    if not OLLAMA_AVAILABLE:
-        raise HTTPException(
-            status_code=503,
-            detail="Ollama integration is not available"
-        )
-    
+@router.delete("/ollama/models/{model_name:path}")
+async def delete_ollama_model(model_name: str):
+    """Ollamaモデルを削除"""
     try:
-        model_path = request.get("model_path")
-        model_name = request.get("model_name")
-        
-        if not model_path or not model_name:
-            raise HTTPException(
-                status_code=400,
-                detail="model_path and model_name are required"
-            )
-        
-        logger.info(f"WSL Ollama形式への変換開始: {model_path} -> {model_name}")
-        
-        # WSLパスに変換
-        wsl_path = model_path.replace("C:", "/mnt/c").replace("\\", "/")
-        
-        # モデルファイルの作成
-        modelfile_content = f"""FROM {wsl_path}
-PARAMETER temperature 0.7
-PARAMETER top_p 0.9
-PARAMETER num_ctx 4096
-SYSTEM "あなたは日本語に堪能なAIアシスタントです。道路設計と土木工学の専門知識を持っています。"
-"""
-        
-        # 一時ファイルとして保存
-        temp_modelfile = Path("/tmp") / f"Modelfile_{model_name}"
-        with open(temp_modelfile, "w", encoding="utf-8") as f:
-            f.write(modelfile_content)
-        
-        # WSL用のパスに変換
-        wsl_modelfile = str(temp_modelfile).replace("/tmp", "/mnt/c/temp")
-        
-        # Ollamaコマンドを実行
-        try:
-            # WSL経由でOllamaコマンドを実行
-            cmd = f'wsl ollama create {model_name} -f {wsl_modelfile}'
-            result = subprocess.run(
-                cmd,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=300  # 5分のタイムアウト
-            )
-            
-            if result.returncode == 0:
-                logger.info(f"WSL Ollama変換成功: {result.stdout}")
-                
-                # 変換成功後、Ollamaモデルリストを更新
-                ollama = OllamaIntegration()
-                models = ollama.list_models()
-                
-                return {
-                    "status": "success",
-                    "message": f"Model converted to Ollama format: {model_name}",
-                    "output": result.stdout,
-                    "available_models": models.get("models", [])
-                }
-            else:
-                logger.error(f"WSL Ollama変換エラー: {result.stderr}")
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Ollama conversion failed: {result.stderr}"
-                )
-                
-        except subprocess.TimeoutExpired:
-            logger.error("Ollama変換タイムアウト")
-            raise HTTPException(
-                status_code=500,
-                detail="Ollama conversion timed out after 5 minutes"
-            )
-        finally:
-            # 一時ファイルを削除
-            if temp_modelfile.exists():
-                temp_modelfile.unlink()
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"WSL変換エラー: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        if ".." in model_name or model_name.startswith("/"):
+            return JSONResponse(status_code=400, content={"success": False, "error": "Invalid model name"})
 
+        logger.info(f"Deleting Ollama model: {model_name}")
+        result = subprocess.run(["ollama", "rm", model_name], capture_output=True, text=True, timeout=30)
+
+        if result.returncode == 0:
+            logger.info(f"Ollama model '{model_name}' deleted successfully")
+            return {"success": True, "message": f"Ollama model '{model_name}' deleted successfully"}
+        else:
+            error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+            logger.error(f"Failed to delete Ollama model '{model_name}': {error_msg}")
+            return JSONResponse(status_code=400, content={"success": False, "error": error_msg})
+
+    except subprocess.TimeoutExpired:
+        logger.error(f"Timeout when deleting Ollama model: {model_name}")
+        return JSONResponse(status_code=504, content={"success": False, "error": "Operation timed out"})
+    except FileNotFoundError:
+        logger.error("Ollama command not found")
+        return JSONResponse(status_code=503, content={"success": False, "error": "Ollama is not installed or not in PATH"})
+    except Exception as e:
+        logger.error(f"Error deleting Ollama model '{model_name}': {str(e)}")
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+# ---------------------------------------------------------------------------
+# Generation endpoints
+# ---------------------------------------------------------------------------
 
 @router.post("/generate-stream")
-async def generate_text_stream(request: GenerationRequest):
-    """ストリーミング形式でテキスト生成"""
-    try:
-        from fastapi.responses import StreamingResponse
-        import asyncio
-        
-        async def generate():
-            # ここでは簡単なデモ実装
-            # 実際にはモデルからのストリーミング生成を実装
-            text = f"これは{request.prompt}に対するストリーミング応答です。"
-            
-            for char in text:
-                yield char
-                await asyncio.sleep(0.05)  # 文字ごとに少し遅延
-        
-        return StreamingResponse(
-            generate(),
-            media_type="text/plain"
-        )
-        
-    except Exception as e:
-        logger.error(f"ストリーミング生成エラー: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+async def generate_text_stream(request: dict):
+    """ストリーミング対応のテキスト生成"""
+    import asyncio
 
+    async def generate_stream():
+        try:
+            model_name = request.get("model_name")
+            model_type = request.get("model_type")
+            prompt = request.get("prompt")
+            max_length = request.get("max_length", 2048)
+            temperature = request.get("temperature", 0.7)
+            top_p = request.get("top_p", 0.9)
 
-@router.post("/generate-with-selection")
-async def generate_with_model_selection(request: dict):
-    """モデル選択付きテキスト生成"""
-    try:
-        model_type = request.get("model_type", "finetuned")
-        model_name = request.get("model_name")
-        prompt = request.get("prompt")
-        
-        if not model_name or not prompt:
-            raise HTTPException(
-                status_code=400,
-                detail="model_name and prompt are required"
-            )
-        
-        logger.info(f"モデル選択生成: type={model_type}, name={model_name}")
-        
-        if model_type == "ollama" and OLLAMA_AVAILABLE:
-            # Ollamaモデルを使用
-            ollama = OllamaIntegration()
-            result = ollama.generate_text(
-                model_name=model_name,
-                prompt=prompt,
-                temperature=request.get("temperature", 0.7),
-                top_p=request.get("top_p", 0.9),
-                max_tokens=request.get("max_length", 2048)
-            )
-            
-            if result.get("success"):
-                return {
+            if not model_name or not model_type or not prompt:
+                yield f"data: {json.dumps({'error': 'model_name, model_type, promptが必要です'})}\n\n"
+                return
+
+            logger.info(f"ストリーミング生成開始: {model_type}/{model_name}")
+
+            if model_type == "ollama":
+                ollama, available = _get_ollama()
+                if not available or ollama is None:
+                    yield f"data: {json.dumps({'error': 'Ollamaが利用できません'})}\n\n"
+                    return
+
+                import requests
+                ollama_params = {
+                    "model": model_name,
                     "prompt": prompt,
-                    "generated_text": result.get("generated_text"),
+                    "stream": True,
+                    "options": {"temperature": temperature, "top_p": top_p, "num_predict": max_length},
+                }
+
+                try:
+                    response = requests.post(
+                        f"{ollama.base_url}/api/generate", json=ollama_params, stream=True, timeout=300,
+                    )
+                    if response.status_code == 200:
+                        for line in response.iter_lines():
+                            if line:
+                                data = json.loads(line.decode("utf-8"))
+                                if "response" in data:
+                                    yield f"data: {json.dumps({'text': data['response'], 'done': False})}\n\n"
+                                if data.get("done", False):
+                                    yield f"data: {json.dumps({'text': '', 'done': True})}\n\n"
+                                    break
+                    else:
+                        yield f"data: {json.dumps({'error': f'Ollama API エラー: {response.status_code}'})}\n\n"
+                except Exception as e:
+                    logger.error(f"Ollamaストリーミングエラー: {e}")
+                    yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+            elif model_type == "finetuned":
+                model_path = f"outputs/{model_name}"
+                try:
+                    if model_path not in model_cache:
+                        logger.info(f"ファインチューニング済みモデルを読み込み中: {model_path}")
+                        max_memory = {}
+                        if torch.cuda.is_available():
+                            for i in range(torch.cuda.device_count()):
+                                max_memory[i] = "18GB"
+                            max_memory["cpu"] = "30GB"
+
+                        tokenizer = load_tokenizer(model_path)
+                        quantization_config = create_quantization_config(model_path, "lora", force_4bit=True)
+                        model = AutoModelForCausalLM.from_pretrained(
+                            model_path,
+                            quantization_config=quantization_config,
+                            torch_dtype=torch.float16,
+                            device_map="auto",
+                            low_cpu_mem_usage=True,
+                            max_memory=max_memory,
+                            trust_remote_code=True,
+                        )
+                        model_cache[model_path] = {"tokenizer": tokenizer, "model": model}
+
+                    cached_model = model_cache[model_path]
+                    tokenizer = cached_model["tokenizer"]
+                    model = cached_model["model"]
+
+                    inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
+                    if torch.cuda.is_available():
+                        inputs = {k: v.to(model.device) for k, v in inputs.items()}
+
+                    model.eval()
+                    device = inputs["input_ids"].device
+                    logger.info(f"ストリーミング生成デバイス: {device}")
+
+                    generated_tokens = []
+                    current_text = ""
+                    token_buffer = []
+
+                    with torch.no_grad():
+                        for _ in range(max_length):
+                            outputs = model.generate(
+                                input_ids=inputs["input_ids"],
+                                attention_mask=inputs.get("attention_mask"),
+                                max_new_tokens=1,
+                                pad_token_id=tokenizer.eos_token_id,
+                                eos_token_id=tokenizer.eos_token_id,
+                                do_sample=temperature > 0.0,
+                                temperature=temperature if temperature > 0.0 else 1.0,
+                                top_p=top_p if temperature > 0.0 else 1.0,
+                                repetition_penalty=1.2,
+                                no_repeat_ngram_size=3,
+                            )
+
+                            new_token = outputs[0][-1].unsqueeze(0).to(device)
+                            generated_tokens.append(new_token)
+                            token_buffer.append(new_token)
+
+                            if len(token_buffer) >= 1:
+                                try:
+                                    buffer_tokens = torch.cat(token_buffer, dim=0)
+                                    decoded_text = tokenizer.decode(buffer_tokens, skip_special_tokens=True)
+                                    if len(current_text) < len(decoded_text):
+                                        new_text = decoded_text[len(current_text):]
+                                        current_text = decoded_text
+                                        if new_text and new_text.strip():
+                                            invalid_chars = ["", "\ufffd", "\u0000", "\u0001", "\u0002", "\u0003"]
+                                            has_invalid = any(char in new_text for char in invalid_chars)
+                                            if not has_invalid:
+                                                yield f"data: {json.dumps({'text': new_text, 'done': False})}\n\n"
+                                    token_buffer = []
+                                except Exception as decode_error:
+                                    logger.error(f"デコードエラー: {decode_error}")
+                                    for token in token_buffer:
+                                        try:
+                                            single_text = tokenizer.decode(token, skip_special_tokens=True)
+                                            if single_text and single_text.strip():
+                                                invalid_chars = ["", "\ufffd", "\u0000", "\u0001", "\u0002", "\u0003"]
+                                                has_invalid = any(char in single_text for char in invalid_chars)
+                                                if not has_invalid:
+                                                    yield f"data: {json.dumps({'text': single_text, 'done': False})}\n\n"
+                                        except Exception as e:
+                                            logger.error(f"個別デコードエラー: {e}")
+                                    token_buffer = []
+
+                            inputs["input_ids"] = torch.cat([inputs["input_ids"], new_token.unsqueeze(0)], dim=1)
+                            if "attention_mask" in inputs:
+                                ones = torch.ones(1, 1, dtype=torch.long, device=device)
+                                inputs["attention_mask"] = torch.cat([inputs["attention_mask"], ones], dim=1)
+
+                            if new_token.item() == tokenizer.eos_token_id:
+                                break
+
+                    yield f"data: {json.dumps({'text': '', 'done': True})}\n\n"
+
+                except Exception as e:
+                    logger.error(f"ファインチューニング済みモデルストリーミングエラー: {e}")
+                    yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            else:
+                yield f"data: {json.dumps({'error': 'サポートされていないモデルタイプです'})}\n\n"
+
+        except Exception as e:
+            logger.error(f"ストリーミング生成エラー: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(generate_stream(), media_type="text/plain")
+
+
+@router.post("/generate-with-model-selection")
+async def generate_with_model_selection(request: dict):
+    """モデル選択機能付きテキスト生成"""
+    try:
+        model_name = request.get("model_name")
+        model_type = request.get("model_type")
+        prompt = request.get("prompt")
+        max_length = request.get("max_length", 2048)
+        temperature = request.get("temperature", 0.7)
+        top_p = request.get("top_p", 0.9)
+
+        if not model_name or not model_type or not prompt:
+            return {"success": False, "error": "model_name, model_type, promptが必要です"}
+
+        logger.info(f"モデル選択生成: {model_type}/{model_name}")
+
+        if model_type == "ollama":
+            ollama, available = _get_ollama()
+            if not available or ollama is None:
+                return {"success": False, "error": "Ollamaが利用できません"}
+
+            result = ollama.generate_text(
+                model_name=model_name, prompt=prompt, temperature=temperature, top_p=top_p, max_tokens=max_length,
+            )
+            if result["success"]:
+                return {
+                    "success": True,
+                    "generated_text": result["generated_text"],
+                    "model_name": model_name,
                     "model_type": "ollama",
-                    "model_name": model_name
+                    "method": "ollama_api",
                 }
             else:
-                raise HTTPException(
-                    status_code=500,
-                    detail=result.get("error", "Generation failed")
-                )
-        
+                return {"success": False, "error": result.get("error", "Ollama生成エラー")}
+
         elif model_type == "finetuned":
-            # ファインチューニング済みモデルを使用
-            # ここでは簡単なデモ応答を返す
-            # 実際にはgenerate_text関数を呼び出す
-            return {
-                "prompt": prompt,
-                "generated_text": f"{prompt}\n\n[ファインチューニングモデル {model_name} による生成結果]",
-                "model_type": "finetuned",
-                "model_name": model_name
-            }
-        
+            model_path = f"outputs/{model_name}"
+
+            # メモリ不足の場合はOllamaにフォールバック
+            if torch.cuda.is_available():
+                gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3
+                if gpu_memory < 30 and _deps.OLLAMA_AVAILABLE:
+                    ollama_model_name = "llama3.2:3b"
+                    logger.info(f"メモリ不足のため、Ollamaモデル {ollama_model_name} を使用します")
+                    ollama, available = _get_ollama()
+                    if available and ollama is not None:
+                        result = ollama.generate_text(
+                            model_name=ollama_model_name, prompt=prompt, temperature=temperature,
+                            top_p=top_p, max_tokens=max_length,
+                        )
+                        if result["success"]:
+                            return {
+                                "success": True,
+                                "generated_text": result["generated_text"],
+                                "model_name": f"{model_name} (Ollama fallback: {ollama_model_name})",
+                                "model_type": "finetuned_ollama_fallback",
+                                "method": "ollama_fallback",
+                            }
+
+            try:
+                if model_path not in model_cache:
+                    logger.info(f"ファインチューニング済みモデルを読み込み中: {model_path}")
+                    max_memory = {}
+                    if torch.cuda.is_available():
+                        for i in range(torch.cuda.device_count()):
+                            max_memory[i] = "18GB"
+                        max_memory["cpu"] = "30GB"
+
+                    model = AutoModelForCausalLM.from_pretrained(
+                        model_path,
+                        device_map="auto",
+                        max_memory=max_memory,
+                        load_in_4bit=True,
+                        bnb_4bit_compute_dtype=torch.float16,
+                        bnb_4bit_use_double_quant=True,
+                        torch_dtype=torch.float16,
+                        trust_remote_code=True,
+                        offload_folder="./offload",
+                        offload_state_dict=True,
+                    )
+                    tokenizer = load_tokenizer(model_path)
+                    model_cache[model_path] = {
+                        "model": model,
+                        "tokenizer": tokenizer,
+                        "base_model_name": model_path,
+                        "training_method": "full",
+                    }
+                    logger.info(f"モデル読み込み完了: {model_path}")
+
+                cached_model = model_cache[model_path]
+                model = cached_model["model"]
+                tokenizer = cached_model["tokenizer"]
+
+                inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True)
+                with torch.no_grad():
+                    outputs = model.generate(
+                        inputs.input_ids,
+                        attention_mask=inputs.attention_mask,
+                        max_length=max_length,
+                        temperature=temperature,
+                        top_p=top_p,
+                        do_sample=True,
+                        pad_token_id=tokenizer.pad_token_id,
+                        eos_token_id=tokenizer.eos_token_id,
+                    )
+
+                generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+                if generated_text.startswith(prompt):
+                    generated_text = generated_text[len(prompt):].strip()
+
+                logger.info(f"ファインチューニング済みモデルでの生成完了: {len(generated_text)}文字")
+                return {
+                    "success": True,
+                    "generated_text": generated_text,
+                    "model_name": model_name,
+                    "model_type": "finetuned",
+                    "method": "direct_inference",
+                }
+
+            except Exception as model_error:
+                logger.error(f"ファインチューニング済みモデル生成エラー: {str(model_error)}")
+                return {"success": False, "error": f"モデル生成エラー: {str(model_error)}"}
+
         else:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unknown model type: {model_type}"
-            )
-        
-    except HTTPException:
-        raise
+            return {"success": False, "error": f"未知のモデルタイプ: {model_type}"}
+
     except Exception as e:
         logger.error(f"モデル選択生成エラー: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/verify-model")
-async def verify_finetuned_model(request: GenerationRequest):
-    """ファインチューニング済みモデルの検証"""
-    try:
-        logger.info(f"モデル検証開始: {request.model_path}")
-        
-        # モデルパスの存在確認
-        model_path = Path(request.model_path)
-        if not model_path.exists():
-            return {
-                "status": "error",
-                "error": "モデルが見つかりません",
-                "model_path": request.model_path
-            }
-        
-        # 検証用のテストケース
-        test_cases = [
-            "縦断曲線とは何のために設置しますか？",
-            "道路の横断勾配の標準的な値はどのくらいですか？",
-            "アスファルト舗装の主な利点と欠点は何ですか？",
-            "設計CBRとは舗装設計においてどのような指標ですか？",
-            "道路の平面線形を構成する3つの要素は何ですか？"
-        ]
-        
-        verification_results = []
-        
-        for i, test_prompt in enumerate(test_cases):
-            logger.info(f"テストケース {i+1}/{len(test_cases)}: {test_prompt}")
-            
-            # 簡単な検証結果を生成（実際にはモデルで生成）
-            verification_result = {
-                "test_case": i + 1,
-                "prompt": test_prompt,
-                "generated_text": f"[検証結果 {i+1}]",
-                "success": True
-            }
-            
-            verification_results.append(verification_result)
-        
-        # 検証サマリーを作成
-        success_count = sum(1 for r in verification_results if r["success"])
-        total_count = len(verification_results)
-        
-        verification_summary = {
-            "model_path": request.model_path,
-            "total_test_cases": total_count,
-            "successful_tests": success_count,
-            "success_rate": success_count / total_count if total_count > 0 else 0,
-            "verification_results": verification_results
-        }
-        
-        logger.info(f"モデル検証完了: 成功率 {success_count}/{total_count}")
-        
-        return {
-            "status": "success",
-            "verification_summary": verification_summary
-        }
-        
-    except Exception as e:
-        logger.error(f"モデル検証エラー: {str(e)}")
-        return {
-            "status": "error",
-            "error": str(e),
-            "model_path": request.model_path
-        }
+        return {"success": False, "error": str(e)}

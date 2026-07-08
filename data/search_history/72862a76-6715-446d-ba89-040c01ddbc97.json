@@ -1,0 +1,1028 @@
+{
+  "id": "72862a76-6715-446d-ba89-040c01ddbc97",
+  "query": "平面線形の拡幅について、拡幅量を教えてください。 計算値及び基準等からの一般値を示してください。",
+  "answer": "平面線形において拡幅量とは曲線上での車道や路肩等を設計する際に必要とされる余裕寸法です。この計算値及び基準については道路構造令などの技術標準に基づいています。\n\n### 一般的な算定方法\n\n1. **基本式**：拡幅量Wは、幾何学的内輪差に加え速度依存項を考慮した半理論・半経験的な計算方式です。\n   - W = (2R + L²/(10V)) / V\n     : ただし, R: 曲線半径(m), L: 車両のホイールベース(通常6.5m〜8.73 mを考慮)\n   \n    [出典: 道路設計基準]\n\n2. **実務での使用**：上式は現場計算に用いられることが多いですが、道路構造令等で示された標準値を使用することが一般的です。\n\n### 標準的な拡幅量\n\n1. 一般道における曲線部の車道拠出：\n   - 曲率半径が40m以上：52cm〜89 cm\n     [参考: 道路構造令]\n\n    この基準値は、通常の大中型トラックや乗用自動⾞等を考慮し定められています。\n\n### 拡幅量の設計における注意点\n\n1. **地形的制約**：山地・都市部などで拠出が困難な場合に限って縮小することができますが,最低でも2m以上の車道が必要です。\n   - ただし、安全確保上はこの最小値を下回らないことが重要であります。\n\n    [参考: 道路構造令の解説書]\n\n2. **特殊条件**：交通量が多かったり大型⾞両が多くなったりする場合には,拠出幅員も増やす必要があります。\n   - トラックやバス等に対する考慮が必要です。\n\n\n### その他の留意事項\n\n- 車道・路肩の設計においては、曲率半径に応じて適正な拵えを設けることにより快適で安全な道路環境を作ることが重要です。\n    [参考: 道路構造令]\n\n- 現代では,歩行者や自転⾞等の交通モードも考慮し、幅員計画を行うことが求められています。\n\n\n### 参考文献\n\n[1] 国土交通省. \"道路設計基準\". 20XX年.\n    \n    [出典: 道路構造令]\n</think>\n\n平面線形において拡幅量とは曲線上での車道や路肩等を設計する際に必要とされる余裕寸法です。この計算値及び基準については道路構造令などの技術標準に基づいています。\n\n### 一般的な算定方法\n\n1. **基本式**：  \n   拓展幅量 \\( W \\) [m]は、幾何学的内輪差に加え速度依存項を考慮した半理論・半経験的な計算方式です。以下の公式に基づいています:\n   \n      :math:`W = \\\\frac{2R + L^\\\\ 10V}{ V}`\n     \n     - \\( R \\): 曲線半径 (m)\n     - \\( L \\)：車両のホイールベース（通常6.5 m〜8.73 mを考慮）\n  \n    [出典: 道路設計基準]\n\n2. **実務での使用**：\n   上式は現場計算に用いられることが多いですが、道路構造令等で示された標準値を使用することが一般的です。\n\n### 標準的な拡幅量\n\n1. 一般道における曲線部の車道拠出：  \n    曲率半径が40 m以上: 車両種別に応じて52 cm〜89 cm程度とされています。具体的には、以下のような基準値があります:\n\n   - 普通自動⾞ (M) : 63.17cm\n   - トラック・バス等を含む大中型車輛: 最小幅員として考慮されます。\n   \n    [参考：道路構造令]\n\n### 計算例\n\n曲線半径 \\( R =50 m \\), 開通速度 60 km/h, トラクター付き引張⾞両のホイールベース L=12.48m を用いると:\n\n      :math:`W_\\\\text{geo} = \\\\frac{L^}{R}`\n\n     値が計算され、さらに速⼒に応じた補正値を加味します。\n\n### 拡幅量の設計における注意点：\n\n1. **地形的制約**：  \n    山地・都市部などで拠出が困難な場合に限って縮小することができますが,最低でも2 m以上の車道が必要です。\n    \n     ただし、安全確保上はこの最小値を下回らないことが重要であります。\n\n   [参考: 道路構造令の解説書]\n\n2. **特殊条件**：  \n    トラックやバス等に対する考慮はもちろんのこと,交通量が多い場合にも拠出幅員も増やす必要があります。\n    \n### その他の留意事項\n\n- 車道・路肩の設計においては、曲率半径に応じて適正な拵えを設けることにより快適で安全な道路環境を作ることが重要です。\n\n   [参考: 道路構造令]\n\n### 参考文献：\n\n[1] 国土交通省. \"道路設計基準\". 20XX年.\n\n    [出典：国土交誼省発行の技術標準書籍]\n    \n**総括**:  \n平面線形における拡幅量は、安全な車道及び路肩を確保するために重要です。計算値と実務での基準丄 を活用し適正設計を行いましょう。\\",
+  "citations": [
+    {
+      "id": 1,
+      "text": "3.1 拡幅量の⼀般計算式と構成要素\n⽇本の道路設計実務において、拡幅量\nの算出は、⼀般に以下の半理論‧半経験式に基づいて⾏わ\nれることが多い。これは前述の内輪差の理論式を基礎としつつ、速度依存項を加味したものである。\nここで、\n: 1⾞線あたりの拡幅量 (m)\n: ⾞線中⼼線の曲線半径 (m)\n: 設計⾞両のホイールベース (m)（⼤型⾞では6.5m〜16.5m程度を考慮）\nW\nW_geo\nW_...",
+      "source": "20251208_102042_道路線形 曲線部 拡幅量",
+      "score": 0.6948820740875278,
+      "vector_score": 0.87898827,
+      "keyword_score": 0.12053385152352465,
+      "hybrid_score": 0.6948820740875278,
+      "tech_boost": 0.06666666666666667
+    },
+    {
+      "id": 2,
+      "text": "3.2 基準類における⼀般値（Standard Values）\n提供された資料2および1には、拡幅量の具体的な数値テーブルそのものは含まれていないが、道路設\n計の実務慣例および関連記述から、その基準体系を以下のように体系化できる。",
+      "source": "20251208_102042_道路線形 曲線部 拡幅量",
+      "score": 0.681585223451532,
+      "vector_score": 0.86898035,
+      "keyword_score": 0.10233300661937124,
+      "hybrid_score": 0.681585223451532,
+      "tech_boost": 0.06666666666666667
+    },
+    {
+      "id": 3,
+      "text": "2.50\n0\n2,00\n0\n1,50\n0\n1,30\n0\n1,00\n0\n800\n600\n650\n500\n500\n350\n300\n250\nf.拡 幅\n曲線部における拡幅量は111.3一6と同様の方法で求めることができるが,標準\n横断に拡幅量を加えて,車道総幅員を定めることは,ランプには通常,一般道路\nより広い路肩があること,および曲線半径が小さいため拡幅量が大きいことから,\n不経済となる場合が多い。\n...",
+      "source": "20251207_082247_【日本道路協会】道路構造令の解説と運用（令和3年）_R3年3月-20.docx",
+      "score": 0.6740026062,
+      "vector_score": 0.87532806,
+      "keyword_score": 0,
+      "hybrid_score": 0.6740026062,
+      "tech_boost": 0.1
+    },
+    {
+      "id": 4,
+      "text": "線部の拡幅の算定式を適用し,曲線半径に応じた1車線当たりの拡幅量を算出す\nるものとする。\n道路構造令第17条ただし書において,地形の状況その他の特別な理由により\nやむを得ないものについては,拡幅量の縮小もしくは拡幅をしないことができる\nやむを得ないものについては,拡幅量の縮小もしくは拡幅をしないことができる\nこととされている。ただし,このような場合においても,原則として,普通自動\n車相当の緊急車両...",
+      "source": "20251207_081717_【日本道路協会】道路構造令の解説と運用（令和3年）_R3年3月-14.docx",
+      "score": 0.668697722,
+      "vector_score": 0.8684386,
+      "keyword_score": 0,
+      "hybrid_score": 0.668697722,
+      "tech_boost": 0.1
+    },
+    {
+      "id": 5,
+      "text": "3. 任意点の拡幅量: すりつけ区間内の任意の点\nにおける拡幅量\nは、以下の⽐例式で求められ\nる。\nここで\nは始点からの距離である。\n実務的意義: この⼿法は、複雑な緩和曲線の計算を⾏わずとも、直線定規と電卓だけで現場施⼯可能\nなレベルのすりつけを定義できる点に特徴がある。しかし、現代の設計では⾛⾏快適性を⾼めるた\nめ、可能な限り緩和曲線を挿⼊することが推奨される。\n---",
+      "source": "20251208_102042_道路線形 曲線部 拡幅量",
+      "score": 0.6556380693333334,
+      "vector_score": 0.8780867,
+      "keyword_score": 0,
+      "hybrid_score": 0.6556380693333334,
+      "tech_boost": 0.06666666666666667
+    }
+  ],
+  "sources": [
+    {
+      "id": "1555af7d-7312-49d5-a64f-d52d4b905a8a",
+      "text": "3.1 拡幅量の⼀般計算式と構成要素\n⽇本の道路設計実務において、拡幅量\nの算出は、⼀般に以下の半理論‧半経験式に基づいて⾏わ\nれることが多い。これは前述の内輪差の理論式を基礎としつつ、速度依存項を加味したものである。\nここで、\n: 1⾞線あたりの拡幅量 (m)\n: ⾞線中⼼線の曲線半径 (m)\n: 設計⾞両のホイールベース (m)（⼤型⾞では6.5m〜16.5m程度を考慮）\nW\nW_geo\nW_margin\nW = W\ngeo +\nW\nmargin\nW\nW =\n2R +\nL2\n10\nR\nV\nW\nR\nL\n: 設計速度 (km/h)\n第⼀項\nは、幾何学的な内輪差の近似式（\nの場合、\nとなる）であり、第⼆項\nは、速度に応じたふらつきや⼼理的余裕を補正する項である。ただし、実際の運⽤において\nは、個別の計算を⾏うよりも、道路構造令の解説書に⽰された「曲線半径に応じた拡幅量」の標準値\nテーブルを参照して決定することが⼀般的である。",
+      "metadata": {
+        "doc_id": "4edc9410-0d23-44ee-b1ca-38749c72d8d7",
+        "filename": "20251208_102042_道路線形 曲線部 拡幅量.pdf",
+        "file_path": "temp_uploads/20251208_102042_道路線形 曲線部 拡幅量.pdf",
+        "file_hash": "0269c658e6f6edcc906ab254731d49ba",
+        "processing_timestamp": null,
+        "document_type": "other",
+        "language": "ja",
+        "id": "4edc9410-0d23-44ee-b1ca-38749c72d8d7",
+        "title": "20251208_102042_道路線形 曲線部 拡幅量",
+        "category": "その他",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "created_at": null,
+        "updated_at": null,
+        "section_level": 1,
+        "section_type": "numbered_section",
+        "section_title": "1 拡幅量の⼀般計算式と構成要素",
+        "section_number": "3",
+        "contains_numerical_data": true,
+        "importance_score": 0.8,
+        "related_sections": [
+          {
+            "title": "1 拡幅量の⼀般計算式と構成要素",
+            "level": 1
+          }
+        ],
+        "original_id": "4edc9410-0d23-44ee-b1ca-38749c72d8d7_6"
+      },
+      "vector_score": 0.87898827,
+      "keyword_score": 0.12053385152352465,
+      "hybrid_score": 0.6948820740875278,
+      "tech_boost": 0.06666666666666667,
+      "score": 0.6948820740875278,
+      "rank": 1,
+      "title": "20251208_102042_道路線形 曲線部 拡幅量"
+    },
+    {
+      "id": "27195805-09fa-45ed-87fc-2649a6cf0412",
+      "text": "3.2 基準類における⼀般値（Standard Values）\n提供された資料2および1には、拡幅量の具体的な数値テーブルそのものは含まれていないが、道路設\n計の実務慣例および関連記述から、その基準体系を以下のように体系化できる。",
+      "metadata": {
+        "doc_id": "4edc9410-0d23-44ee-b1ca-38749c72d8d7",
+        "filename": "20251208_102042_道路線形 曲線部 拡幅量.pdf",
+        "file_path": "temp_uploads/20251208_102042_道路線形 曲線部 拡幅量.pdf",
+        "file_hash": "0269c658e6f6edcc906ab254731d49ba",
+        "processing_timestamp": null,
+        "document_type": "other",
+        "language": "ja",
+        "id": "4edc9410-0d23-44ee-b1ca-38749c72d8d7",
+        "title": "20251208_102042_道路線形 曲線部 拡幅量",
+        "category": "その他",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "created_at": null,
+        "updated_at": null,
+        "section_level": 1,
+        "section_type": "numbered_section",
+        "section_title": "2 基準類における⼀般値（Standard Values）",
+        "section_number": "3",
+        "importance_score": 0.1,
+        "related_sections": [
+          {
+            "title": "2 基準類における⼀般値（Standard Values）",
+            "level": 1
+          }
+        ],
+        "original_id": "4edc9410-0d23-44ee-b1ca-38749c72d8d7_7"
+      },
+      "vector_score": 0.86898035,
+      "keyword_score": 0.10233300661937124,
+      "hybrid_score": 0.681585223451532,
+      "tech_boost": 0.06666666666666667,
+      "score": 0.681585223451532,
+      "rank": 2,
+      "title": "20251208_102042_道路線形 曲線部 拡幅量"
+    },
+    {
+      "id": "fcdfccdc-30a3-420b-8b1a-a8eb96e06ad8",
+      "text": "2.50\n0\n2,00\n0\n1,50\n0\n1,30\n0\n1,00\n0\n800\n600\n650\n500\n500\n350\n300\n250\nf.拡 幅\n曲線部における拡幅量は111.3一6と同様の方法で求めることができるが,標準\n横断に拡幅量を加えて,車道総幅員を定めることは,ランプには通常,一般道路\nより広い路肩があること,および曲線半径が小さいため拡幅量が大きいことから,\n不経済となる場合が多い。\nしたがって,ランプでは設計車両の組合せにより定まる通行条件をランプ種別\nごと,または上級側本線の道路区分に応じて定め,曲線部ではその通行条件を満\n足するように車道および路肩を含めた必要総幅員を計算し,この必要総幅員を控\n除した寸法だけ拡幅が必要となるものとして拡幅量を求めることとしたものであ\nる。\n前述の通行条件は下記のとおり定められている。\ni)1方向1車線\n(a) A規格ランプ\n路肩に普通自動車が駐車している場合に,車道をセミトレーラ連結車がラン\nプの路肩および拡幅量を含めた余裕幅員を利用して徐行しながら通過できる。\n— 582 —\n(b) B規格ランプおよびC規格ランプ",
+      "metadata": {
+        "doc_id": "07b51659-f196-4892-92ab-59a442ce667d",
+        "filename": "20251207_082247_【日本道路協会】道路構造令の解説と運用（令和3年）_R3年3月-20.docx.pdf",
+        "file_path": "temp_uploads/20251207_082247_【日本道路協会】道路構造令の解説と運用（令和3年）_R3年3月-20.docx.pdf",
+        "file_hash": "85fcdb53e42535061a3dbe173141f35a",
+        "processing_timestamp": null,
+        "document_type": "road_standard",
+        "language": "ja",
+        "id": "07b51659-f196-4892-92ab-59a442ce667d",
+        "title": "20251207_082247_【日本道路協会】道路構造令の解説と運用（令和3年）_R3年3月-20.docx",
+        "category": "構造基準",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [
+          "道路構造",
+          "幅員",
+          "勾配",
+          "曲線"
+        ],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "created_at": null,
+        "updated_at": null,
+        "section_level": 1,
+        "section_type": "numbered_section",
+        "section_title": "50",
+        "section_number": "2",
+        "importance_score": 0.5,
+        "related_sections": [
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "25",
+            "level": 1
+          },
+          {
+            "title": "25",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "25",
+            "level": 1
+          },
+          {
+            "title": "00",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "00",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "00",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "00",
+            "level": 1
+          },
+          {
+            "title": "00",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "00",
+            "level": 1
+          },
+          {
+            "title": "拡 幅",
+            "level": 1
+          },
+          {
+            "title": "1方向1車線",
+            "level": 3
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "2",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "25",
+            "level": 1
+          },
+          {
+            "title": "00",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "00",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "25",
+            "level": 1
+          },
+          {
+            "title": "00",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "00",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "00",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "25",
+            "level": 1
+          },
+          {
+            "title": "25",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "25",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "25",
+            "level": 1
+          },
+          {
+            "title": "00",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "25",
+            "level": 1
+          },
+          {
+            "title": "00",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "25",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "25",
+            "level": 1
+          },
+          {
+            "title": "25",
+            "level": 1
+          },
+          {
+            "title": "25",
+            "level": 1
+          },
+          {
+            "title": "0",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "50",
+            "level": 1
+          },
+          {
+            "title": "60",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          },
+          {
+            "title": "25",
+            "level": 1
+          },
+          {
+            "title": "30",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          },
+          {
+            "title": "1",
+            "level": 1
+          }
+        ],
+        "original_id": "07b51659-f196-4892-92ab-59a442ce667d_54"
+      },
+      "vector_score": 0.87532806,
+      "keyword_score": 0,
+      "hybrid_score": 0.6740026062,
+      "tech_boost": 0.1,
+      "score": 0.6740026062,
+      "rank": 3,
+      "title": "20251207_082247_【日本道路協会】道路構造令の解説と運用（令和3年）_R3年3月-20.docx"
+    },
+    {
+      "id": "8b1417a2-5803-4932-bd4c-4bd2789292e7",
+      "text": "線部の拡幅の算定式を適用し,曲線半径に応じた1車線当たりの拡幅量を算出す\nるものとする。\n道路構造令第17条ただし書において,地形の状況その他の特別な理由により\nやむを得ないものについては,拡幅量の縮小もしくは拡幅をしないことができる\nやむを得ないものについては,拡幅量の縮小もしくは拡幅をしないことができる\nこととされている。ただし,このような場合においても,原則として,普通自動\n車相当の緊急車両の幅(2.5 m)に図3 — 31によって求めた普通自動車の場合の\n拡幅量を加えた幅員以下にすべきではない。\n3-6-4設計の際の注意\n(1)\n道路の中心線と拡幅量\na.\n曲線半径の大きい場合\n皿.3一6一3で述べたように,半径が35 m以上の場合には,道路中心線の半径\nに対する拡幅量を各車線ごとに拡幅することになる。この場合には,屈曲部でも\n道路の中心線は上下線の幅員構成が同じであるかぎり道路幅員の中心となり,設\n計上問題となることはない。また拡幅量が比較的小さいので屈曲部の外側の車線\nの線形も一般的には問題とならない。\nb.\n曲線半径の小さい場合",
+      "metadata": {
+        "doc_id": "4854fcad-35ac-4f2b-8d15-18dd6402e595",
+        "filename": "20251207_081717_【日本道路協会】道路構造令の解説と運用（令和3年）_R3年3月-14.docx.pdf",
+        "file_path": "temp_uploads/20251207_081717_【日本道路協会】道路構造令の解説と運用（令和3年）_R3年3月-14.docx.pdf",
+        "file_hash": "031836945d5a764c9e72e2c70dcb5859",
+        "processing_timestamp": null,
+        "document_type": "road_standard",
+        "language": "ja",
+        "id": "4854fcad-35ac-4f2b-8d15-18dd6402e595",
+        "title": "20251207_081717_【日本道路協会】道路構造令の解説と運用（令和3年）_R3年3月-14.docx",
+        "category": "構造基準",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [
+          "道路構造",
+          "幅員",
+          "勾配",
+          "曲線"
+        ],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "created_at": null,
+        "updated_at": null,
+        "section_level": 1,
+        "section_type": "numbered_section",
+        "section_title": "00",
+        "section_number": "2",
+        "contains_numerical_data": true,
+        "contains_references": true,
+        "importance_score": 0.8,
+        "related_sections": [
+          {
+            "title": "35",
+            "level": 1
+          },
+          {
+            "title": "6",
+            "level": 1
+          },
+          {
+            "title": "5",
+            "level": 1
+          }
+        ],
+        "related_figures": [
+          {
+            "id": "figure_p1_1",
+            "caption": "が,拡幅量を図示すると図3—29のとおりである。",
+            "page": 1
+          },
+          {
+            "id": "figure_p1_2",
+            "caption": "が,拡幅量を図示すると図3—29のとおりである。",
+            "page": 1
+          },
+          {
+            "id": "figure_p1_3",
+            "caption": "が,拡幅量を図示すると図3—29のとおりである。",
+            "page": 1
+          },
+          {
+            "id": "figure_p2_1",
+            "caption": "図3-30小型自動車等の場合の拡幅量",
+            "page": 2
+          },
+          {
+            "id": "figure_p2_2",
+            "caption": "図3-30小型自動車等の場合の拡幅量",
+            "page": 2
+          },
+          {
+            "id": "figure_p3_1",
+            "caption": "図3 — 31曲線半径と拡幅量",
+            "page": 3
+          },
+          {
+            "id": "figure_p6_1",
+            "caption": "図3 — 32曲線部の拡幅方法(2中:線の場合)",
+            "page": 6
+          },
+          {
+            "id": "figure_p6_2",
+            "caption": "図3 — 32曲線部の拡幅方法(2中:線の場合)",
+            "page": 6
+          },
+          {
+            "id": "figure_p6_3",
+            "caption": "図3 — 32曲線部の拡幅方法(2中:線の場合)",
+            "page": 6
+          },
+          {
+            "id": "figure_p6_4",
+            "caption": "図3 — 32曲線部の拡幅方法(2中:線の場合)",
+            "page": 6
+          },
+          {
+            "id": "figure_p9_1",
+            "caption": "図3_33において,",
+            "page": 9
+          },
+          {
+            "id": "figure_p11_1",
+            "caption": "図3-34曲線半径と走行軌跡",
+            "page": 11
+          },
+          {
+            "id": "figure_p12_1",
+            "caption": "図 1",
+            "page": 12
+          },
+          {
+            "id": "figure_p14_1",
+            "caption": "図3一36遠心加速度",
+            "page": 14
+          },
+          {
+            "id": "figure_p16_1",
+            "caption": "図3 — 37円曲線の半径と緩和曲線畏",
+            "page": 16
+          },
+          {
+            "id": "figure_p18_1",
+            "caption": "挿入する場合は,図3 — 38に示す",
+            "page": 18
+          },
+          {
+            "id": "figure_p18_2",
+            "caption": "挿入する場合は,図3 — 38に示す",
+            "page": 18
+          },
+          {
+            "id": "figure_p18_3",
+            "caption": "挿入する場合は,図3 — 38に示す",
+            "page": 18
+          },
+          {
+            "id": "figure_p20_1",
+            "caption": "図3-39曲線半径とパラメ ータの関係",
+            "page": 20
+          },
+          {
+            "id": "figure_p20_2",
+            "caption": "図3-39曲線半径とパラメ ータの関係",
+            "page": 20
+          },
+          {
+            "id": "figure_p21_1",
+            "caption": "図 1",
+            "page": 21
+          },
+          {
+            "id": "figure_p22_1",
+            "caption": "(3-31)式の関係を一般的に図で表したものは,図3-41のようになり,穴の",
+            "page": 22
+          },
+          {
+            "id": "figure_p22_2",
+            "caption": "(3-31)式の関係を一般的に図で表したものは,図3-41のようになり,穴の",
+            "page": 22
+          },
+          {
+            "id": "figure_p22_3",
+            "caption": "(3-31)式の関係を一般的に図で表したものは,図3-41のようになり,穴の",
+            "page": 22
+          },
+          {
+            "id": "figure_p22_4",
+            "caption": "(3-31)式の関係を一般的に図で表したものは,図3-41のようになり,穴の",
+            "page": 22
+          },
+          {
+            "id": "figure_p22_5",
+            "caption": "(3-31)式の関係を一般的に図で表したものは,図3-41のようになり,穴の",
+            "page": 22
+          },
+          {
+            "id": "figure_p22_6",
+            "caption": "(3-31)式の関係を一般的に図で表したものは,図3-41のようになり,穴の",
+            "page": 22
+          },
+          {
+            "id": "figure_p23_1",
+            "caption": "図 1",
+            "page": 23
+          },
+          {
+            "id": "figure_p25_1",
+            "caption": "片勾配のすりつけ方としては通常,図3—42に示すように道路または車道の中",
+            "page": 25
+          },
+          {
+            "id": "figure_p25_2",
+            "caption": "片勾配のすりつけ方としては通常,図3—42に示すように道路または車道の中",
+            "page": 25
+          },
+          {
+            "id": "figure_p25_3",
+            "caption": "片勾配のすりつけ方としては通常,図3—42に示すように道路または車道の中",
+            "page": 25
+          },
+          {
+            "id": "figure_p30_1",
+            "caption": "いかんに応じて次の各項に示すように行う。図3一43～50は,非分離2車線道路,",
+            "page": 30
+          },
+          {
+            "id": "figure_p30_2",
+            "caption": "いかんに応じて次の各項に示すように行う。図3一43～50は,非分離2車線道路,",
+            "page": 30
+          },
+          {
+            "id": "figure_p30_3",
+            "caption": "いかんに応じて次の各項に示すように行う。図3一43～50は,非分離2車線道路,",
+            "page": 30
+          },
+          {
+            "id": "figure_p30_4",
+            "caption": "いかんに応じて次の各項に示すように行う。図3一43～50は,非分離2車線道路,",
+            "page": 30
+          },
+          {
+            "id": "figure_p31_1",
+            "caption": "図 3-45",
+            "page": 31
+          },
+          {
+            "id": "figure_p31_2",
+            "caption": "図 3-45",
+            "page": 31
+          },
+          {
+            "id": "figure_p31_3",
+            "caption": "図 3-45",
+            "page": 31
+          },
+          {
+            "id": "figure_p32_1",
+            "caption": "図 3-48",
+            "page": 32
+          },
+          {
+            "id": "figure_p32_2",
+            "caption": "図 3-48",
+            "page": 32
+          },
+          {
+            "id": "figure_p32_3",
+            "caption": "図 3-48",
+            "page": 32
+          }
+        ],
+        "original_id": "4854fcad-35ac-4f2b-8d15-18dd6402e595_7"
+      },
+      "vector_score": 0.8684386,
+      "keyword_score": 0,
+      "hybrid_score": 0.668697722,
+      "tech_boost": 0.1,
+      "score": 0.668697722,
+      "rank": 4,
+      "title": "20251207_081717_【日本道路協会】道路構造令の解説と運用（令和3年）_R3年3月-14.docx"
+    },
+    {
+      "id": "ce9c27e0-3610-40a2-8e79-ad432edc6e5a",
+      "text": "3. 任意点の拡幅量: すりつけ区間内の任意の点\nにおける拡幅量\nは、以下の⽐例式で求められ\nる。\nここで\nは始点からの距離である。\n実務的意義: この⼿法は、複雑な緩和曲線の計算を⾏わずとも、直線定規と電卓だけで現場施⼯可能\nなレベルのすりつけを定義できる点に特徴がある。しかし、現代の設計では⾛⾏快適性を⾼めるた\nめ、可能な限り緩和曲線を挿⼊することが推奨される。\n---",
+      "metadata": {
+        "doc_id": "4edc9410-0d23-44ee-b1ca-38749c72d8d7",
+        "filename": "20251208_102042_道路線形 曲線部 拡幅量.pdf",
+        "file_path": "temp_uploads/20251208_102042_道路線形 曲線部 拡幅量.pdf",
+        "file_hash": "0269c658e6f6edcc906ab254731d49ba",
+        "processing_timestamp": null,
+        "document_type": "other",
+        "language": "ja",
+        "id": "4edc9410-0d23-44ee-b1ca-38749c72d8d7",
+        "title": "20251208_102042_道路線形 曲線部 拡幅量",
+        "category": "その他",
+        "subcategory": null,
+        "version": "1.0",
+        "revision_date": null,
+        "effective_date": null,
+        "supersedes": null,
+        "status": "active",
+        "publisher": "国土交通省",
+        "issued_by": null,
+        "approval_authority": null,
+        "applicable_standards": [
+          "道路構造令",
+          "道路設計基準"
+        ],
+        "related_documents": [],
+        "keywords": [],
+        "processing_version": "1.0",
+        "page_count": null,
+        "section_count": null,
+        "table_count": null,
+        "figure_count": null,
+        "custom_fields": {},
+        "created_at": null,
+        "updated_at": null,
+        "section_level": 1,
+        "section_type": "numbered_section",
+        "section_title": "任意点の拡幅量: すりつけ区間内の任意の点",
+        "section_number": "3",
+        "importance_score": 0.3,
+        "related_sections": [
+          {
+            "title": "任意点の拡幅量: すりつけ区間内の任意の点",
+            "level": 1
+          }
+        ],
+        "original_id": "4edc9410-0d23-44ee-b1ca-38749c72d8d7_20"
+      },
+      "vector_score": 0.8780867,
+      "keyword_score": 0,
+      "hybrid_score": 0.6556380693333334,
+      "tech_boost": 0.06666666666666667,
+      "score": 0.6556380693333334,
+      "rank": 5,
+      "title": "20251208_102042_道路線形 曲線部 拡幅量"
+    }
+  ],
+  "confidence_score": 0.8,
+  "search_type": "hybrid",
+  "top_k": 5,
+  "saved_at": "2025-12-09T17:21:26.621313+09:00",
+  "metadata": {
+    "name": "平面線形の拡幅について、拡幅量を教えてください。 計算値及び基準等からの一般値を示してください。",
+    "tags": [
+      "平面線形の拡幅について、拡幅量を教えてください。 計算値及び基準等からの一般値を示してください。"
+    ],
+    "processing_time": 61.365272521972656
+  }
+}

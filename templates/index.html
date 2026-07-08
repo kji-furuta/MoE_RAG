@@ -215,11 +215,21 @@
                     <label for="prompt">Prompt:</label>
                     <textarea id="prompt" name="prompt" placeholder="Enter your question or instruction..." required></textarea>
                 </div>
-                
+
+                <div class="form-group">
+                    <label for="pdfAttachment">📎 PDFファイル添付（任意）:</label>
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <input type="file" id="pdfAttachment" accept=".pdf" style="flex: 1; min-width: 200px;">
+                        <span id="pdfFileName" style="color: #666; font-size: 0.9em;"></span>
+                        <button type="button" id="pdfClearBtn" class="btn" style="display:none; padding: 4px 10px; font-size: 0.85em;" onclick="clearPdfAttachment()">✕ クリア</button>
+                    </div>
+                    <small style="color: #888;">PDFファイルを添付すると、その内容についてAIに質問できます（例：誤字脱字チェック）</small>
+                </div>
+
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                     <div class="form-group">
                         <label for="max_length">Max Length:</label>
-                        <input type="number" id="max_length" name="max_length" value="2048" min="100" max="4096">
+                        <input type="number" id="max_length" name="max_length" value="5000" min="100" max="8192">
                     </div>
                     <div class="form-group">
                         <label for="temperature">Temperature:</label>
@@ -545,34 +555,94 @@ function selectModel(modelName, modelType) {
     document.getElementById('modelSelect').value = `${modelType}:${modelName}`;
 }
 
-// テキスト生成（ストリーミング対応）
+// --- PDF添付関連 ---
+document.getElementById('pdfAttachment').addEventListener('change', function() {
+    const fileNameSpan = document.getElementById('pdfFileName');
+    const clearBtn = document.getElementById('pdfClearBtn');
+    if (this.files.length > 0) {
+        fileNameSpan.textContent = this.files[0].name;
+        clearBtn.style.display = 'inline-block';
+    } else {
+        fileNameSpan.textContent = '';
+        clearBtn.style.display = 'none';
+    }
+});
+
+function clearPdfAttachment() {
+    const input = document.getElementById('pdfAttachment');
+    input.value = '';
+    document.getElementById('pdfFileName').textContent = '';
+    document.getElementById('pdfClearBtn').style.display = 'none';
+}
+
+async function extractPdfText(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch('/rag/extract-pdf-text', {
+        method: 'POST',
+        body: formData
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || 'PDF text extraction failed');
+    }
+    return await response.json();
+}
+
+function buildPromptWithPdf(userPrompt, pdfText, filename) {
+    return `あなたはプロの校正者です。以下の「対象文書」に対して、ユーザーの「指示」を正確に実行してください。要約や説明は不要です。指示された作業だけを行ってください。
+
+--- 対象文書（ファイル名: ${filename}）---
+${pdfText}
+--- 対象文書ここまで ---
+
+【指示】
+${userPrompt}`;
+}
+
+// テキスト生成（ストリーミング対応・PDF添付対応）
 document.getElementById('generateForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-    
+
     const modelSelect = document.getElementById('modelSelect');
-    const prompt = document.getElementById('prompt').value;
+    const userPrompt = document.getElementById('prompt').value;
     const maxLength = parseInt(document.getElementById('max_length').value);
     const temperature = parseFloat(document.getElementById('temperature').value);
     const topP = parseFloat(document.getElementById('top_p').value);
     const useStreaming = document.getElementById('useStreaming').checked;
-    
+    const pdfFile = document.getElementById('pdfAttachment').files[0];
+
     if (!modelSelect.value) {
         showAlert('generateResult', 'Please select a model', 'warning');
         return;
     }
-    
-    if (!prompt.trim()) {
+
+    if (!userPrompt.trim()) {
         showAlert('generateResult', 'Please enter a prompt', 'warning');
         return;
     }
-    
+
     const [modelType, modelName] = modelSelect.value.split(':');
-    
-    showAlert('generateResult', 'Generating text...', 'info');
+
     document.getElementById('generateLoading').style.display = 'block';
     document.getElementById('generateBtn').disabled = true;
-    
+
     try {
+        // PDF添付がある場合、先にテキストを抽出
+        let prompt = userPrompt;
+        if (pdfFile) {
+            showAlert('generateResult', 'PDFからテキストを抽出中...', 'info');
+            try {
+                const pdfResult = await extractPdfText(pdfFile);
+                prompt = buildPromptWithPdf(userPrompt, pdfResult.text, pdfResult.filename);
+            } catch (pdfError) {
+                showAlert('generateResult', `PDF抽出エラー: ${pdfError.message}`, 'danger');
+                return;
+            }
+        }
+
+        showAlert('generateResult', 'テキスト生成中...', 'info');
+
         if (useStreaming) {
             // ストリーミング生成
             await generateTextStream(modelType, modelName, prompt, maxLength, temperature, topP);
@@ -592,9 +662,9 @@ document.getElementById('generateForm').addEventListener('submit', async functio
                     top_p: topP
                 })
             });
-            
+
             const result = await response.json();
-            
+
             if (response.ok) {
                 displayGenerationResult(result);
             } else {

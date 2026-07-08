@@ -12,6 +12,8 @@ import logging
 from pathlib import Path
 import sys
 
+logger = logging.getLogger(__name__)
+
 # プロジェクトルートをパスに追加
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
@@ -33,8 +35,6 @@ except ImportError as e:
 # MoEシステムのインポート
 from src.moe.moe_architecture import MoEConfig, MoELayer
 from src.moe_rag_integration.expert_router import ExpertRouter, RoutingDecision
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -112,7 +112,17 @@ class UnifiedMoERAGSystem:
                     from src.rag.indexing.embedding_model import MultilingualE5EmbeddingModel
                     embedding_model = MultilingualE5EmbeddingModel()
                     self.hybrid_searcher = HybridSearcher(self.vector_store, embedding_model)
-            logger.info("RAG system initialized successfully")
+                logger.info("RAG system initialized successfully")
+            except (ImportError, ModuleNotFoundError) as e:
+                logger.warning(f"RAG dependency not available: {e}")
+                self.query_engine = None
+                self.vector_store = None
+                self.hybrid_searcher = None
+            except Exception as e:
+                logger.error(f"Failed to initialize RAG system: {e}")
+                self.query_engine = None
+                self.vector_store = None
+                self.hybrid_searcher = None
         else:
             self.query_engine = None
             self.vector_store = None

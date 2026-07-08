@@ -1,0 +1,102 @@
+# RLAnything Configuration
+# 閉ループ動的強化学習フレームワークの設定ファイル
+#
+# Usage:
+#   from src.training.rl import RLAnythingConfig
+#   config = RLAnythingConfig.from_yaml("config/rlanything_config.yaml")
+
+# ── モデル設定 ────────────────────────────────────────
+model:
+  model_name: "cyberagent/calm3-22b-chat"
+  output_dir: "./outputs/rlanything"
+
+# ── LoRA / QLoRA 設定 ─────────────────────────────────
+lora:
+  use_lora: true
+  lora_r: 64
+  lora_alpha: 128
+  lora_dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+# ── 量子化設定 ────────────────────────────────────────
+quantization:
+  use_quantization: true
+  quantization_bits: 4
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_use_double_quant: true
+
+# ── Policy (GRPO) 設定 ────────────────────────────────
+# GRPO: Group Relative Policy Optimization
+# Advantage A_i = (r_i - mean(r)) / std(r)
+policy:
+  grpo_num_generations: 8       # グループサンプリング数 G
+  grpo_temperature: 1.0         # サンプリング温度
+  grpo_max_new_tokens: 512      # 最大生成トークン数
+  grpo_beta: 0.04               # KLペナルティ係数
+  grpo_epsilon_low: 0.2         # クリッピング下限
+  grpo_epsilon_high: 0.2        # クリッピング上限
+  policy_learning_rate: 1.0e-6
+  policy_per_device_batch_size: 1
+  policy_gradient_accumulation_steps: 16
+  policy_max_steps: 500
+
+# ── Reward Model 設定 ─────────────────────────────────
+# 自己一貫性ベースの報酬モデル学習
+# 統合報酬: R = λ * R_outcome + (1-λ) * mean(R_process)
+reward:
+  reward_model_name: null       # Noneの場合、ルールベース報酬を使用
+  reward_learning_rate: 5.0e-6
+  reward_per_device_batch_size: 2
+  reward_gradient_accumulation_steps: 8
+  reward_max_steps: 200
+  reward_self_consistency_k: 5  # 自己一貫性チェック回数
+  reward_outcome_weight: 0.6    # λ: Outcome報酬の重み
+  reward_process_weight: 0.4    # (1-λ): Process報酬の重み
+
+# ── Environment Adapter 設定 ──────────────────────────
+# 動的タスク難易度調整
+# success_rate < α_low → 難易度↓, success_rate > α_high → 難易度↑
+environment:
+  env_success_rate_low: 0.2     # α_low: 難易度下げ閾値
+  env_success_rate_high: 0.8    # α_high: 難易度上げ閾値
+  env_adaptation_window: 50     # 成功率計算ウィンドウ
+  env_max_difficulty: 5         # 最大難易度レベル
+  env_min_difficulty: 1         # 最小難易度レベル
+  env_enable_critical_feedback: true  # LLMフィードバック有効化
+
+# ── Closed-Loop Orchestration 設定 ────────────────────
+orchestration:
+  num_iterations: 10            # 閉ループ反復回数
+  trajectories_per_iteration: 64  # イテレーション毎の軌跡数
+  reward_update_interval: 2     # 報酬モデル更新間隔（イテレーション）
+  environment_adapt_interval: 3 # 環境適応間隔（イテレーション）
+  convergence_threshold: 0.01   # 収束判定閾値
+  early_stopping_patience: 3    # 早期停止の忍耐度
+
+# ── メモリ最適化 ──────────────────────────────────────
+memory:
+  gradient_checkpointing: true
+  bf16: true
+  optim: "paged_adamw_8bit"
+  max_memory_per_gpu: "23GiB"
+  max_cpu_memory: "40GiB"
+
+# ── ログ・保存 ───────────────────────────────────────
+logging:
+  logging_steps: 10
+  save_steps: 100
+  save_total_limit: 3
+  report_to: "none"
+
+# ── データ設定 ───────────────────────────────────────
+data:
+  dataset_path: null
+  max_prompt_length: 512
+  max_completion_length: 512

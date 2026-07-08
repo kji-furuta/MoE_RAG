@@ -188,24 +188,29 @@ class OllamaIntegration:
             if "max_tokens" in kwargs:
                 ollama_params["options"]["num_predict"] = kwargs["max_tokens"]
 
-            # 繰り返し防止パラメータ（強化版）
+            # 繰り返し防止パラメータ
+            # 注意: 強くかけ過ぎる（例: 1.3 + frequency/presence併用）と頻出する
+            # 日本語トークンが抑制され、韓国語・中国語への言語ドリフトが発生する
             if "repetition_penalty" in kwargs:
                 ollama_params["options"]["repeat_penalty"] = kwargs["repetition_penalty"]
             else:
-                # 繰り返しペナルティを1.3に強化
-                ollama_params["options"]["repeat_penalty"] = 1.3
+                ollama_params["options"]["repeat_penalty"] = 1.1
 
-            # 頻度ペナルティ（同じトークンの出現頻度を抑制）
+            # 繰り返し検出ウィンドウ（トークン数）: 指定時のみ適用
+            # デフォルト(64)では段落単位のループを検出できないため、長文生成では拡大を推奨
+            if "repeat_last_n" in kwargs:
+                try:
+                    ollama_params["options"]["repeat_last_n"] = int(kwargs["repeat_last_n"])
+                except Exception:
+                    pass
+
+            # 頻度ペナルティ（同じトークンの出現頻度を抑制）: 指定時のみ適用
             if "frequency_penalty" in kwargs:
                 ollama_params["options"]["frequency_penalty"] = kwargs["frequency_penalty"]
-            else:
-                ollama_params["options"]["frequency_penalty"] = 0.7
 
-            # 存在ペナルティ（既出トークンを抑制）
+            # 存在ペナルティ（既出トークンを抑制）: 指定時のみ適用
             if "presence_penalty" in kwargs:
                 ollama_params["options"]["presence_penalty"] = kwargs["presence_penalty"]
-            else:
-                ollama_params["options"]["presence_penalty"] = 0.6
 
             # コンテキストウィンドウ（文脈維持）
             # 呼び出し側で指定があればそれを優先

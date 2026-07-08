@@ -4,6 +4,7 @@
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
@@ -34,6 +35,94 @@ from ..utils.exceptions import (
     LLMMemoryError,
     VectorStoreConnectionError
 )
+
+
+def _contains_hangul(text: str) -> bool:
+    """テキストに韓国語（ハングル）が含まれるかを判定"""
+    return any(
+        '\uac00' <= ch <= '\ud7af'  # ハングル音節
+        or '\u1100' <= ch <= '\u11ff'  # ハングル字母
+        or '\u3130' <= ch <= '\u318f'  # ハングル互換字母
+        for ch in text
+    )
+
+
+def _dedupe_repeated_paragraphs(text: str) -> str:
+    """生成テキスト中の重複段落を除去する
+
+    量子化モデルでは同一段落を延々と繰り返すループが発生することがあるため、
+    正規化して同一とみなせる段落の2回目以降を削除する。
+    """
+    paragraphs = re.split(r'\n{2,}', text)
+    seen = set()
+    kept = []
+    removed = 0
+    for para in paragraphs:
+        # 空白を除去して正規化したものを比較キーにする
+        key = re.sub(r'\s+', '', para)
+        if not key:
+            continue
+        if key in seen:
+            removed += 1
+            continue
+        seen.add(key)
+        kept.append(para.strip())
+    if removed:
+        logger.warning(f"重複段落を{removed}件除去しました")
+    return '\n\n'.join(kept)
+
+
+def _ollama_generate_japanese(ollama_client, model_name: str, prompt: str,
+                              max_tokens: int = 2048) -> Dict[str, Any]:
+    """Ollamaで日本語回答を生成する共通ヘルパー
+
+    パラメータ調整の経緯:
+    - repeat_penalty 1.3 + frequency/presence 併用 → 日本語トークンが抑制され
+      韓国語・中国語への言語ドリフトが発生（強すぎ）
+    - repeat_penalty 1.1 のみ（検出窓64トークン） → 段落単位のループを検出できず
+      同一段落の無限繰り返しが発生（弱すぎ）
+    - 現在: repeat_penalty 1.15 + repeat_last_n 512 で段落サイズまで検出窓を拡大し、
+      さらに後処理で重複段落を除去する
+    ハングルが混入した場合は低温度で1回だけ再生成する。
+    """
+    result = ollama_client.generate_text(
+        model_name=model_name,
+        prompt=prompt,
+        temperature=0.4,
+        top_p=0.9,
+        max_tokens=max_tokens,
+        repetition_penalty=1.15,
+        repeat_last_n=512,
+    )
+
+    generated = result.get("generated_text", "") if result.get("success", False) else ""
+
+    if generated and _contains_hangul(generated):
+        logger.warning("生成結果に韓国語（ハングル）が混入したため、低温度で再生成します")
+        retry_prompt = (
+            prompt
+            + "\n\n【厳守】韓国語（ハングル）・中国語は一切使用せず、日本語のみで回答してください。"
+        )
+        retry = ollama_client.generate_text(
+            model_name=model_name,
+            prompt=retry_prompt,
+            temperature=0.1,
+            top_p=0.9,
+            max_tokens=max_tokens,
+            repetition_penalty=1.1,
+            repeat_last_n=512,
+        )
+        if retry.get("success", False) and not _contains_hangul(retry.get("generated_text", "")):
+            result = retry
+            generated = retry.get("generated_text", "")
+        else:
+            logger.warning("再生成でもハングルが除去できなかったため、初回の生成結果を返します")
+
+    # 段落単位のループを後処理で除去
+    if generated:
+        result["generated_text"] = _dedupe_repeated_paragraphs(generated)
+
+    return result
 
 
 @dataclass
@@ -651,17 +740,8 @@ class LLMGenerator:
             
             logger.info(f"Ollamaモデル使用: {ollama_model}")
             
-            # Ollamaで生成
-            result = self.ollama.generate_text(
-                model_name=ollama_model,
-                prompt=full_prompt,
-                temperature=0.7,  # 安定性のため0.7に戻す
-                top_p=0.9,
-                max_tokens=2048,  # 回答の途中切断を防ぐために2048に増加
-                repetition_penalty=1.3,  # 繰り返し防止を強化
-                frequency_penalty=0.7,  # 頻度ペナルティ追加
-                presence_penalty=0.6  # 存在ペナルティ追加
-            )
+            # Ollamaで生成（日本語固定・ハングル混入時はリトライ）
+            result = _ollama_generate_japanese(self.ollama, ollama_model, full_prompt)
             
             if result.get("success", False):
                 generated_text = result.get("generated_text", "")
@@ -689,7 +769,7 @@ class LLMGenerator:
 
         prompt_template = """あなたは道路設計の専門家です。以下の参考資料に基づいて、質問に正確に回答してください。
 
-**重要: 回答は必ず日本語のみを使用してください。中国語の簡体字や繁体字は使用しないでください。**
+**重要: 回答は必ず日本語のみを使用してください。中国語の簡体字や繁体字、韓国語（ハングル）は使用しないでください。**
 
 重要な指示:
 1. 数値や基準値は必ず参考資料から正確に引用すること
@@ -697,7 +777,7 @@ class LLMGenerator:
 3. 複数の基準がある場合は、すべて列挙すること
 4. 不明な場合は推測せず「参考資料に該当する情報が見つかりません」と回答すること
 5. 回答は簡潔で実践的にすること
-6. **日本語の漢字のみを使用**し、中国語の簡体字（例: 车、学、国）は使わないでください
+6. **日本語のみを使用**し、中国語の簡体字（例: 车、学、国）や韓国語（ハングル）は使わないでください
 
 参考資料:
 {context}
@@ -1452,15 +1532,8 @@ class RoadDesignQueryEngine:
                 
                 logger.info(f"Ollamaモデル使用: {ollama_model}")
                 
-                result = self.llm_generator.ollama.generate_text(
-                    model_name=ollama_model,
-                    prompt=enhanced_prompt,
-                    temperature=0.7,  # 安定性のため0.7に戻す
-                    top_p=0.9,
-                    max_tokens=2048,  # 文字数を大幅に拡張
-                    repetition_penalty=1.3,  # 繰り返し防止を強化
-                    frequency_penalty=0.7,  # 頻度ペナルティ追加
-                    presence_penalty=0.6  # 存在ペナルティ追加
+                result = _ollama_generate_japanese(
+                    self.llm_generator.ollama, ollama_model, enhanced_prompt
                 )
                 
                 if result.get("success", False):
@@ -1566,15 +1639,8 @@ class RoadDesignQueryEngine:
                     
                 logger.info(f"Ollamaモデル使用: {ollama_model}")
                 
-                result = self.llm_generator.ollama.generate_text(
-                    model_name=ollama_model,
-                    prompt=enhanced_prompt,
-                    temperature=0.7,  # 安定性のため0.7に戻す
-                    top_p=0.9,
-                    max_tokens=2048,  # 文字数を大幅に拡張
-                    repetition_penalty=1.3,  # 繰り返し防止を強化
-                    frequency_penalty=0.7,  # 頻度ペナルティ追加
-                    presence_penalty=0.6  # 存在ペナルティ追加
+                result = _ollama_generate_japanese(
+                    self.llm_generator.ollama, ollama_model, enhanced_prompt
                 )
                 
                 if result.get("success", False):
@@ -1641,7 +1707,7 @@ class RoadDesignQueryEngine:
 
 あなたは経験豊富な道路設計の専門家です。以下の参考資料を基に、質問に対して**詳細で実用的な回答**を提供してください。
 
-**重要: 回答は必ず日本語のみを使用してください。中国語の簡体字や繁体字は使用しないでください。**
+**重要: 回答は必ず日本語のみを使用してください。中国語の簡体字や繁体字、韓国語（ハングル）は使用しないでください。**
 
 ## 参考資料
 {context}
@@ -1657,7 +1723,7 @@ class RoadDesignQueryEngine:
 5. **1500-5000文字程度**の充実した回答をお願いします
 6. 参考資料から情報を引用した場合は、**[出典: ファイル名]** の形式で具体的な出典ファイル名を明記してください（例: [出典: 20251201_道路舗装主材料]）
 7. 回答の根拠は、日本の法令、基準、指針、要領、マニュアルの情報を活用することとし、中国の法令、基準、指針、要領、マニュアルの情報は使わないでください。
-7. **日本語の漢字のみを使用**し、中国語の簡体字（例: 车、时、间）は使わないでください。
+7. **日本語のみを使用**し、中国語の簡体字（例: 车、时、间）や韓国語（ハングル）は使わないでください。
 
 
 ## 回答"""
@@ -1666,7 +1732,7 @@ class RoadDesignQueryEngine:
 
 あなたは経験豊富な日本の道路設計の専門家です。以下の質問に対して、一般的な知識を基に**詳細で実用的な回答**を提供してください。
 
-**重要: 回答は必ず日本語のみを使用してください。中国語の簡体字や繁体字は使用しないでください。**
+**重要: 回答は必ず日本語のみを使用してください。中国語の簡体字や繁体字、韓国語（ハングル）は使用しないでください。**
 
 ## 質問
 {query}
@@ -1677,7 +1743,7 @@ class RoadDesignQueryEngine:
 3. **関連する法規や基準**があれば言及してください
 4. **1500-5000文字程度**の充実した回答をお願いします
 5. 参考資料がないため、一般的な道路設計の知識を活用してください
-6. **日本語の漢字のみを使用**し、中国語の簡体字（例: 车、时、间）は使わないでください
+6. **日本語のみを使用**し、中国語の簡体字（例: 车、时、间）や韓国語（ハングル）は使わないでください
 
 ## 回答"""
         

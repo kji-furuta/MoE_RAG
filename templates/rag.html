@@ -2340,7 +2340,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-{% block extra_scripts %}
+{# 注意: このHTML群を extra_scripts ブロックに入れると base.html の <script> タグ内に
+   展開されて構文エラーになるため、content ブロック内に直接記述する #}
 <!-- Marked.js: マークダウンパーサー -->
 <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
 <!-- DOMPurify: XSS対策のためのHTMLサニタイザー -->
@@ -2556,7 +2557,5 @@ document.addEventListener('DOMContentLoaded', function() {
     loadVectorDBInfo();
 });
 </script>
-
-{% endblock %}
 
 {% endblock %}

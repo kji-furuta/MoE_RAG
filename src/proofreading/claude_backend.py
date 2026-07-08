@@ -135,7 +135,8 @@ class ClaudeBackend:
             None, self.proofread_chunk, chunk_text, chunk_index, total_chunks
         )
 
-    def _parse_response(self, raw: str) -> List[Dict[str, Any]]:
+    @staticmethod
+    def _parse_response(raw: str) -> List[Dict[str, Any]]:
         """Claude応答からJSON配列を抽出する"""
         # JSON配列部分を抽出
         raw_stripped = raw.strip()
@@ -272,7 +273,7 @@ class OllamaChatBackend:
                 data = response.json()
                 raw = data.get("message", {}).get("content", "")
                 # ClaudeBackendと同じパーサーを使用
-                findings = ClaudeBackend._parse_response(None, raw)
+                findings = ClaudeBackend._parse_response(raw)
 
                 return ProofreadingResult(
                     findings=findings,

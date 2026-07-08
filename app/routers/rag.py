@@ -9,7 +9,7 @@ import os
 import uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse

@@ -5,7 +5,6 @@ from __future__ import annotations
 import gc
 import json
 import os
-import re
 import traceback
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -18,6 +17,12 @@ from ..dependencies import logger, model_cache
 from ..model_utils import load_tokenizer, create_quantization_config, get_device_map
 from ..training.models import GenerationRequest
 from ..exceptions import ModelLoadError, ModelMemoryError, GenerationError, OllamaError
+from .proofreading import (
+    PROOFREADING_AVAILABLE,
+    is_proofreading_request,
+    _truncate_chars,
+    _tokenizer_input_max_len,
+)
 import app.dependencies as _deps
 
 JST = timezone(timedelta(hours=9))
@@ -45,6 +50,26 @@ async def generate_text(request: GenerationRequest):
     """実際のファインチューニング済みモデルを使用したテキスト生成"""
     try:
         logger.info(f"テキスト生成開始: モデル={request.model_path}, プロンプト={request.prompt[:50]}...")
+
+        # 校正モード検出: 校正リクエストの場合は専用モジュールに委譲
+        proofread_mode = is_proofreading_request(request.prompt)
+        if proofread_mode and PROOFREADING_AVAILABLE:
+            try:
+                from src.proofreading import ProofreadingService
+                service = ProofreadingService()
+                report = await service.proofread_document(request.prompt)
+                return {
+                    "prompt": request.prompt,
+                    "generated_text": json.dumps(report, ensure_ascii=False, indent=2),
+                    "model_path": request.model_path,
+                    "method": "proofreading_service",
+                    "proofreading_report": report
+                }
+            except Exception as e:
+                logger.error(f"校正サービスエラー: {e}")
+                # フォールバック: 従来のテキスト生成に進む
+
+        effective_prompt = request.prompt
 
         model_path = Path(request.model_path)
 
@@ -75,16 +100,19 @@ async def generate_text(request: GenerationRequest):
                     if ok:
                         result = ollama.generate_text(
                             model_name="llama3.2:3b",
-                            prompt=request.prompt,
+                            prompt=effective_prompt,
                             temperature=request.temperature,
                             top_p=request.top_p,
                             max_tokens=request.max_length
                         )
 
                         if result.get("success", False):
+                            generated_text = result.get("generated_text", "")
+                            if proofread_mode:
+                                generated_text = _truncate_chars(generated_text, limit=5200)
                             return {
                                 "prompt": request.prompt,
-                                "generated_text": result.get("generated_text", ""),
+                                "generated_text": generated_text,
                                 "model_path": request.model_path,
                                 "method": "ollama",
                                 "note": "GPUメモリ不足のため、Ollamaモデルを使用しました"
@@ -239,7 +267,7 @@ async def generate_text(request: GenerationRequest):
                                         # Ollamaでテキスト生成
                                         result = ollama_integration.generate_text(
                                             model_name=ollama_model_name,
-                                            prompt=request.prompt,
+                                            prompt=effective_prompt,
                                             temperature=request.temperature,
                                             top_p=request.top_p,
                                             max_tokens=request.max_length
@@ -247,9 +275,12 @@ async def generate_text(request: GenerationRequest):
 
                                         if result.get("success", False):
                                             logger.info("Ollamaフォールバック成功")
+                                            generated_text = result.get("generated_text", "Ollama生成エラー")
+                                            if proofread_mode:
+                                                generated_text = _truncate_chars(generated_text, limit=5200)
                                             return {
                                                 "prompt": request.prompt,
-                                                "generated_text": result.get("generated_text", "Ollama生成エラー"),
+                                                "generated_text": generated_text,
                                                 "model_path": request.model_path,
                                                 "fallback": "ollama",
                                                 "method": "ollama",
@@ -362,7 +393,7 @@ async def generate_text(request: GenerationRequest):
                                 # Ollamaでテキスト生成
                                 result = ollama.generate_text(
                                     model_name=ollama_model_name,
-                                    prompt=request.prompt,
+                                    prompt=effective_prompt,
                                     temperature=request.temperature,
                                     top_p=request.top_p,
                                     max_tokens=request.max_length
@@ -370,9 +401,12 @@ async def generate_text(request: GenerationRequest):
 
                                 if result.get("success", False):
                                     logger.info("Ollamaでの生成が成功しました")
+                                    generated_text = result.get("generated_text", "Ollama生成エラー")
+                                    if proofread_mode:
+                                        generated_text = _truncate_chars(generated_text, limit=5200)
                                     return {
                                         "prompt": request.prompt,
-                                        "generated_text": result.get("generated_text", "Ollama生成エラー"),
+                                        "generated_text": generated_text,
                                         "model_path": request.model_path,
                                         "method": "ollama",
                                         "note": "GPUメモリ不足のため、Ollamaモデルで生成しました",
@@ -420,13 +454,16 @@ async def generate_text(request: GenerationRequest):
         # テキスト生成
         logger.info("テキスト生成を実行中...")
 
-        # プロンプトのトークナイズ
+        # プロンプトのトークナイズ（長文を切り詰めすぎない）
+        input_max_len = _tokenizer_input_max_len(
+            tokenizer, 4096 if proofread_mode else 2048
+        )
         inputs = tokenizer(
-            request.prompt,
+            effective_prompt,
             return_tensors="pt",
             padding=True,
             truncation=True,
-            max_length=512
+            max_length=input_max_len
         )
 
         # GPUに移動
@@ -445,7 +482,8 @@ async def generate_text(request: GenerationRequest):
                 generation_kwargs = {
                     'input_ids': inputs['input_ids'],
                     'attention_mask': inputs.get('attention_mask'),
-                    'max_new_tokens': request.max_length,
+                    # UIのmax_lengthは「生成する新規トークン数」として扱う
+                    'max_new_tokens': int(request.max_length),
                     'pad_token_id': tokenizer.eos_token_id,
                     'eos_token_id': tokenizer.eos_token_id,
                     'repetition_penalty': 1.2,  # 繰り返しペナルティを追加
@@ -471,22 +509,14 @@ async def generate_text(request: GenerationRequest):
                 generated_ids = outputs[0]  # 生成されたIDを記録
                 input_length = len(inputs['input_ids'][0])  # 入力トークン数を記録
 
-                # 生成されたテキストをデコード
-                generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+                # 入力部分を除いた生成結果のみを取り出す
+                input_len = inputs["input_ids"].shape[1]
+                generated_text = tokenizer.decode(outputs[0][input_len:], skip_special_tokens=True)
                 logger.info(f"デコード完了: テキスト長={len(generated_text)}")
 
-                # 元のプロンプトを除去して新しい部分だけを取得
-                if generated_text.startswith(request.prompt):
-                    new_text = generated_text[len(request.prompt):].strip()
-                    if new_text:
-                        # 「- 交通工学の問題です。」のような繰り返しパターンを検出して削除
-                        # 同じフレーズが3回以上繰り返される場合は、最初の1回だけ残す
-                        pattern = r'((?:^|\n)?(?:- )?[^\n]+?)(?:\n?\1){2,}'
-                        new_text = re.sub(pattern, r'\1', new_text)
-
-                        generated_text = request.prompt + "\n" + new_text
-                    else:
-                        generated_text = request.prompt + " [生成されたテキストが空でした]"
+                # 校正モードの場合は5000文字程度に寄せる（上限を超えたら切り詰め）
+                if proofread_mode:
+                    generated_text = _truncate_chars(generated_text, limit=5200)
 
                 logger.info(f"テキスト生成完了: {len(generated_text)}文字")
 

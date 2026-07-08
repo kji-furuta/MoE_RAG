@@ -13,6 +13,12 @@ import os
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"  # トークナイザーの警告を抑制
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()  # .envファイルからANTHROPIC_API_KEY等を読み込み
+except ImportError:
+    pass
+
 import json
 import logging
 import sys
@@ -136,6 +142,7 @@ from app.routers.moe_dataset import router as moe_dataset_router  # noqa: E402
 from app.routers.monitoring import router as monitoring_router  # noqa: E402
 from app.routers.models import router as models_router  # noqa: E402
 from app.routers.rlanything import router as rlanything_router  # noqa: E402
+from app.routers.proofreading import router as proofreading_router  # noqa: E402
 
 app.include_router(finetuning_router)
 app.include_router(upload_router)
@@ -146,6 +153,7 @@ app.include_router(moe_dataset_router)
 app.include_router(monitoring_router)
 app.include_router(models_router)
 app.include_router(rlanything_router)
+app.include_router(proofreading_router)
 
 # --- Continual learning & DPO (optional) ---
 CONTINUAL_TASKS_FILE = Path(os.getcwd()) / "data" / "continual_learning" / "tasks_state.json"

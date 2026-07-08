@@ -1442,7 +1442,7 @@ async def export_search_results(
 
 # --- New: Extract PDF text to inject into prompt ---
 @router.post("/extract-pdf-text")
-async def extract_pdf_text(file: UploadFile = File(...), max_chars: int = Form(20000)):
+async def extract_pdf_text(file: UploadFile = File(...), max_chars: int = Form(120000)):
     """Extract plain text from a PDF and return it for prompt injection.
     Does not index or persist content. Truncates to max_chars.
     """
@@ -1450,6 +1450,13 @@ async def extract_pdf_text(file: UploadFile = File(...), max_chars: int = Form(2
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
     try:
+        # 安全のため上限・下限をクランプ（過大入力による負荷を避ける）
+        try:
+            max_chars = int(max_chars)
+        except Exception:
+            max_chars = 120000
+        max_chars = max(1000, min(max_chars, 200000))
+
         tmp_dir = Path("./temp_uploads/prompt")
         tmp_dir.mkdir(parents=True, exist_ok=True)
         tmp_path = tmp_dir / f"{uuid.uuid4()}_{file.filename}"
@@ -1471,8 +1478,34 @@ async def extract_pdf_text(file: UploadFile = File(...), max_chars: int = Form(2
             raise HTTPException(status_code=500, detail="Failed to process PDF")
 
         # Join chunk texts as a single prompt text
-        full_text = "\n\n".join(c.text for c in processed.chunks)
+        if processed.chunks and len(processed.chunks) > 0:
+            full_text = "\n\n".join(c.text for c in processed.chunks if c.text and c.text.strip())
+            logger.info(f"Extracted text from {len(processed.chunks)} chunks, total length: {len(full_text)}")
+        else:
+            # チャンクが空の場合、PDFから直接テキストを抽出
+            logger.warning("No chunks found, attempting direct PDF text extraction")
+            try:
+                import fitz  # PyMuPDF
+                pdf_doc = fitz.open(str(tmp_path))
+                text_parts = []
+                for page_num in range(len(pdf_doc)):
+                    page = pdf_doc[page_num]
+                    page_text = page.get_text("text")
+                    if page_text.strip():
+                        text_parts.append(page_text)
+                pdf_doc.close()
+                full_text = "\n\n".join(text_parts)
+                logger.info(f"Direct PDF extraction: {len(full_text)} characters from {len(text_parts)} pages")
+            except Exception as e:
+                logger.error(f"Direct PDF extraction failed: {e}")
+                full_text = ""
+
+        if not full_text or not full_text.strip():
+            raise HTTPException(status_code=500, detail="No text could be extracted from PDF. The PDF may be image-only or corrupted.")
+
         truncated = (full_text[: max_chars] + "\n... (truncated)") if len(full_text) > max_chars else full_text
+        logger.info(f"Returning {len(truncated)} characters (truncated from {len(full_text)})")
+
         return {
             "filename": file.filename,
             "doc_id": processed.id,

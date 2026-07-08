@@ -51,6 +51,23 @@ echo "========================================="
 echo "Container initialization complete!"
 echo "========================================="
 
+# 環境変数でWebサーバーの自動起動を制御
+# AUTO_START_WEB=true の場合、自動的にWebサーバーを起動
+if [ "${AUTO_START_WEB:-false}" = "true" ]; then
+    echo "🌐 Webサーバーを自動起動します..."
+    cd /workspace
+    
+    # 既存のプロセスを確認して終了
+    if lsof -i:8050 > /dev/null 2>&1; then
+        echo "⚠️ 既存のプロセスを終了します..."
+        kill $(lsof -t -i:8050) 2>/dev/null || true
+        sleep 2
+    fi
+    
+    # Webサーバーを起動
+    exec python3 -m uvicorn app.main_unified:app --host 0.0.0.0 --port 8050 --reload
+fi
+
 # コマンドが指定されていない場合はbashを起動
 if [ $# -eq 0 ]; then
     exec /bin/bash

@@ -147,4 +147,8 @@ data/uploaded/
 data/feedback/
 data/logs/
 data/continual_learning/
+data/search_history/
 *.jsonl
+
+# WSL metadata
+*:Zone.Identifier

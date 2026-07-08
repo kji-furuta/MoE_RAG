@@ -17,6 +17,12 @@ from transformers import AutoModelForCausalLM
 
 from ..dependencies import logger, model_cache, training_tasks
 from ..model_utils import load_tokenizer, create_quantization_config
+from .proofreading import (
+    PROOFREADING_AVAILABLE,
+    is_proofreading_request,
+    _truncate_chars,
+    _tokenizer_input_max_len,
+)
 import app.dependencies as _deps
 
 JST = timezone(timedelta(hours=9))
@@ -568,6 +574,22 @@ async def generate_text_stream(request: dict):
                 yield f"data: {json.dumps({'error': 'model_name, model_type, promptが必要です'})}\n\n"
                 return
 
+            # 校正モード検出: 校正リクエストの場合は専用モジュールに委譲
+            proofread_mode = is_proofreading_request(prompt)
+            if proofread_mode and PROOFREADING_AVAILABLE:
+                try:
+                    from src.proofreading import ProofreadingService
+                    service = ProofreadingService()
+                    report = await service.proofread_document(prompt)
+                    result_text = json.dumps(report, ensure_ascii=False, indent=2)
+                    yield f"data: {json.dumps({'text': result_text, 'done': True})}\n\n"
+                    return
+                except Exception as e:
+                    logger.error(f"校正サービスエラー: {e}")
+
+            effective_prompt = prompt
+            char_limit = None
+
             logger.info(f"ストリーミング生成開始: {model_type}/{model_name}")
 
             if model_type == "ollama":
@@ -579,9 +601,15 @@ async def generate_text_stream(request: dict):
                 import requests
                 ollama_params = {
                     "model": model_name,
-                    "prompt": prompt,
+                    "prompt": effective_prompt,
                     "stream": True,
-                    "options": {"temperature": temperature, "top_p": top_p, "num_predict": max_length},
+                    "options": {
+                        "temperature": temperature,
+                        "top_p": top_p,
+                        "num_predict": max_length,
+                        # 長文入力を優先（サーバ側でも4096固定だが、ここは明示）
+                        "num_ctx": 8192 if proofread_mode else 4096,
+                    },
                 }
 
                 try:
@@ -589,11 +617,22 @@ async def generate_text_stream(request: dict):
                         f"{ollama.base_url}/api/generate", json=ollama_params, stream=True, timeout=300,
                     )
                     if response.status_code == 200:
+                        emitted_chars = 0
                         for line in response.iter_lines():
                             if line:
                                 data = json.loads(line.decode("utf-8"))
                                 if "response" in data:
-                                    yield f"data: {json.dumps({'text': data['response'], 'done': False})}\n\n"
+                                    chunk = data["response"]
+                                    if char_limit is not None:
+                                        remaining = char_limit - emitted_chars
+                                        if remaining <= 0:
+                                            yield f"data: {json.dumps({'text': '', 'done': True})}\n\n"
+                                            break
+                                        if len(chunk) > remaining:
+                                            chunk = chunk[:remaining]
+                                    emitted_chars += len(chunk)
+                                    if chunk:
+                                        yield f"data: {json.dumps({'text': chunk, 'done': False})}\n\n"
                                 if data.get("done", False):
                                     yield f"data: {json.dumps({'text': '', 'done': True})}\n\n"
                                     break
@@ -631,7 +670,17 @@ async def generate_text_stream(request: dict):
                     tokenizer = cached_model["tokenizer"]
                     model = cached_model["model"]
 
-                    inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
+                    # 長文入力を切り詰めすぎない（tokenizerの上限に合わせる）
+                    input_max_len = _tokenizer_input_max_len(
+                        tokenizer, 4096 if proofread_mode else 2048
+                    )
+                    inputs = tokenizer(
+                        effective_prompt,
+                        return_tensors="pt",
+                        padding=True,
+                        truncation=True,
+                        max_length=input_max_len
+                    )
                     if torch.cuda.is_available():
                         inputs = {k: v.to(model.device) for k, v in inputs.items()}
 
@@ -642,6 +691,7 @@ async def generate_text_stream(request: dict):
                     generated_tokens = []
                     current_text = ""
                     token_buffer = []
+                    emitted_chars = 0
 
                     with torch.no_grad():
                         for _ in range(max_length):
@@ -673,7 +723,17 @@ async def generate_text_stream(request: dict):
                                             invalid_chars = ["", "\ufffd", "\u0000", "\u0001", "\u0002", "\u0003"]
                                             has_invalid = any(char in new_text for char in invalid_chars)
                                             if not has_invalid:
-                                                yield f"data: {json.dumps({'text': new_text, 'done': False})}\n\n"
+                                                chunk = new_text
+                                                if char_limit is not None:
+                                                    remaining = char_limit - emitted_chars
+                                                    if remaining <= 0:
+                                                        yield f"data: {json.dumps({'text': '', 'done': True})}\n\n"
+                                                        break
+                                                    if len(chunk) > remaining:
+                                                        chunk = chunk[:remaining]
+                                                emitted_chars += len(chunk)
+                                                if chunk:
+                                                    yield f"data: {json.dumps({'text': chunk, 'done': False})}\n\n"
                                     token_buffer = []
                                 except Exception as decode_error:
                                     logger.error(f"デコードエラー: {decode_error}")
@@ -695,6 +755,8 @@ async def generate_text_stream(request: dict):
                                 inputs["attention_mask"] = torch.cat([inputs["attention_mask"], ones], dim=1)
 
                             if new_token.item() == tokenizer.eos_token_id:
+                                break
+                            if char_limit is not None and emitted_chars >= char_limit:
                                 break
 
                     yield f"data: {json.dumps({'text': '', 'done': True})}\n\n"
@@ -726,6 +788,27 @@ async def generate_with_model_selection(request: dict):
         if not model_name or not model_type or not prompt:
             return {"success": False, "error": "model_name, model_type, promptが必要です"}
 
+        # 校正モード検出: 校正リクエストの場合は専用モジュールに委譲
+        proofread_mode = is_proofreading_request(prompt)
+        if proofread_mode and PROOFREADING_AVAILABLE:
+            try:
+                from src.proofreading import ProofreadingService
+                service = ProofreadingService()
+                report = await service.proofread_document(prompt)
+                return {
+                    "success": True,
+                    "generated_text": json.dumps(report, ensure_ascii=False, indent=2),
+                    "model_name": model_name,
+                    "model_type": model_type,
+                    "method": "proofreading_service",
+                    "proofreading_report": report
+                }
+            except Exception as e:
+                logger.error(f"校正サービスエラー: {e}")
+
+        effective_prompt = prompt
+        effective_max_tokens = int(max_length)
+
         logger.info(f"モデル選択生成: {model_type}/{model_name}")
 
         if model_type == "ollama":
@@ -734,12 +817,21 @@ async def generate_with_model_selection(request: dict):
                 return {"success": False, "error": "Ollamaが利用できません"}
 
             result = ollama.generate_text(
-                model_name=model_name, prompt=prompt, temperature=temperature, top_p=top_p, max_tokens=max_length,
+                model_name=model_name,
+                prompt=effective_prompt,
+                temperature=temperature,
+                top_p=top_p,
+                max_tokens=max_length,
+                # 長文の読み込み量（コンテキスト）を増やす
+                num_ctx=8192 if proofread_mode else 4096,
             )
             if result["success"]:
+                generated_text = result["generated_text"]
+                if proofread_mode:
+                    generated_text = _truncate_chars(generated_text, limit=5200)
                 return {
                     "success": True,
-                    "generated_text": result["generated_text"],
+                    "generated_text": generated_text,
                     "model_name": model_name,
                     "model_type": "ollama",
                     "method": "ollama_api",
@@ -759,13 +851,17 @@ async def generate_with_model_selection(request: dict):
                     ollama, available = _get_ollama()
                     if available and ollama is not None:
                         result = ollama.generate_text(
-                            model_name=ollama_model_name, prompt=prompt, temperature=temperature,
-                            top_p=top_p, max_tokens=max_length,
+                            model_name=ollama_model_name, prompt=effective_prompt, temperature=temperature,
+                            top_p=top_p, max_tokens=effective_max_tokens,
+                            num_ctx=8192 if proofread_mode else 4096,
                         )
                         if result["success"]:
+                            gen_txt = result["generated_text"]
+                            if proofread_mode:
+                                gen_txt = _truncate_chars(gen_txt, limit=5200)
                             return {
                                 "success": True,
-                                "generated_text": result["generated_text"],
+                                "generated_text": gen_txt,
                                 "model_name": f"{model_name} (Ollama fallback: {ollama_model_name})",
                                 "model_type": "finetuned_ollama_fallback",
                                 "method": "ollama_fallback",
@@ -805,22 +901,33 @@ async def generate_with_model_selection(request: dict):
                 model = cached_model["model"]
                 tokenizer = cached_model["tokenizer"]
 
-                inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True)
+                # 長文入力を切り詰めすぎない（tokenizerの上限に合わせる）
+                input_max_len = _tokenizer_input_max_len(
+                    tokenizer, 4096 if proofread_mode else 2048
+                )
+                inputs = tokenizer(
+                    effective_prompt,
+                    return_tensors="pt",
+                    padding=True,
+                    truncation=True,
+                    max_length=input_max_len
+                )
                 with torch.no_grad():
                     outputs = model.generate(
                         inputs.input_ids,
                         attention_mask=inputs.attention_mask,
-                        max_length=max_length,
+                        max_new_tokens=int(effective_max_tokens),
                         temperature=temperature,
                         top_p=top_p,
-                        do_sample=True,
+                        do_sample=(not proofread_mode) and (temperature is not None and float(temperature) > 0.0),
                         pad_token_id=tokenizer.pad_token_id,
                         eos_token_id=tokenizer.eos_token_id,
                     )
 
-                generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-                if generated_text.startswith(prompt):
-                    generated_text = generated_text[len(prompt):].strip()
+                input_len = inputs.input_ids.shape[1]
+                generated_text = tokenizer.decode(outputs[0][input_len:], skip_special_tokens=True).strip()
+                if proofread_mode:
+                    generated_text = _truncate_chars(generated_text, limit=5200)
 
                 logger.info(f"ファインチューニング済みモデルでの生成完了: {len(generated_text)}文字")
                 return {

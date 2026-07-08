@@ -709,30 +709,6 @@ document.getElementById('searchForm')?.addEventListener('submit', async (e) => {
     }
 });
 
-// PDF → プロンプト取り込み
-document.getElementById('btnImportPdfToPrompt')?.addEventListener('click', async () => {
-    const fileInput = document.getElementById('pdfAsPrompt');
-    const status = document.getElementById('pdfImportStatus');
-    const queryBox = document.getElementById('query');
-    if (!fileInput.files || fileInput.files.length === 0) {
-        status.textContent = 'PDFが選択されていません';
-        return;
-    }
-    status.textContent = '抽出中…';
-    try {
-        const fd = new FormData();
-        fd.append('file', fileInput.files[0]);
-        fd.append('max_chars', '20000');
-        const res = await fetch('/rag/extract-pdf-text', { method: 'POST', body: fd });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || '抽出に失敗しました');
-        const prefix = '\n\n【PDF取り込みテキスト】\n';
-        queryBox.value = (queryBox.value ? (queryBox.value + prefix) : '') + data.text;
-        status.textContent = `取り込み完了（${data.returned_chars}/${data.chars}文字）`;
-    } catch (err) {
-        status.textContent = `エラー: ${err.message}`;
-    }
-});
 
 // 添付PDF照査フォーム
 document.getElementById('ephemeralVerifyForm')?.addEventListener('submit', async (e) => {
@@ -1767,6 +1743,62 @@ document.addEventListener('DOMContentLoaded', function() {
     if (settingsTab) {
         settingsTab.addEventListener('shown.bs.tab', function() {
             loadLoRAModels();
+        });
+    }
+    
+    // PDF → プロンプト取り込み
+    const btnImportPdf = document.getElementById('btnImportPdfToPrompt');
+    if (btnImportPdf) {
+        btnImportPdf.addEventListener('click', async () => {
+            const fileInput = document.getElementById('pdfAsPrompt');
+            const status = document.getElementById('pdfImportStatus');
+            const queryBox = document.getElementById('query');
+            
+            if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                if (status) status.textContent = 'PDFが選択されていません';
+                return;
+            }
+            
+            if (status) status.textContent = '抽出中…';
+            
+            try {
+                const fd = new FormData();
+                fd.append('file', fileInput.files[0]);
+                fd.append('max_chars', '120000');
+                const res = await fetch('/rag/extract-pdf-text', { method: 'POST', body: fd });
+                const data = await res.json();
+                
+                console.log('PDF抽出レスポンス:', data);
+                
+                if (!res.ok) {
+                    throw new Error(data.detail || '抽出に失敗しました');
+                }
+                
+                // テキストが空でないことを確認
+                if (!data.text || !data.text.trim()) {
+                    throw new Error('PDFからテキストが抽出できませんでした。PDFが画像のみの可能性があります。');
+                }
+                
+                if (queryBox) {
+                    const prefix = '\n\n【PDF取り込みテキスト】\n';
+                    const currentValue = queryBox.value || '';
+                    queryBox.value = currentValue + (currentValue ? prefix : '') + data.text;
+                    console.log('プロンプト欄に追加しました。文字数:', data.text.length);
+                } else {
+                    console.error('queryBox要素が見つかりません');
+                }
+                
+                if (status) {
+                    status.textContent = `取り込み完了（${data.returned_chars}/${data.chars}文字）`;
+                    status.style.color = '#28a745';
+                }
+            } catch (err) {
+                console.error('PDF取り込みエラー:', err);
+                if (status) {
+                    status.textContent = `エラー: ${err.message}`;
+                    status.style.color = '#dc3545';
+                }
+            }
         });
     }
 });

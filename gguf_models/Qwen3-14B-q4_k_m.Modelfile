@@ -1,0 +1,23 @@
+FROM /workspace/gguf_models/Qwen3-14B-q4_k_m.gguf
+
+# Qwen3はChatML形式のテンプレートを使用
+# 末尾の空の<think></think>ブロックで思考モードを無効化し、回答のみを出力させる
+TEMPLATE """{{- if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}{{- if .Prompt }}<|im_start|>user
+{{ .Prompt }}<|im_end|>
+{{ end }}<|im_start|>assistant
+<think>
+
+</think>
+
+"""
+
+PARAMETER stop "<|im_start|>"
+PARAMETER stop "<|im_end|>"
+PARAMETER num_ctx 8192
+PARAMETER temperature 0.6
+PARAMETER top_p 0.9
+PARAMETER repeat_penalty 1.1
+
+SYSTEM "あなたは土木道路設計の専門知識を持つAIアシスタントです。技術的な質問に対して正確で詳細な回答を日本語で提供してください。日本の道路設計基準や技術標準に基づいて回答してください。"

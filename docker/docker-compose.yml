@@ -15,7 +15,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ['0']
+              device_ids: ['0', '1']
               capabilities: [gpu]
     
     # Load .env file
@@ -24,7 +24,7 @@ services:
 
     # Environment variables
     environment:
-      - CUDA_VISIBLE_DEVICES=0
+      - CUDA_VISIBLE_DEVICES=0,1
       - PYTHONPATH=/workspace
       - WANDB_API_KEY=${WANDB_API_KEY:-}
       - HF_TOKEN=${HF_TOKEN:-}
